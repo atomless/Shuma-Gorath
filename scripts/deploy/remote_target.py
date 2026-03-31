@@ -29,7 +29,7 @@ DEFAULT_BACKEND_KIND = "ssh_systemd"
 DEFAULT_APP_DIR = "/opt/shuma-gorath"
 DEFAULT_SERVICE_NAME = "shuma-gorath"
 DEFAULT_SPIN_MANIFEST_PATH = "/opt/shuma-gorath/spin.gateway.toml"
-DEFAULT_SMOKE_PATH = "/health"
+DEFAULT_SMOKE_PATH = "/shuma/health"
 DEFAULT_SHARED_HOST_UPSTREAM_ORIGIN = "http://127.0.0.1:8080"
 RELEASE_BUNDLE_SCRIPT = REPO_ROOT / "scripts" / "deploy" / "build_linode_release_bundle.py"
 REMOTE_UPDATE_ARCHIVE_PATH = "/tmp/shuma-remote-update-release.tar.gz"
@@ -337,7 +337,7 @@ def run_ssh_operation(receipt: dict[str, Any], remote_command: str) -> int:
 
 
 def dashboard_url(receipt: dict[str, Any]) -> str:
-    return receipt["runtime"]["public_base_url"].rstrip("/") + "/dashboard"
+    return receipt["runtime"]["public_base_url"].rstrip("/") + "/shuma/dashboard"
 
 
 def open_dashboard(receipt: dict[str, Any]) -> int:
@@ -604,7 +604,7 @@ fi
 if [[ -n "${{SHUMA_HEALTH_SECRET:-}}" ]]; then
   headers+=(-H "X-Shuma-Health-Secret: ${{SHUMA_HEALTH_SECRET}}")
 fi
-response="$(curl -s --max-time 8 -w $'\\n__HTTP_STATUS__:%{{http_code}}' http://127.0.0.1:3000/health "${{headers[@]}}" || true)"
+response="$(curl -s --max-time 8 -w $'\\n__HTTP_STATUS__:%{{http_code}}' http://127.0.0.1:3000/shuma/health "${{headers[@]}}" || true)"
 body="${{response%$'\\n'__HTTP_STATUS__:*}}"
 status="${{response##*$'\\n'__HTTP_STATUS__:}}"
 if [[ "${{status}}" == "200" ]] && grep -q "OK" <<< "${{body}}"; then

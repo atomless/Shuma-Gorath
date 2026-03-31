@@ -8,7 +8,7 @@ usage() {
   cat <<'EOF'
 Usage: wait_for_spin_ready.sh [--timeout-seconds N] [--base-url URL]
 
-Waits until GET /health returns HTTP 200 with an "OK" body.
+Waits until GET /shuma/health returns HTTP 200 with an "OK" body.
 Reads SHUMA_FORWARDED_IP_SECRET and SHUMA_HEALTH_SECRET from environment,
 falling back to .env.local when unset.
 EOF
@@ -79,12 +79,12 @@ last_body=""
 deadline=$((SECONDS + TIMEOUT_SECONDS))
 
 while (( SECONDS <= deadline )); do
-  response="$(curl -s --max-time 2 "${headers[@]}" -w $'\n__HTTP_STATUS__:%{http_code}' "${BASE_URL}/health" 2>/dev/null || true)"
+  response="$(curl -s --max-time 2 "${headers[@]}" -w $'\n__HTTP_STATUS__:%{http_code}' "${BASE_URL}/shuma/health" 2>/dev/null || true)"
   body="${response%$'\n'__HTTP_STATUS__:*}"
   status="${response##*$'\n'__HTTP_STATUS__:}"
 
   if [[ "$status" == "200" ]] && grep -q "OK" <<< "$body"; then
-    echo "Spin server is ready at ${BASE_URL}/health"
+    echo "Spin server is ready at ${BASE_URL}/shuma/health"
     exit 0
   fi
 
@@ -93,7 +93,7 @@ while (( SECONDS <= deadline )); do
   sleep 1
 done
 
-echo "Timed out waiting for Spin server after ${TIMEOUT_SECONDS}s (${BASE_URL}/health)." >&2
+echo "Timed out waiting for Spin server after ${TIMEOUT_SECONDS}s (${BASE_URL}/shuma/health)." >&2
 if [[ "$last_status" == "403" ]]; then
   echo "Last status was 403; verify SHUMA_FORWARDED_IP_SECRET and SHUMA_HEALTH_SECRET." >&2
 fi

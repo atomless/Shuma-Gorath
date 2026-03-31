@@ -69,7 +69,7 @@ class ValidateGatewayRouteCollisionsTests(unittest.TestCase):
         result = run_guardrail(
             {
                 "paths": [
-                    "/admin/login",
+                    "/shuma/admin/login",
                     "/products",
                 ]
             }

@@ -51,7 +51,7 @@ IMPLEMENTATION_REQUIREMENTS = [
         "id": "api_control_route",
         "path": "src/admin/api.rs",
         "markers": [
-            "/admin/adversary-sim/control",
+            "/shuma/admin/adversary-sim/control",
         ],
     },
     {
@@ -65,8 +65,8 @@ IMPLEMENTATION_REQUIREMENTS = [
         "id": "api_realtime_routes",
         "path": "src/admin/api.rs",
         "markers": [
-            "/admin/monitoring/delta",
-            "/admin/monitoring/stream",
+            "/shuma/admin/monitoring/delta",
+            "/shuma/admin/monitoring/stream",
         ],
     },
     {

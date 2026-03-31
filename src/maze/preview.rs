@@ -6,6 +6,7 @@ use super::renders::{
 };
 use super::rng::{generate_path_segment, SeededRng};
 use super::types::MazeConfig;
+use crate::http_route_namespace as route_namespace;
 use percent_encoding::{utf8_percent_encode, NON_ALPHANUMERIC};
 use std::time::{SystemTime, UNIX_EPOCH};
 const PREVIEW_SITE_ID: &str = "admin-preview";
@@ -53,7 +54,11 @@ pub(crate) fn normalize_preview_path(requested_path: Option<&str>) -> String {
 
 fn preview_href(path: &str) -> String {
     let encoded = utf8_percent_encode(path, NON_ALPHANUMERIC).to_string();
-    format!("/admin/maze/preview?path={}", encoded)
+    format!(
+        "{}/maze/preview?path={}",
+        route_namespace::SHUMA_ADMIN_PREFIX,
+        encoded
+    )
 }
 
 fn preview_breadcrumb(rng: &mut SeededRng) -> String {
@@ -183,7 +188,7 @@ mod tests {
     fn normalize_preview_path_rejects_invalid_input() {
         let default_path = crate::maze::default_preview_path();
         assert_eq!(
-            normalize_preview_path(Some("/admin/config")),
+            normalize_preview_path(Some("/shuma/admin/config")),
             default_path
         );
         assert_eq!(
@@ -213,7 +218,7 @@ mod tests {
         let html = render_admin_preview(&cfg, Some(crate::maze::entry_path("preview-segment").as_str()));
         assert!(!html.contains("Maze Preview"));
         assert!(!html.contains("Preview-only path."));
-        assert!(html.contains("/admin/maze/preview?path="));
+        assert!(html.contains("/shuma/admin/maze/preview?path="));
         assert!(!html.contains("Variant maze-v"));
         assert!(!html.contains("Synthetic navigation surface. Not authoritative content."));
         assert!(!html.contains("mt="));

@@ -426,13 +426,13 @@ pub(crate) fn maybe_handle_early_route(
         return Some(response);
     }
 
-    if (path == "/dashboard" || path == "/dashboard/")
+    if route_namespace::is_shuma_dashboard_root_path(path)
         && (*req.method() == Method::Get || *req.method() == Method::Head)
     {
         return Some(
             Response::builder()
                 .status(308)
-                .header("Location", "/dashboard/index.html")
+                .header("Location", route_namespace::SHUMA_DASHBOARD_INDEX_PATH)
                 .header("Cache-Control", "no-store, max-age=0, must-revalidate")
                 .body(Vec::new())
                 .build(),
@@ -440,7 +440,7 @@ pub(crate) fn maybe_handle_early_route(
     }
 
     // Health check endpoint
-    if path == "/health" {
+    if path == route_namespace::SHUMA_HEALTH_PATH {
         if !crate::health_secret_authorized(req) {
             return Some(Response::new(403, "Forbidden"));
         }
@@ -814,7 +814,7 @@ pub(crate) fn maybe_handle_early_route(
     }
 
     // Prometheus metrics endpoint
-    if path == "/metrics" {
+    if path == route_namespace::SHUMA_METRICS_PATH {
         if let Ok(store) = Store::open_default() {
             return Some(crate::observability::metrics::handle_metrics(&store));
         }
@@ -873,7 +873,7 @@ pub(crate) fn maybe_handle_early_route(
     }
 
     // Admin API
-    if path.starts_with("/admin") {
+    if route_namespace::is_shuma_admin_path(path) {
         if req.method() == &Method::Options {
             return Some(Response::new(403, "Forbidden"));
         }

@@ -1,6 +1,8 @@
 use serde_json::json;
 use spin_sdk::http::{Method, Request, Response};
 
+use crate::http_route_namespace as route_namespace;
+
 pub(crate) fn handle_admin_events<S>(req: &Request, store: &S) -> Response
 where
     S: crate::challenge::KeyValueStore,
@@ -283,7 +285,7 @@ where
         "recent_sim_runs": recent_sim_runs,
         "freshness": freshness,
         "stream_supported": true,
-        "stream_endpoint": "/admin/monitoring/stream"
+        "stream_endpoint": format!("{}/monitoring/stream", route_namespace::SHUMA_ADMIN_PREFIX)
     }))
     .unwrap();
     Response::builder()
@@ -458,7 +460,7 @@ where
         "active_bans_message": active_ban_snapshot.message,
         "freshness": freshness,
         "stream_supported": true,
-        "stream_endpoint": "/admin/ip-bans/stream"
+        "stream_endpoint": format!("{}/ip-bans/stream", route_namespace::SHUMA_ADMIN_PREFIX)
     }))
     .unwrap();
     Response::builder()

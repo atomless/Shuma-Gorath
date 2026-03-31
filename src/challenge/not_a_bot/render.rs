@@ -337,7 +337,7 @@ mod tests {
     #[test]
     fn normalize_return_to_rejects_not_a_bot_self_route() {
         assert_eq!(
-            normalize_return_to("/challenge/not-a-bot-checkbox?next=/dashboard"),
+            normalize_return_to("/challenge/not-a-bot-checkbox?next=/shuma/dashboard"),
             "/"
         );
     }

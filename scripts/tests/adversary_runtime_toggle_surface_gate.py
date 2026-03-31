@@ -209,7 +209,7 @@ class RuntimeToggleSurfaceGate:
         }
 
         while time.time() < deadline:
-            monitoring = self.request("GET", "/admin/monitoring?hours=24&limit=200")
+            monitoring = self.request("GET", "/shuma/admin/monitoring?hours=24&limit=200")
             if monitoring["status"] != 200:
                 time.sleep(1)
                 continue
@@ -218,13 +218,13 @@ class RuntimeToggleSurfaceGate:
         return counts
 
     def ensure_health(self) -> None:
-        response = self.request("GET", "/health", extra_headers=self._health_headers())
+        response = self.request("GET", "/shuma/health", extra_headers=self._health_headers())
         if response["status"] != 200:
             raise RuntimeError(f"health check failed: status={response['status']} body={response['raw'][:200]}")
 
     def clear_loopback_bans(self) -> None:
         for ip in ("127.0.0.1", "::1", "unknown"):
-            response = self.request("POST", f"/admin/unban?ip={ip}")
+            response = self.request("POST", f"/shuma/admin/unban?ip={ip}")
             if response["status"] != 200:
                 raise RuntimeError(
                     f"failed to clear loopback ban for {ip}: status={response['status']} body={response['raw'][:200]}"
@@ -232,7 +232,7 @@ class RuntimeToggleSurfaceGate:
 
     def clear_runtime_surface_bans(self) -> None:
         for ip in runtime_surface_candidate_ips(load_runtime_surface_corpus_profile()):
-            response = self.request("POST", f"/admin/unban?ip={ip}")
+            response = self.request("POST", f"/shuma/admin/unban?ip={ip}")
             if response["status"] != 200:
                 raise RuntimeError(
                     f"failed to clear runtime-surface ban for {ip}: status={response['status']} body={response['raw'][:200]}"
@@ -258,7 +258,7 @@ class RuntimeToggleSurfaceGate:
                 "challenge_puzzle_abuse": 1,
             },
         }
-        response = self.request("POST", "/admin/config", payload)
+        response = self.request("POST", "/shuma/admin/config", payload)
         if response["status"] != 200:
             raise RuntimeError(
                 f"failed to apply runtime surface config profile: status={response['status']} body={response['raw'][:200]}"
@@ -270,7 +270,7 @@ class RuntimeToggleSurfaceGate:
             operation_id = f"runtime-surface-{int(time.time())}-{suffix}-a{attempt}"
             response = self.request(
                 "POST",
-                "/admin/adversary-sim/control",
+                "/shuma/admin/adversary-sim/control",
                 {
                     "enabled": bool(enabled),
                     "lane": RUNTIME_SURFACE_LANE,
@@ -366,7 +366,7 @@ class RuntimeToggleSurfaceGate:
         }
 
     def current_recent_scrapling_run_ids(self) -> set[str]:
-        operator_snapshot = self.request("GET", "/admin/operator-snapshot")
+        operator_snapshot = self.request("GET", "/shuma/admin/operator-snapshot")
         if operator_snapshot["status"] != 200:
             return set()
         recent_runs = self._as_list(
@@ -402,7 +402,7 @@ class RuntimeToggleSurfaceGate:
         }
 
         while time.time() < deadline:
-            operator_snapshot = self.request("GET", "/admin/operator-snapshot")
+            operator_snapshot = self.request("GET", "/shuma/admin/operator-snapshot")
             if operator_snapshot["status"] != 200:
                 time.sleep(1)
                 continue
@@ -431,7 +431,7 @@ class RuntimeToggleSurfaceGate:
         }
 
         while time.time() < deadline:
-            status = self.request("GET", "/admin/oversight/agent/status")
+            status = self.request("GET", "/shuma/admin/oversight/agent/status")
             if status["status"] != 200:
                 time.sleep(1)
                 continue
@@ -459,7 +459,7 @@ class RuntimeToggleSurfaceGate:
         counts = dict(baseline)
 
         while time.time() < deadline:
-            monitoring = self.request("GET", "/admin/monitoring?hours=24&limit=200")
+            monitoring = self.request("GET", "/shuma/admin/monitoring?hours=24&limit=200")
             if monitoring["status"] != 200:
                 time.sleep(1)
                 continue

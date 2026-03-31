@@ -241,7 +241,7 @@ class MazeLiveTraversalGate:
     def ensure_health(self) -> None:
         health = self._request(
             "GET",
-            "/health",
+            "/shuma/health",
             include_health_secret=True,
             forwarded_ip=self.local_admin_ip,
         )
@@ -253,7 +253,7 @@ class MazeLiveTraversalGate:
     def fetch_runtime_config(self) -> dict[str, Any]:
         response = self._request(
             "GET",
-            "/admin/config",
+            "/shuma/admin/config",
             include_auth=True,
             include_json=True,
             forwarded_ip=self.local_admin_ip,
@@ -271,7 +271,7 @@ class MazeLiveTraversalGate:
     def apply_runtime_config(self, payload: dict[str, Any]) -> None:
         response = self._request(
             "POST",
-            "/admin/config",
+            "/shuma/admin/config",
             payload=payload,
             include_auth=True,
             include_json=True,
@@ -285,7 +285,7 @@ class MazeLiveTraversalGate:
     def fetch_recent_events(self) -> list[dict[str, Any]]:
         response = self._request(
             "GET",
-            "/admin/monitoring?hours=1&limit=100",
+            "/shuma/admin/monitoring?hours=1&limit=100",
             include_auth=True,
             include_json=True,
             forwarded_ip=self.local_admin_ip,
@@ -360,10 +360,10 @@ class MazeLiveTraversalGate:
         try:
             self.apply_runtime_config(MAZE_PROFILE)
 
-            # The public opaque path is derived server-side; use the canonical preview seed via /admin/maze/preview.
+            # The public opaque path is derived server-side; use the canonical preview seed via /shuma/admin/maze/preview.
             preview = self._request(
                 "GET",
-                "/admin/maze/preview",
+                "/shuma/admin/maze/preview",
                 include_auth=True,
                 forwarded_ip=self.local_admin_ip,
             )

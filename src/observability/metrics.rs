@@ -679,7 +679,7 @@ fn render_metrics_with_store(
     output.push_str(
         "# HELP bot_defence_cdp_detections_total Total CDP detection reports processed\n",
     );
-    // Keep parity with `/admin/cdp` stats while preserving the buffered metrics key path.
+    // Keep parity with `/shuma/admin/cdp` stats while preserving the buffered metrics key path.
     let cdp_detections = get_counter(store, "cdp:detections").max(get_counter(
         store,
         &format!("{}cdp_detections_total", METRICS_PREFIX),
@@ -1349,7 +1349,7 @@ pub fn render_metrics(store: &Store) -> String {
     render_metrics_with_store(store, count_active_bans(store))
 }
 
-/// Handle GET /metrics endpoint
+/// Handle GET /shuma/metrics endpoint
 pub fn handle_metrics(store: &Store) -> spin_sdk::http::Response {
     if crate::config::load_runtime_cached(store, "default").is_err() {
         return spin_sdk::http::Response::new(500, "Configuration unavailable");

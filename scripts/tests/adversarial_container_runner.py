@@ -247,7 +247,7 @@ def forwarded_headers(forwarded_secret: str, health_secret: str) -> Dict[str, st
 
 def wait_ready(base_url: str, forwarded_secret: str, health_secret: str, timeout_seconds: int = 30) -> None:
     deadline = time.monotonic() + timeout_seconds
-    health_url = base_url.rstrip("/") + "/health"
+    health_url = base_url.rstrip("/") + "/shuma/health"
     headers = forwarded_headers(forwarded_secret, health_secret)
     while time.monotonic() < deadline:
         request = urllib.request.Request(health_url, method="GET")
@@ -277,14 +277,14 @@ def orchestrator_reset_hook(base_url: str, api_key: str, forwarded_secret: str) 
             base_url,
             api_key,
             forwarded_secret,
-            "/admin/config",
+            "/shuma/admin/config",
             {"shadow_mode": False},
         )
         control_reset = admin_write_json(
             base_url,
             api_key,
             forwarded_secret,
-            "/admin/adversary-sim/control",
+            "/shuma/admin/adversary-sim/control",
             {"enabled": False, "reason": "container_blackbox_reset"},
             extra_headers={
                 "Idempotency-Key": str(uuid.uuid4()),
@@ -575,7 +575,7 @@ def validate_attack_plan_candidate_payload(
     path_hint = str(target.get("path_hint") or "").strip()
     if not path_hint.startswith("/"):
         reasons.append("target_path_hint_must_start_with_slash")
-    if path_hint.startswith("/admin/"):
+    if path_hint.startswith("/shuma/admin/"):
         reasons.append("target_path_hint_forbidden_prefix")
     return reasons
 
@@ -1426,14 +1426,14 @@ def main() -> int:
                 host_base_url,
                 api_key,
                 forwarded_secret,
-                "/admin/events?hours=24&limit=1000",
+                "/shuma/admin/events?hours=24&limit=1000",
             )
             runtime_events = collect_run_events_from_payload(events_payload, run_id)
             monitoring_payload = admin_read_json(
                 host_base_url,
                 api_key,
                 forwarded_secret,
-                "/admin/monitoring?hours=24&limit=25",
+                "/shuma/admin/monitoring?hours=24&limit=25",
             )
             monitoring_details = dict(monitoring_payload.get("details") or {})
             monitoring_events = collect_run_events_from_payload(

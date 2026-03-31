@@ -170,7 +170,7 @@ function hasOnlyTransientStaticDisconnectFailures(page) {
     return false;
   }
   return failures.every((failure) =>
-    /requestfailed:\s+GET\s+.*\/dashboard\/_app\/immutable\/.*ERR_CONNECTION_REFUSED/i.test(failure)
+    /requestfailed:\s+GET\s+.*\/shuma\/dashboard\/_app\/immutable\/.*ERR_CONNECTION_REFUSED/i.test(failure)
   );
 }
 
@@ -302,12 +302,12 @@ function dashboardRelativePath(url) {
     const parsed = new URL(url);
     return `${parsed.pathname}${parsed.search}${parsed.hash}`;
   } catch (_error) {
-    return "/dashboard/index.html";
+    return "/shuma/dashboard/index.html";
   }
 }
 
 function isDashboardLoginUrl(url) {
-  return String(url || "").includes("/dashboard/login.html");
+  return String(url || "").includes("/shuma/dashboard/login.html");
 }
 
 function newDashboardIdempotencyKey() {
@@ -375,7 +375,7 @@ function extractConfigPatchFromPaths(config, paths = []) {
 }
 
 async function fetchAdminConfig(request, ip = "127.0.0.1") {
-  const response = await request.get(`${BASE_URL}/admin/config`, {
+  const response = await request.get(`${BASE_URL}/shuma/admin/config`, {
     headers: buildAdminAuthHeaders(ip)
   });
   if (!response.ok()) {
@@ -389,7 +389,7 @@ async function fetchAdminConfig(request, ip = "127.0.0.1") {
 }
 
 async function fetchAdminConfigRuntime(request, ip = "127.0.0.1") {
-  const response = await request.get(`${BASE_URL}/admin/config`, {
+  const response = await request.get(`${BASE_URL}/shuma/admin/config`, {
     headers: buildAdminAuthHeaders(ip)
   });
   if (!response.ok()) {
@@ -418,14 +418,14 @@ async function fetchRuntimeEnvironment(request, ip = "127.0.0.1") {
   const payload = await fetchAdminConfigRuntime(request, ip);
   const runtimeEnvironment = String(payload?.runtime_environment || "").trim();
   if (runtimeEnvironment !== "runtime-dev" && runtimeEnvironment !== "runtime-prod") {
-    throw new Error(`unexpected runtime_environment from /admin/config: ${runtimeEnvironment || "missing"}`);
+    throw new Error(`unexpected runtime_environment from /shuma/admin/config: ${runtimeEnvironment || "missing"}`);
   }
   return runtimeEnvironment;
 }
 
 async function fetchAdversarySimStatus(_request, ip = "127.0.0.1") {
   const cacheBuster = `${Date.now().toString(16)}-${Math.floor(Math.random() * 0x1_0000_0000).toString(16)}`;
-  const response = await fetch(`${BASE_URL}/admin/adversary-sim/status?cache_bust=${cacheBuster}`, {
+  const response = await fetch(`${BASE_URL}/shuma/admin/adversary-sim/status?cache_bust=${cacheBuster}`, {
     method: "GET",
     headers: {
       ...buildAdminAuthHeaders(ip),
@@ -556,7 +556,7 @@ async function controlAdversarySimViaAdmin(
     if (desiredLane) {
       payload.lane = desiredLane;
     }
-    const response = await request.post(`${BASE_URL}/admin/adversary-sim/control`, {
+    const response = await request.post(`${BASE_URL}/shuma/admin/adversary-sim/control`, {
       headers: {
         ...buildAdminAuthHeaders(ip),
         "Content-Type": "application/json",
@@ -675,7 +675,7 @@ async function withRestoredAdversarySimConfig(request, callback, ip = "127.0.0.1
 async function waitForDashboardSessionAuthenticated(page, timeoutMs = 10000) {
   await page.waitForFunction(async () => {
     try {
-      const response = await fetch("/admin/session", {
+      const response = await fetch("/shuma/admin/session", {
         method: "GET",
         credentials: "same-origin",
         cache: "no-store"
@@ -699,7 +699,7 @@ function expectDashboardRuntimeClass(bodyState, runtimeEnvironment) {
 
 async function bootstrapDashboardSession(page, targetUrl) {
   const nextPath = dashboardRelativePath(targetUrl);
-  const loginUrl = `${BASE_URL}/dashboard/login.html?next=${encodeURIComponent(nextPath)}`;
+  const loginUrl = `${BASE_URL}/shuma/dashboard/login.html?next=${encodeURIComponent(nextPath)}`;
   const maxAttempts = 4;
   for (let attempt = 0; attempt < maxAttempts; attempt += 1) {
     await page.goto(loginUrl);
@@ -709,7 +709,7 @@ async function bootstrapDashboardSession(page, targetUrl) {
 
     await page.waitForFunction(() => {
       const path = window.location.pathname;
-      if (path.endsWith("/dashboard/index.html")) {
+      if (path.endsWith("/shuma/dashboard/index.html")) {
         return true;
       }
       const message = (document.getElementById("login-msg")?.textContent || "").trim();
@@ -717,7 +717,7 @@ async function bootstrapDashboardSession(page, targetUrl) {
     }, { timeout: 8000 }).catch(() => {});
 
     let failureMessage = "";
-    if (page.url().includes("/dashboard/login.html")) {
+    if (page.url().includes("/shuma/dashboard/login.html")) {
       failureMessage = (await page.locator("#login-msg").textContent().catch(() => "") || "").trim();
     } else {
       await page.goto(targetUrl);
@@ -748,7 +748,7 @@ async function bootstrapDashboardSession(page, targetUrl) {
 
 async function openDashboard(page, options = {}) {
   const initialTab = typeof options.initialTab === "string" ? options.initialTab : "game-loop";
-  const targetUrl = `${BASE_URL}/dashboard/index.html#${initialTab}`;
+  const targetUrl = `${BASE_URL}/shuma/dashboard/index.html#${initialTab}`;
   ensureRuntimeGuard(page);
   let lastError = null;
   for (let attempt = 0; attempt < 2; attempt += 1) {
@@ -758,7 +758,7 @@ async function openDashboard(page, options = {}) {
       await page.waitForTimeout(250);
       if (isDashboardLoginUrl(page.url())) {
         await bootstrapDashboardSession(page, targetUrl);
-        await expect(page).toHaveURL(/\/dashboard\/index\.html/);
+        await expect(page).toHaveURL(/\/shuma\/dashboard\/index\.html/);
       }
       if (!page.url().endsWith(`#${initialTab}`)) {
         await page.evaluate((tab) => {
@@ -870,7 +870,7 @@ async function clickAdversaryToggleWithRetry(page, desiredEnabled, timeoutMs = 6
     }).catch(() => false);
 
     const responsePromise = page.waitForResponse((resp) => (
-      resp.url().includes("/admin/adversary-sim/control") &&
+      resp.url().includes("/shuma/admin/adversary-sim/control") &&
       resp.request().method() === "POST"
     ), { timeout: 6000 });
 
@@ -926,7 +926,7 @@ function buildAdminAuthHeaders(ip = "127.0.0.1") {
 }
 
 async function updateAdminConfig(request, patch, ip = "127.0.0.1") {
-  const response = await request.post(`${BASE_URL}/admin/config`, {
+  const response = await request.post(`${BASE_URL}/shuma/admin/config`, {
     headers: {
       ...buildAdminAuthHeaders(ip),
       "Content-Type": "application/json"
@@ -948,7 +948,7 @@ async function fetchFrontierProviderCount(request, ip = "127.0.0.1") {
 }
 
 async function fetchMonitoringSnapshot(request, hours = 24, limit = 200, ip = "127.0.0.1") {
-  const response = await request.get(`${BASE_URL}/admin/monitoring?hours=${hours}&limit=${limit}`, {
+  const response = await request.get(`${BASE_URL}/shuma/admin/monitoring?hours=${hours}&limit=${limit}`, {
     headers: buildAdminAuthHeaders(ip)
   });
   if (!response.ok()) {
@@ -990,7 +990,7 @@ async function submitConfigSave(page, button = page.locator("#save-verification-
   await expect(button).toBeEnabled();
   const [response] = await Promise.all([
     page.waitForResponse((resp) => (
-      resp.url().includes("/admin/config") &&
+      resp.url().includes("/shuma/admin/config") &&
       resp.request().method() === "POST"
     )),
     button.click()
@@ -1045,12 +1045,12 @@ test.afterEach(async ({ page }) => {
 });
 
 test("dashboard bare path redirects to canonical index route", async ({ request }) => {
-  const response = await request.get(`${BASE_URL}/dashboard`, { maxRedirects: 0 });
+  const response = await request.get(`${BASE_URL}/shuma/dashboard`, { maxRedirects: 0 });
   expect(response.status()).toBe(308);
-  expect(response.headers().location).toBe("/dashboard/index.html");
+  expect(response.headers().location).toBe("/shuma/dashboard/index.html");
 });
 
-test("sveltekit assets resolve under /dashboard/_app and /dashboard/assets base paths", async ({ page }) => {
+test("sveltekit assets resolve under /shuma/dashboard/_app and /shuma/dashboard/assets base paths", async ({ page }) => {
   await openDashboard(page);
   const assets = await page.evaluate(() => {
     const modulePreloads = Array.from(document.querySelectorAll("link[rel='modulepreload'][href]"))
@@ -1075,30 +1075,30 @@ test("sveltekit assets resolve under /dashboard/_app and /dashboard/assets base 
     };
   });
 
-  expect(assets.modulePreloads.some((path) => path.startsWith("/dashboard/_app/"))).toBe(true);
-  expect(assets.styles.some((path) => path.startsWith("/dashboard/_app/"))).toBe(true);
+  expect(assets.modulePreloads.some((path) => path.startsWith("/shuma/dashboard/_app/"))).toBe(true);
+  expect(assets.styles.some((path) => path.startsWith("/shuma/dashboard/_app/"))).toBe(true);
   expect(
     assets.scripts.some((path) => path.includes("/assets/vendor/chart-lite"))
   ).toBe(false);
-  expect(assets.shumaImagePath).toBe("/dashboard/assets/shuma-gorath-pencil.png");
+  expect(assets.shumaImagePath).toBe("/shuma/dashboard/assets/shuma-gorath-pencil.png");
   expect(assets.shumaImageComplete).toBe(true);
   expect(assets.shumaImageNaturalWidth).toBeGreaterThan(0);
 });
 
 test("dashboard login route remains functional after direct navigation and refresh", async ({ page }) => {
   ensureRuntimeGuard(page);
-  await page.goto(`${BASE_URL}/dashboard/login.html?next=%2Fdashboard%2Findex.html`);
+  await page.goto(`${BASE_URL}/shuma/dashboard/login.html?next=%2Fshuma%2Fdashboard%2Findex.html`);
   await expect(page.locator("#login-form")).toBeVisible();
   await expect(page.locator('link[rel="icon"]')).toHaveAttribute(
     "href",
-    /\/dashboard\/assets\/shuma-gorath-pencil-closed\.png$/
+    /\/shuma\/dashboard\/assets\/shuma-gorath-pencil-closed\.png$/
   );
   await expect(page.locator("#login-form")).toHaveAttribute("method", "POST");
-  await expect(page.locator("#login-form")).toHaveAttribute("action", "/admin/login");
+  await expect(page.locator("#login-form")).toHaveAttribute("action", "/shuma/admin/login");
   await expect(page.locator('label.control-label[for="username"]')).toHaveText("Account");
   await expect(page.locator('input#username[name="username"]')).toHaveValue("admin");
   await expect(page.locator('#username')).toHaveAttribute("readonly", "");
-  await expect(page.locator('input[type="hidden"][name="next"]')).toHaveValue("/dashboard/index.html");
+  await expect(page.locator('input[type="hidden"][name="next"]')).toHaveValue("/shuma/dashboard/index.html");
   await expect(page.locator("#current-password")).toHaveAttribute("name", "password");
   await expect(page.locator("#current-password")).toHaveAttribute("autocomplete", "current-password");
   await expect(page.locator("#current-password")).toBeFocused();
@@ -1106,23 +1106,23 @@ test("dashboard login route remains functional after direct navigation and refre
   await expect(page.locator("#login-form")).toBeVisible();
   await expect(page.locator('link[rel="icon"]')).toHaveAttribute(
     "href",
-    /\/dashboard\/assets\/shuma-gorath-pencil-closed\.png$/
+    /\/shuma\/dashboard\/assets\/shuma-gorath-pencil-closed\.png$/
   );
   await expect(page.locator("#current-password")).toBeFocused();
   await page.fill("#current-password", API_KEY);
   await page.click("#login-submit");
-  await expect(page).toHaveURL(/\/dashboard\/index\.html/);
+  await expect(page).toHaveURL(/\/shuma\/dashboard\/index\.html/);
   assertNoRuntimeFailures(page);
 });
 
 test("dashboard trailing-slash root preserves operator login flow", async ({ page }) => {
   ensureRuntimeGuard(page);
-  await page.goto(`${BASE_URL}/dashboard/`);
-  await expect(page).toHaveURL(/\/dashboard\/login\.html\?next=/);
+  await page.goto(`${BASE_URL}/shuma/dashboard/`);
+  await expect(page).toHaveURL(/\/shuma\/dashboard\/login\.html\?next=/);
   await expect(page.locator("#login-form")).toBeVisible();
   await page.fill("#current-password", API_KEY);
   await page.click("#login-submit");
-  await expect(page).toHaveURL(/\/dashboard\/index\.html/);
+  await expect(page).toHaveURL(/\/shuma\/dashboard\/index\.html/);
   await waitForDashboardSessionAuthenticated(page, 15000);
   assertNoRuntimeFailures(page);
 });
@@ -1135,7 +1135,7 @@ test("logged-out dashboard navigation keeps the auth gate visible until redirect
     releaseSessionResponse = resolve;
   });
 
-  await page.route("**/admin/session", async (route) => {
+  await page.route("**/shuma/admin/session", async (route) => {
     await sessionResponseReleased;
     await route.fulfill({
       status: 200,
@@ -1154,7 +1154,7 @@ test("logged-out dashboard navigation keeps the auth gate visible until redirect
     });
   });
 
-  await page.goto(`${BASE_URL}/dashboard/index.html`);
+  await page.goto(`${BASE_URL}/shuma/dashboard/index.html`);
 
   await expect(page.locator("#dashboard-auth-gate")).toBeAttached();
   await expect(page.locator("nav.dashboard-tabs")).toHaveCount(0);
@@ -1169,14 +1169,14 @@ test("logged-out dashboard navigation keeps the auth gate visible until redirect
 
   releaseSessionResponse();
 
-  await expect(page).toHaveURL(/\/dashboard\/login\.html\?next=/);
+  await expect(page).toHaveURL(/\/shuma\/dashboard\/login\.html\?next=/);
   await expect(page.locator("#login-form")).toBeVisible();
   assertNoRuntimeFailures(page);
 });
 
 test("not-a-bot browser lifecycle captures telemetry and rejects replayed submit", async ({ page, request }) => {
   const configHeaders = buildAdminAuthHeaders("127.0.0.1");
-  const currentConfigResponse = await request.get(`${BASE_URL}/admin/config`, {
+  const currentConfigResponse = await request.get(`${BASE_URL}/shuma/admin/config`, {
     headers: configHeaders
   });
   expect(currentConfigResponse.ok()).toBe(true);
@@ -1389,7 +1389,7 @@ test("dashboard clean-state renders explicit empty placeholders", async ({ page 
     }
   };
 
-  await page.route("**/admin/monitoring?hours=*&limit=*", async (route) => {
+  await page.route("**/shuma/admin/monitoring?hours=*&limit=*", async (route) => {
     await route.fulfill({
       status: 200,
       contentType: "application/json",
@@ -1411,7 +1411,7 @@ test("dashboard clean-state renders explicit empty placeholders", async ({ page 
           rate: { total_violations: 0, unique_offenders: 0, top_offenders: [], outcomes: {} },
           geo: { total_violations: 0, actions: { block: 0, challenge: 0, maze: 0 }, top_countries: [] }
         },
-        prometheus: { endpoint: "/metrics", notes: [] },
+        prometheus: { endpoint: "/shuma/metrics", notes: [] },
         details: {
           analytics: { ban_count: 0, shadow_mode: false, fail_mode: "open" },
           events: { recent_events: [], event_counts: {}, top_ips: [], unique_ips: 0 },
@@ -1423,7 +1423,7 @@ test("dashboard clean-state renders explicit empty placeholders", async ({ page 
       })
     });
   });
-  await page.route("**/admin/config", async (route) => {
+  await page.route("**/shuma/admin/config", async (route) => {
     if (route.request().method() !== "GET") {
       await route.continue();
       return;
@@ -1434,14 +1434,14 @@ test("dashboard clean-state renders explicit empty placeholders", async ({ page 
       body: JSON.stringify({ config: emptyConfig, runtime: emptyConfigRuntime })
     });
   });
-  await page.route("**/admin/ban", async (route) => {
+  await page.route("**/shuma/admin/ban", async (route) => {
     await route.fulfill({
       status: 200,
       contentType: "application/json",
       body: JSON.stringify({ bans: [] })
     });
   });
-  await page.route("**/admin/ip-range/suggestions?hours=*&limit=*", async (route) => {
+  await page.route("**/shuma/admin/ip-range/suggestions?hours=*&limit=*", async (route) => {
     await route.fulfill({
       status: 200,
       contentType: "application/json",
@@ -1458,7 +1458,7 @@ test("dashboard clean-state renders explicit empty placeholders", async ({ page 
       })
     });
   });
-  await page.route("**/admin/ip-bans/delta?*", async (route) => {
+  await page.route("**/shuma/admin/ip-bans/delta?*", async (route) => {
     await route.fulfill({
       status: 200,
       contentType: "application/json",
@@ -1586,7 +1586,7 @@ test("game loop, traffic, and diagnostics tabs expose their ownership split", as
 });
 
 test("diagnostics tab keeps subsystem inspection surfaces after overview-rollup retirement", async ({ page }) => {
-  await page.route("**/admin/monitoring?**", async (route) => {
+  await page.route("**/shuma/admin/monitoring?**", async (route) => {
     await route.fulfill({
       status: 200,
       contentType: "application/json",
@@ -1678,11 +1678,11 @@ test("diagnostics tab keeps subsystem inspection surfaces after overview-rollup 
           },
           cdp_events: { events: [] }
         },
-        prometheus: { endpoint: "/metrics", notes: [] }
+        prometheus: { endpoint: "/shuma/metrics", notes: [] }
       })
     });
   });
-  await page.route("**/admin/events?**", async (route) => {
+  await page.route("**/shuma/admin/events?**", async (route) => {
     await route.fulfill({
       status: 200,
       contentType: "application/json",
@@ -1711,7 +1711,7 @@ test("diagnostics tab keeps subsystem inspection surfaces after overview-rollup 
       })
     });
   });
-  await page.route("**/admin/cdp", async (route) => {
+  await page.route("**/shuma/admin/cdp", async (route) => {
     await route.fulfill({
       status: 200,
       contentType: "application/json",
@@ -1726,14 +1726,14 @@ test("diagnostics tab keeps subsystem inspection surfaces after overview-rollup 
       })
     });
   });
-  await page.route("**/admin/cdp/events?**", async (route) => {
+  await page.route("**/shuma/admin/cdp/events?**", async (route) => {
     await route.fulfill({
       status: 200,
       contentType: "application/json",
       body: JSON.stringify({ events: [] })
     });
   });
-  await page.route("**/admin/config", async (route) => {
+  await page.route("**/shuma/admin/config", async (route) => {
     if (route.request().method() !== "GET") {
       await route.continue();
       return;
@@ -1751,14 +1751,14 @@ test("diagnostics tab keeps subsystem inspection surfaces after overview-rollup 
       })
     });
   });
-  await page.route("**/admin/ban", async (route) => {
+  await page.route("**/shuma/admin/ban", async (route) => {
     await route.fulfill({
       status: 200,
       contentType: "application/json",
       body: JSON.stringify({ bans: [] })
     });
   });
-  await page.route("**/admin/ip-range/suggestions?hours=*&limit=*", async (route) => {
+  await page.route("**/shuma/admin/ip-range/suggestions?hours=*&limit=*", async (route) => {
     await route.fulfill({
       status: 200,
       contentType: "application/json",
@@ -1775,7 +1775,7 @@ test("diagnostics tab keeps subsystem inspection surfaces after overview-rollup 
       })
     });
   });
-  await page.route("**/admin/ip-bans/delta?*", async (route) => {
+  await page.route("**/shuma/admin/ip-bans/delta?*", async (route) => {
     await route.fulfill({
       status: 200,
       contentType: "application/json",
@@ -1805,7 +1805,7 @@ test("diagnostics tab keeps subsystem inspection surfaces after overview-rollup 
 
 test("game loop projects observer-facing round, adversary, and defence accountability from machine-first contracts", async ({ page }) => {
   await page.setViewportSize({ width: 1600, height: 1200 });
-  await page.route("**/admin/operator-snapshot", async (route) => {
+  await page.route("**/shuma/admin/operator-snapshot", async (route) => {
     await route.fulfill({
       status: 200,
       contentType: "application/json",
@@ -2047,7 +2047,7 @@ test("game loop projects observer-facing round, adversary, and defence accountab
     });
   });
 
-  await page.route("**/admin/oversight/history", async (route) => {
+  await page.route("**/shuma/admin/oversight/history", async (route) => {
     await route.fulfill({
       status: 200,
       contentType: "application/json",
@@ -2216,7 +2216,7 @@ test("game loop projects observer-facing round, adversary, and defence accountab
     });
   });
 
-  await page.route("**/admin/oversight/agent/status", async (route) => {
+  await page.route("**/shuma/admin/oversight/agent/status", async (route) => {
     await route.fulfill({
       status: 200,
       contentType: "application/json",
@@ -2373,7 +2373,7 @@ test("game loop projects observer-facing round, adversary, and defence accountab
 });
 
 test("game loop distinguishes recognition evaluation from scrapling surface contract truth", async ({ page }) => {
-  await page.route("**/admin/operator-snapshot", async (route) => {
+  await page.route("**/shuma/admin/operator-snapshot", async (route) => {
     await route.fulfill({
       status: 200,
       contentType: "application/json",
@@ -2513,7 +2513,7 @@ test("game loop distinguishes recognition evaluation from scrapling surface cont
     });
   });
 
-  await page.route("**/admin/oversight/history", async (route) => {
+  await page.route("**/shuma/admin/oversight/history", async (route) => {
     await route.fulfill({
       status: 200,
       contentType: "application/json",
@@ -2599,7 +2599,7 @@ test("game loop distinguishes recognition evaluation from scrapling surface cont
     });
   });
 
-  await page.route("**/admin/oversight/agent/status", async (route) => {
+  await page.route("**/shuma/admin/oversight/agent/status", async (route) => {
     await route.fulfill({
       status: 200,
       contentType: "application/json",
@@ -2667,7 +2667,7 @@ test("game loop distinguishes recognition evaluation from scrapling surface cont
 
 test("game loop observer archive marks missing judged runs without guessing adversary or defence casts", async ({ page }) => {
   await page.setViewportSize({ width: 1600, height: 1200 });
-  await page.route("**/admin/operator-snapshot", async (route) => {
+  await page.route("**/shuma/admin/operator-snapshot", async (route) => {
     await route.fulfill({
       status: 200,
       contentType: "application/json",
@@ -2717,7 +2717,7 @@ test("game loop observer archive marks missing judged runs without guessing adve
     });
   });
 
-  await page.route("**/admin/oversight/history", async (route) => {
+  await page.route("**/shuma/admin/oversight/history", async (route) => {
     await route.fulfill({
       status: 200,
       contentType: "application/json",
@@ -2776,7 +2776,7 @@ test("game loop observer archive marks missing judged runs without guessing adve
     });
   });
 
-  await page.route("**/admin/oversight/agent/status", async (route) => {
+  await page.route("**/shuma/admin/oversight/agent/status", async (route) => {
     await route.fulfill({
       status: 200,
       contentType: "application/json",
@@ -2837,7 +2837,7 @@ test("game loop observer archive marks missing judged runs without guessing adve
 
 test("game loop top casts prefer the freshest exact recent sim run over stale judged history", async ({ page }) => {
   await page.setViewportSize({ width: 1600, height: 1200 });
-  await page.route("**/admin/operator-snapshot", async (route) => {
+  await page.route("**/shuma/admin/operator-snapshot", async (route) => {
     await route.fulfill({
       status: 200,
       contentType: "application/json",
@@ -3003,7 +3003,7 @@ test("game loop top casts prefer the freshest exact recent sim run over stale ju
     });
   });
 
-  await page.route("**/admin/oversight/history", async (route) => {
+  await page.route("**/shuma/admin/oversight/history", async (route) => {
     await route.fulfill({
       status: 200,
       contentType: "application/json",
@@ -3076,7 +3076,7 @@ test("game loop top casts prefer the freshest exact recent sim run over stale ju
     });
   });
 
-  await page.route("**/admin/oversight/agent/status", async (route) => {
+  await page.route("**/shuma/admin/oversight/agent/status", async (route) => {
     await route.fulfill({
       status: 200,
       contentType: "application/json",
@@ -3156,7 +3156,7 @@ test("traffic manual refresh renders bounded traffic sections and preserves furn
       {}
     );
 
-  await page.route("**/admin/monitoring?hours=*&limit=*", async (route) => {
+  await page.route("**/shuma/admin/monitoring?hours=*&limit=*", async (route) => {
     await route.fulfill({
       status: 200,
       contentType: "application/json",
@@ -3201,7 +3201,7 @@ test("traffic manual refresh renders bounded traffic sections and preserves furn
             top_countries: buildCountEntries("CC", 12)
           }
         },
-        prometheus: { endpoint: "/metrics", notes: [] },
+        prometheus: { endpoint: "/shuma/metrics", notes: [] },
         details: {
           analytics: { ban_count: 2, shadow_mode: false, fail_mode: "open" },
           events: {
@@ -3230,7 +3230,7 @@ test("traffic manual refresh renders bounded traffic sections and preserves furn
       })
     });
   });
-  await page.route("**/admin/monitoring/delta?hours=*&limit=*", async (route) => {
+  await page.route("**/shuma/admin/monitoring/delta?hours=*&limit=*", async (route) => {
     const url = new URL(route.request().url());
     const limit = Number.parseInt(url.searchParams.get("limit") || "0", 10);
     const afterCursor = String(url.searchParams.get("after_cursor") || "").trim();
@@ -3288,7 +3288,7 @@ test("traffic manual refresh renders bounded traffic sections and preserves furn
 });
 
 test("status/verification/rate-limiting/geo/tuning show empty state when config snapshot is empty", async ({ page }) => {
-  await page.route("**/admin/config", async (route) => {
+  await page.route("**/shuma/admin/config", async (route) => {
     if (route.request().method() !== "GET") {
       await route.continue();
       return;
@@ -3369,7 +3369,7 @@ test("dashboard header overlays the eye only while shadow mode is enabled", asyn
   });
 });
 
-test("dashboard diagnostics totals stay in parity with /metrics monitoring families", async ({ page, request }) => {
+test("dashboard diagnostics totals stay in parity with /shuma/metrics monitoring families", async ({ page, request }) => {
   await openDashboard(page);
   await openTab(page, "diagnostics");
 
@@ -3379,8 +3379,8 @@ test("dashboard diagnostics totals stay in parity with /metrics monitoring famil
   };
 
   const [monitoringResponse, metricsResponse] = await Promise.all([
-    request.get(`${BASE_URL}/admin/monitoring?hours=24&limit=10`, { headers: adminHeaders }),
-    request.get(`${BASE_URL}/metrics`, { headers: buildTrustedForwardingHeaders() })
+    request.get(`${BASE_URL}/shuma/admin/monitoring?hours=24&limit=10`, { headers: adminHeaders }),
+    request.get(`${BASE_URL}/shuma/metrics`, { headers: buildTrustedForwardingHeaders() })
   ]);
 
   expect(monitoringResponse.ok()).toBe(true);
@@ -3498,7 +3498,7 @@ test("tab-local monitoring failures do not flip the global dashboard connection 
   await openDashboard(page, { initialTab: "status" });
   await openTab(page, "diagnostics", { waitForReady: true });
 
-  await page.route("**/admin/monitoring?hours=*&limit=*", async (route) => {
+  await page.route("**/shuma/admin/monitoring?hours=*&limit=*", async (route) => {
     await route.fulfill({
       status: 503,
       contentType: "application/json",
@@ -3739,7 +3739,7 @@ test("verification tab surfaces verified identity controls", async ({ page, requ
 
       await Promise.all([
         page.waitForResponse((resp) => (
-          resp.url().includes("/admin/config") &&
+          resp.url().includes("/shuma/admin/config") &&
           resp.request().method() === "POST" &&
           resp.status() >= 200 &&
           resp.status() < 300
@@ -3753,7 +3753,7 @@ test("verification tab surfaces verified identity controls", async ({ page, requ
 });
 
 test("status tab surfaces verified identity health summary", async ({ page }) => {
-  await page.route("**/admin/operator-snapshot", async (route) => {
+  await page.route("**/shuma/admin/operator-snapshot", async (route) => {
     await route.fulfill({
       status: 200,
       contentType: "application/json",
@@ -3840,17 +3840,17 @@ test("session survives reload and time-range controls refresh chart data", async
 
   await openTab(page, "traffic");
   await page.reload();
-  await expect(page).toHaveURL(/\/dashboard\/index\.html#traffic/);
+  await expect(page).toHaveURL(/\/shuma\/dashboard\/index\.html#traffic/);
   await expect(page.locator("#logout-btn")).toBeEnabled();
 
   await Promise.all([
-    page.waitForResponse((resp) => resp.url().includes("/admin/events?hours=168") && resp.ok()),
+    page.waitForResponse((resp) => resp.url().includes("/shuma/admin/events?hours=168") && resp.ok()),
     page.click('.time-btn[data-range="week"]')
   ]);
   await expect(page.locator('.time-btn[data-range="week"]')).toHaveClass(/active/);
 
   await Promise.all([
-    page.waitForResponse((resp) => resp.url().includes("/admin/events?hours=720") && resp.ok()),
+    page.waitForResponse((resp) => resp.url().includes("/shuma/admin/events?hours=720") && resp.ok()),
     page.click('.time-btn[data-range="month"]')
   ]);
   await expect(page.locator('.time-btn[data-range="month"]')).toHaveClass(/active/);
@@ -4021,7 +4021,7 @@ test("red team tab keeps controls and recent run history without machine-diagnos
   test.setTimeout(180_000);
   await withRestoredAdversarySimConfig(request, async () => {
     await forceAdversarySimDisabled(request);
-    await page.route("**/admin/oversight/history", async (route) => {
+    await page.route("**/shuma/admin/oversight/history", async (route) => {
       await route.fulfill({
         status: 200,
         contentType: "application/json",
@@ -4046,7 +4046,7 @@ test("red team tab keeps controls and recent run history without machine-diagnos
         })
       });
     });
-    await page.route("**/admin/oversight/agent/status", async (route) => {
+    await page.route("**/shuma/admin/oversight/agent/status", async (route) => {
       await route.fulfill({
         status: 200,
         contentType: "application/json",
@@ -4135,7 +4135,7 @@ test("red team tab keeps controls and recent run history without machine-diagnos
         })
       });
     });
-    await page.route("**/admin/adversary-sim/status", async (route) => {
+    await page.route("**/shuma/admin/adversary-sim/status", async (route) => {
       if (route.request().method() !== "GET") {
         await route.continue();
         return;
@@ -4166,7 +4166,7 @@ test("red team tab keeps controls and recent run history without machine-diagnos
           history_retention: {
             retention_hours: 168,
             cleanup_supported: true,
-            cleanup_endpoint: "/admin/adversary-sim/history/cleanup",
+            cleanup_endpoint: "/shuma/admin/adversary-sim/history/cleanup",
             cleanup_command: "make telemetry-clean"
           },
           supervisor: {
@@ -4294,7 +4294,7 @@ test("adversary sim toggle cancel path avoids orchestration request when frontie
     let controlRequestCount = 0;
     page.on("request", (req) => {
       if (
-        req.url().includes("/admin/adversary-sim/control") &&
+        req.url().includes("/shuma/admin/adversary-sim/control") &&
         req.method() === "POST"
       ) {
         controlRequestCount += 1;
@@ -4321,7 +4321,7 @@ test("adversary sim toggle continue path omits the no-frontier warning after con
   test.setTimeout(180_000);
   await withRestoredAdversarySimConfig(request, async () => {
     await forceAdversarySimDisabled(request);
-    await page.route("**/admin/config", async (route) => {
+    await page.route("**/shuma/admin/config", async (route) => {
       if (route.request().method() !== "GET") {
         await route.continue();
         return;
@@ -4360,7 +4360,7 @@ test("adversary sim toggle continue path omits the no-frontier warning after con
     let controlRequestCount = 0;
     page.on("request", (req) => {
       if (
-        req.url().includes("/admin/adversary-sim/control") &&
+        req.url().includes("/shuma/admin/adversary-sim/control") &&
         req.method() === "POST"
       ) {
         controlRequestCount += 1;
@@ -4454,7 +4454,7 @@ test("traffic manual refresh hydrates full snapshot even when first delta page i
       rate: { total_violations: 0, unique_offenders: 0, top_offenders: [], outcomes: {} },
       geo: { total_violations: 0, actions: { block: 0, challenge: 0, maze: 0 }, top_countries: [] }
     },
-    prometheus: { endpoint: "/metrics", notes: [] },
+    prometheus: { endpoint: "/shuma/metrics", notes: [] },
     details: {
       analytics: { ban_count: 0, shadow_mode: false, fail_mode: "open" },
       events: {
@@ -4477,14 +4477,14 @@ test("traffic manual refresh hydrates full snapshot even when first delta page i
     }
   });
 
-  await page.route("**/admin/monitoring?hours=*&limit=*", async (route) => {
+  await page.route("**/shuma/admin/monitoring?hours=*&limit=*", async (route) => {
     await route.fulfill({
       status: 200,
       contentType: "application/json",
       body: JSON.stringify(buildMonitoringPayload("historical-baseline-visible"))
     });
   });
-  await page.route("**/admin/monitoring/delta?hours=*&limit=*", async (route) => {
+  await page.route("**/shuma/admin/monitoring/delta?hours=*&limit=*", async (route) => {
     const url = new URL(route.request().url());
     const limit = Number.parseInt(url.searchParams.get("limit") || "0", 10);
     const afterCursor = (url.searchParams.get("after_cursor") || "").trim();
@@ -4529,7 +4529,7 @@ test("red team recent runs table renders compact run-history rows from monitorin
       rate: { total_violations: 0, unique_offenders: 0, top_offenders: [], outcomes: {} },
       geo: { total_violations: 0, actions: { block: 0, challenge: 0, maze: 0 }, top_countries: [] }
     },
-    prometheus: { endpoint: "/metrics", notes: [] },
+    prometheus: { endpoint: "/shuma/metrics", notes: [] },
     details: {
       analytics: { ban_count: 1, shadow_mode: false, fail_mode: "open" },
       events: {
@@ -4574,14 +4574,14 @@ test("red team recent runs table renders compact run-history rows from monitorin
     }
   });
 
-  await page.route("**/admin/monitoring?hours=*&limit=*", async (route) => {
+  await page.route("**/shuma/admin/monitoring?hours=*&limit=*", async (route) => {
     await route.fulfill({
       status: 200,
       contentType: "application/json",
       body: JSON.stringify(buildMonitoringPayload())
     });
   });
-  await page.route("**/admin/monitoring/delta?hours=*&limit=*", async (route) => {
+  await page.route("**/shuma/admin/monitoring/delta?hours=*&limit=*", async (route) => {
     const url = new URL(route.request().url());
     const afterCursor = (url.searchParams.get("after_cursor") || "").trim();
     await route.fulfill({
@@ -4626,7 +4626,7 @@ test("red team tab surfaces llm runtime lineage in recent adversary runs", async
       rate: { total_violations: 0, unique_offenders: 0, top_offenders: [], outcomes: {} },
       geo: { total_violations: 0, actions: { block: 0, challenge: 0, maze: 0 }, top_countries: [] }
     },
-    prometheus: { endpoint: "/metrics", notes: [] },
+    prometheus: { endpoint: "/shuma/metrics", notes: [] },
     details: {
       analytics: { ban_count: 0, shadow_mode: false, fail_mode: "open" },
       events: {
@@ -4694,14 +4694,14 @@ test("red team tab surfaces llm runtime lineage in recent adversary runs", async
     }
   });
 
-  await page.route("**/admin/monitoring?hours=*&limit=*", async (route) => {
+  await page.route("**/shuma/admin/monitoring?hours=*&limit=*", async (route) => {
     await route.fulfill({
       status: 200,
       contentType: "application/json",
       body: JSON.stringify(buildMonitoringPayload())
     });
   });
-  await page.route("**/admin/monitoring/delta?hours=*&limit=*", async (route) => {
+  await page.route("**/shuma/admin/monitoring/delta?hours=*&limit=*", async (route) => {
     const url = new URL(route.request().url());
     const afterCursor = (url.searchParams.get("after_cursor") || "").trim();
     await route.fulfill({
@@ -4719,7 +4719,7 @@ test("red team tab surfaces llm runtime lineage in recent adversary runs", async
       })
     });
   });
-  await page.route("**/admin/ip-bans*", async (route) => {
+  await page.route("**/shuma/admin/ip-bans*", async (route) => {
     await route.fulfill({
       status: 200,
       contentType: "application/json",
@@ -4764,7 +4764,7 @@ test("manual refresh button appends new monitoring delta events when auto-refres
       rate: { total_violations: 0, unique_offenders: 0, top_offenders: [], outcomes: {} },
       geo: { total_violations: 0, actions: { block: 0, challenge: 0, maze: 0 }, top_countries: [] }
     },
-    prometheus: { endpoint: "/metrics", notes: [] },
+    prometheus: { endpoint: "/shuma/metrics", notes: [] },
     details: {
       analytics: { ban_count: 0, shadow_mode: false, fail_mode: "open" },
       events: {
@@ -4790,7 +4790,7 @@ test("manual refresh button appends new monitoring delta events when auto-refres
   let deltaRequestCount = 0;
   let manualRefreshTriggered = false;
   let nonFreshnessDeltaCount = 0;
-  await page.route("**/admin/monitoring?hours=*&limit=*", async (route) => {
+  await page.route("**/shuma/admin/monitoring?hours=*&limit=*", async (route) => {
     const reason = manualRefreshTriggered
       ? "manual-refresh-delta-event"
       : "historical-baseline";
@@ -4800,7 +4800,7 @@ test("manual refresh button appends new monitoring delta events when auto-refres
       body: JSON.stringify(buildMonitoringPayload(reason))
     });
   });
-  await page.route("**/admin/monitoring/delta?hours=*&limit=*", async (route) => {
+  await page.route("**/shuma/admin/monitoring/delta?hours=*&limit=*", async (route) => {
     deltaRequestCount += 1;
     const url = new URL(route.request().url());
     const limit = Number.parseInt(url.searchParams.get("limit") || "0", 10);
@@ -4895,8 +4895,8 @@ test("route remount preserves keyboard navigation, ban/unban, verification save,
     }
     const url = request.url();
     if (
-      url.includes("/admin/ban") ||
-      url.includes("/admin/ip-bans/delta?hours=24")
+      url.includes("/shuma/admin/ban") ||
+      url.includes("/shuma/admin/ip-bans/delta?hours=24")
     ) {
       ipBansRefreshRequests += 1;
     }
@@ -4918,7 +4918,7 @@ test("route remount preserves keyboard navigation, ban/unban, verification save,
   await expect(page.locator("#ban-btn")).toBeEnabled();
   await Promise.all([
     page.waitForResponse((resp) => (
-      resp.url().includes("/admin/ban") &&
+      resp.url().includes("/shuma/admin/ban") &&
       resp.request().method() === "POST" &&
       resp.status() >= 200 &&
       resp.status() < 300
@@ -4930,7 +4930,7 @@ test("route remount preserves keyboard navigation, ban/unban, verification save,
   await expect(page.locator("#unban-btn")).toBeEnabled();
   await Promise.all([
     page.waitForResponse((resp) => (
-      resp.url().includes("/admin/unban") &&
+      resp.url().includes("/shuma/admin/unban") &&
       resp.request().method() === "POST" &&
       resp.status() >= 200 &&
       resp.status() < 300
@@ -4947,7 +4947,7 @@ test("route remount preserves keyboard navigation, ban/unban, verification save,
       await expect(configSave).toBeEnabled();
       await Promise.all([
         page.waitForResponse((resp) => (
-          resp.url().includes("/admin/config") &&
+          resp.url().includes("/shuma/admin/config") &&
           resp.request().method() === "POST" &&
           resp.status() >= 200 &&
           resp.status() < 300
@@ -4969,7 +4969,7 @@ test("route remount preserves keyboard navigation, ban/unban, verification save,
 test("traffic manual refresh avoids placeholder flicker and bounds table churn", async ({ page }) => {
   let monitoringSnapshotRequests = 0;
   let monitoringDeltaRequests = 0;
-  await page.route("**/admin/monitoring?hours=*&limit=*", async (route) => {
+  await page.route("**/shuma/admin/monitoring?hours=*&limit=*", async (route) => {
     monitoringSnapshotRequests += 1;
     const sample = monitoringSnapshotRequests;
     await new Promise((resolve) => setTimeout(resolve, 120));
@@ -4989,7 +4989,7 @@ test("traffic manual refresh avoids placeholder flicker and bounds table churn",
           rate: { total_violations: 0, unique_offenders: 0, top_offenders: [], outcomes: {} },
           geo: { total_violations: 0, actions: { block: 0, challenge: 0, maze: 0 }, top_countries: [] }
         },
-        prometheus: { endpoint: "/metrics", notes: [] },
+        prometheus: { endpoint: "/shuma/metrics", notes: [] },
         details: {
           analytics: { ban_count: 1, shadow_mode: false, fail_mode: "open" },
           events: {
@@ -5015,7 +5015,7 @@ test("traffic manual refresh avoids placeholder flicker and bounds table churn",
       })
     });
   });
-  await page.route("**/admin/monitoring/delta?hours=*&limit=*", async (route) => {
+  await page.route("**/shuma/admin/monitoring/delta?hours=*&limit=*", async (route) => {
     monitoringDeltaRequests += 1;
     const url = new URL(route.request().url());
     const limit = Number.parseInt(url.searchParams.get("limit") || "0", 10);
@@ -5110,8 +5110,8 @@ test("repeated route remount loops keep polling request fan-out bounded", async 
     if (
       request.method() === "GET" &&
       (
-        request.url().includes("/admin/ban") ||
-        request.url().includes("/admin/ip-bans/delta?hours=")
+        request.url().includes("/shuma/admin/ban") ||
+        request.url().includes("/shuma/admin/ip-bans/delta?hours=")
       )
     ) {
       ipBansRequests += 1;
@@ -5163,8 +5163,8 @@ test("native remount soak keeps refresh p95 and polling cadence within bounds", 
     await page.waitForTimeout(18);
     await route.continue();
   };
-  await page.route("**/admin/ban", delayedPassThrough);
-  await page.route("**/admin/ip-bans/delta?*", delayedPassThrough);
+  await page.route("**/shuma/admin/ban", delayedPassThrough);
+  await page.route("**/shuma/admin/ip-bans/delta?*", delayedPassThrough);
 
   const cadenceDeltas = [];
   const fetchP95Samples = [];
@@ -5238,7 +5238,7 @@ test("verification save roundtrip clears dirty state after successful write", as
 
     await Promise.all([
       page.waitForResponse((resp) => (
-        resp.url().includes("/admin/config") &&
+        resp.url().includes("/shuma/admin/config") &&
         resp.request().method() === "POST" &&
         resp.status() >= 200 &&
         resp.status() < 300
@@ -5536,7 +5536,7 @@ test("tab error state is surfaced when tab-scoped fetch fails", async ({ page })
   await openDashboard(page);
   await clearDashboardClientCache(page);
 
-  await page.route("**/admin/ban", async (route) => {
+  await page.route("**/shuma/admin/ban", async (route) => {
     await route.fulfill({
       status: 503,
       contentType: "application/json",
@@ -5546,14 +5546,14 @@ test("tab error state is surfaced when tab-scoped fetch fails", async ({ page })
 
   await openTab(page, "ip-bans");
   await expect(page.locator('[data-tab-state="ip-bans"]')).toContainText("temporary ban endpoint outage");
-  await page.unroute("**/admin/ban");
+  await page.unroute("**/shuma/admin/ban");
 });
 
 test("diagnostics tab surfaces tab-scoped error when consolidated monitoring fetch fails", async ({ page }) => {
   await openDashboard(page, { initialTab: "status" });
   await openTab(page, "diagnostics", { waitForReady: true });
 
-  await page.route("**/admin/monitoring?hours=*&limit=*", async (route) => {
+  await page.route("**/shuma/admin/monitoring?hours=*&limit=*", async (route) => {
     await route.fulfill({
       status: 503,
       contentType: "application/json",
@@ -5569,7 +5569,7 @@ test("diagnostics tab surfaces tab-scoped error when consolidated monitoring fet
 
 test("shared config endpoint failures surface per-tab errors for status/verification/advanced/policy/tuning", async ({ page }) => {
   const assertSharedConfigErrorOnInitialTab = async (tab, message) => {
-    await page.route("**/admin/config", async (route) => {
+    await page.route("**/shuma/admin/config", async (route) => {
       if (route.request().method() !== "GET") {
         await route.continue();
         return;
@@ -5595,7 +5595,7 @@ test("shared config endpoint failures surface per-tab errors for status/verifica
 test("logout redirects back to login page", async ({ page }) => {
   await openDashboard(page);
   await page.click("#logout-btn");
-  await expect(page).toHaveURL(/\/dashboard\/login\.html\?next=/);
+  await expect(page).toHaveURL(/\/shuma\/dashboard\/login\.html\?next=/);
 });
 
 test("logout with unsaved config changes prompts once and cancel preserves the dashboard session", async ({ page }) => {
@@ -5633,7 +5633,7 @@ test("logout with unsaved config changes prompts once and cancel preserves the d
 
   expect(dialogs).toHaveLength(1);
   expect(dialogs[0].type).toBe("confirm");
-  await expect(page).toHaveURL(/\/dashboard\/index\.html#verification$/);
+  await expect(page).toHaveURL(/\/shuma\/dashboard\/index\.html#verification$/);
   await expect(page.locator("#logout-btn")).toBeEnabled();
   await expect(configSave).toBeVisible();
   await expect(configSave).toBeEnabled();
@@ -5674,7 +5674,7 @@ test("logout with unsaved config changes prompts once before redirecting to logi
 
   try {
     await page.click("#logout-btn");
-    await expect(page).toHaveURL(/\/dashboard\/login\.html\?next=/);
+    await expect(page).toHaveURL(/\/shuma\/dashboard\/login\.html\?next=/);
     await page.waitForTimeout(500);
   } finally {
     page.off("dialog", handleDialog);

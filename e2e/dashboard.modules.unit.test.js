@@ -40,7 +40,7 @@ function setGlobalValue(key, value) {
 async function withBrowserGlobals(overrides = {}, fn) {
   const defaultLocation = {
     origin: 'http://127.0.0.1:3000',
-    pathname: '/dashboard/index.html',
+    pathname: '/shuma/dashboard/index.html',
     search: '',
     hash: ''
   };
@@ -537,6 +537,60 @@ test('dashboard API client parses JSON payloads when content-type is missing', {
   });
 });
 
+test('dashboard shuma route helpers and admin client default to the shuma namespace', { concurrency: false }, async () => {
+  await withBrowserGlobals({}, async () => {
+    const dashboardPathsModule = await importBrowserModule('dashboard/src/lib/runtime/dashboard-paths.js');
+    const apiModule = await importBrowserModule('dashboard/src/lib/domain/api-client.js');
+
+    assert.equal(dashboardPathsModule.normalizeDashboardBasePath(), '/shuma/dashboard');
+    assert.equal(
+      dashboardPathsModule.resolveDashboardBasePathFromLocation({
+        pathname: '/shuma/dashboard/index.html'
+      }),
+      '/shuma/dashboard'
+    );
+    assert.equal(
+      dashboardPathsModule.dashboardIndexPath('/shuma/dashboard'),
+      '/shuma/dashboard/index.html'
+    );
+    assert.equal(
+      dashboardPathsModule.buildDashboardLoginPath({
+        basePath: '/shuma/dashboard',
+        nextPath: '/shuma/dashboard/index.html'
+      }),
+      '/shuma/dashboard/login.html?next=%2Fshuma%2Fdashboard%2Findex.html'
+    );
+
+    const requestedPaths = [];
+    const client = apiModule.create({
+      getAdminContext: () => ({ endpoint: '', apikey: 'test-key' }),
+      request: async (url) => {
+        requestedPaths.push(url);
+        return {
+          ok: true,
+          status: 200,
+          headers: new Headers({ 'content-type': 'application/json' }),
+          text: async () => '{}',
+          json: async () => ({})
+        };
+      }
+    });
+
+    await client.getConfig();
+    await client.getAdversarySimStatus();
+
+    assert.deepEqual(requestedPaths, [
+      '/shuma/admin/config',
+      '/shuma/admin/adversary-sim/status'
+    ]);
+
+    await assert.rejects(
+      () => apiModule.create({ getAdminContext: () => null }).getConfig(),
+      /\/shuma\/dashboard\/login\.html/
+    );
+  });
+});
+
 test('dashboard API client adds CSRF + same-origin for session-auth writes and strips empty bearer', { concurrency: false }, async () => {
   await withBrowserGlobals({}, async () => {
     const apiModule = await importBrowserModule('dashboard/src/lib/domain/api-client.js');
@@ -550,7 +604,7 @@ test('dashboard API client adds CSRF + same-origin for session-auth writes and s
       }),
       request: async (url, init = {}) => {
         calls.push({ url, init });
-        const isValidate = String(url).includes('/admin/config/validate');
+        const isValidate = String(url).includes('/shuma/admin/config/validate');
         return {
           ok: true,
           status: 200,
@@ -577,7 +631,7 @@ test('dashboard API client adds CSRF + same-origin for session-auth writes and s
     assert.equal(headers.get('authorization'), null);
     assert.equal(headers.get('x-shuma-csrf'), 'csrf-token');
     assert.equal(calls[0].init.credentials, 'same-origin');
-    assert.match(String(calls[1].url), /\/admin\/config\/validate$/);
+    assert.match(String(calls[1].url), /\/shuma\/admin\/config\/validate$/);
     assert.equal(calls[1].init.headers.get('x-shuma-csrf'), 'csrf-token');
     assert.equal(calls[1].init.credentials, 'same-origin');
   });
@@ -616,7 +670,7 @@ test('dashboard API client bypasses caches for adversary-sim status reads', { co
 
     await client.getAdversarySimStatus();
     assert.equal(calls.length, 1);
-    assert.match(String(calls[0].url), /\/admin\/adversary-sim\/status$/);
+    assert.match(String(calls[0].url), /\/shuma\/admin\/adversary-sim\/status$/);
     assert.equal(calls[0].init.cache, 'no-store');
   });
 });
@@ -806,7 +860,7 @@ test('dashboard API client sends optional adversary-sim lane selection in contro
     const response = await client.controlAdversarySim(false, { lane: 'scrapling_traffic' });
 
     assert.equal(calls.length, 1);
-    assert.match(String(calls[0].url), /\/admin\/adversary-sim\/control$/);
+    assert.match(String(calls[0].url), /\/shuma\/admin\/adversary-sim\/control$/);
     assert.equal(calls[0].init.method, 'POST');
     assert.deepEqual(JSON.parse(String(calls[0].init.body || '{}')), {
       enabled: false,
@@ -865,11 +919,11 @@ test('dashboard API client exposes cursor-delta and stream URL helpers for realt
     assert.equal(ipBansDelta.freshness.state, 'fresh');
     assert.equal(ipBansDelta.active_bans_status, 'unavailable');
     assert.equal(ipBansDelta.active_bans_message, 'authoritative backend access required');
-    assert.match(String(calls[0].url), /\/admin\/monitoring\/delta\?/);
+    assert.match(String(calls[0].url), /\/shuma\/admin\/monitoring\/delta\?/);
     assert.match(String(calls[0].url), /hours=6/);
     assert.match(String(calls[0].url), /limit=99/);
     assert.match(String(calls[0].url), /after_cursor=cursor-123/);
-    assert.match(String(calls[1].url), /\/admin\/ip-bans\/delta\?/);
+    assert.match(String(calls[1].url), /\/shuma\/admin\/ip-bans\/delta\?/);
     assert.match(String(calls[1].url), /after_cursor=cursor-abc/);
 
     const monitoringStreamUrl = client.getMonitoringStreamUrl({
@@ -882,11 +936,11 @@ test('dashboard API client exposes cursor-delta and stream URL helpers for realt
       limit: 44,
       after_cursor: 'resume-ban'
     });
-    assert.match(monitoringStreamUrl, /^https:\/\/edge\.local\/admin\/monitoring\/stream\?/);
+    assert.match(monitoringStreamUrl, /^https:\/\/edge\.local\/shuma\/admin\/monitoring\/stream\?/);
     assert.match(monitoringStreamUrl, /hours=4/);
     assert.match(monitoringStreamUrl, /limit=55/);
     assert.match(monitoringStreamUrl, /after_cursor=resume-token/);
-    assert.match(ipBansStreamUrl, /^https:\/\/edge\.local\/admin\/ip-bans\/stream\?/);
+    assert.match(ipBansStreamUrl, /^https:\/\/edge\.local\/shuma\/admin\/ip-bans\/stream\?/);
     assert.match(ipBansStreamUrl, /after_cursor=resume-ban/);
   });
 });
@@ -924,7 +978,7 @@ test('dashboard API client posts robots preview patch payloads for dirty-state p
 
     assert.equal(payload.content.includes('User-agent: *'), true);
     assert.equal(calls.length, 1);
-    assert.match(String(calls[0].url), /\/admin\/robots\/preview$/);
+    assert.match(String(calls[0].url), /\/shuma\/admin\/robots\/preview$/);
     assert.equal(String(calls[0].init.method).toUpperCase(), 'POST');
     assert.equal(calls[0].init.headers.get('x-shuma-csrf'), 'csrf-token');
     assert.equal(calls[0].init.credentials, 'same-origin');
@@ -974,7 +1028,7 @@ test('dashboard API client times out stalled requests with DashboardApiError', {
     assert.equal(telemetryEvents.length, 1);
     assert.equal(telemetryEvents[0].failureClass, 'timeout');
     assert.equal(telemetryEvents[0].source, 'api-client');
-    assert.equal(String(telemetryEvents[0].path || '').includes('/admin/events'), true);
+    assert.equal(String(telemetryEvents[0].path || '').includes('/shuma/admin/events'), true);
   });
 });
 
@@ -1026,7 +1080,7 @@ test('dashboard API client classifies AbortError as cancelled and does not emit 
 test('chart runtime adapter lazily loads once and tears down on final release', { concurrency: false }, async () => {
   await withBrowserGlobals({}, async () => {
     const adapter = await importBrowserModule('dashboard/src/lib/domain/services/chart-runtime-adapter.js');
-    const win = { location: { pathname: '/dashboard/index.html' }, Chart: undefined };
+    const win = { location: { pathname: '/shuma/dashboard/index.html' }, Chart: undefined };
     let loaderCalls = 0;
     const ChartMock = function ChartMock() {};
     ChartMock.defaults = {};
@@ -1056,7 +1110,7 @@ test('chart runtime adapter applies zero-duration animation defaults to preloade
     const adapter = await importBrowserModule('dashboard/src/lib/domain/services/chart-runtime-adapter.js');
     const ChartMock = function ChartMock() {};
     ChartMock.defaults = {};
-    const win = { location: { pathname: '/dashboard/index.html' }, Chart: ChartMock };
+    const win = { location: { pathname: '/shuma/dashboard/index.html' }, Chart: ChartMock };
 
     const chart = await adapter.acquireChartRuntime({ window: win });
 
@@ -1335,7 +1389,7 @@ test('dashboard state and store contracts remain immutable and bounded with hear
     store.recordRefreshMetrics({ tab: 'status', reason: 'manual', fetchLatencyMs: 999, renderTimingMs: 999 });
     store.recordRequestTelemetry({
       requestId: 'req-failure-1',
-      path: '/admin/events?hours=24',
+      path: '/shuma/admin/events?hours=24',
       method: 'GET',
       tab: 'game-loop',
       reason: 'auto-refresh',
@@ -1347,20 +1401,20 @@ test('dashboard state and store contracts remain immutable and bounded with hear
     });
     store.recordHeartbeatAttemptStarted({
       requestId: 'hb-1',
-      path: '/admin/session',
+      path: '/shuma/admin/session',
       method: 'GET',
       reason: 'interval'
     });
     store.recordHeartbeatFailure({
       requestId: 'hb-1',
-      path: '/admin/session',
+      path: '/shuma/admin/session',
       method: 'GET',
       failureClass: 'timeout',
       error: 'Request timed out after 2500ms'
     });
     store.recordHeartbeatSuccess({
       requestId: 'hb-2',
-      path: '/admin/session',
+      path: '/shuma/admin/session',
       method: 'GET',
       statusCode: 200
     });
@@ -1391,12 +1445,12 @@ test('dashboard store heartbeat failure hysteresis transitions connected -> degr
     const storeModule = await importBrowserModule('dashboard/src/lib/state/dashboard-store.js');
     const store = storeModule.createDashboardStore({ initialTab: 'game-loop' });
 
-    store.recordHeartbeatSuccess({ requestId: 'hb-start', path: '/admin/session', method: 'GET' });
+    store.recordHeartbeatSuccess({ requestId: 'hb-start', path: '/shuma/admin/session', method: 'GET' });
     assert.equal(store.getRuntimeTelemetry().connection.state, 'connected');
 
     store.recordHeartbeatFailure({
       requestId: 'hb-fail-1',
-      path: '/admin/session',
+      path: '/shuma/admin/session',
       method: 'GET',
       failureClass: 'transport',
       error: 'network unreachable'
@@ -1405,7 +1459,7 @@ test('dashboard store heartbeat failure hysteresis transitions connected -> degr
 
     store.recordHeartbeatFailure({
       requestId: 'hb-cancelled',
-      path: '/admin/session',
+      path: '/shuma/admin/session',
       method: 'GET',
       failureClass: 'cancelled',
       error: 'aborted'
@@ -1417,7 +1471,7 @@ test('dashboard store heartbeat failure hysteresis transitions connected -> degr
 
     store.recordHeartbeatFailure({
       requestId: 'hb-fail-2',
-      path: '/admin/session',
+      path: '/shuma/admin/session',
       method: 'GET',
       failureClass: 'timeout',
       error: 'Request timed out'
@@ -1427,7 +1481,7 @@ test('dashboard store heartbeat failure hysteresis transitions connected -> degr
 
     store.recordHeartbeatFailure({
       requestId: 'hb-fail-3',
-      path: '/admin/session',
+      path: '/shuma/admin/session',
       method: 'GET',
       failureClass: 'http',
       statusCode: 503,
@@ -1444,10 +1498,10 @@ test('dashboard store heartbeat controller reset clears failure budget without i
     const storeModule = await importBrowserModule('dashboard/src/lib/state/dashboard-store.js');
     const store = storeModule.createDashboardStore({ initialTab: 'game-loop' });
 
-    store.recordHeartbeatSuccess({ requestId: 'hb-start', path: '/admin/session', method: 'GET' });
+    store.recordHeartbeatSuccess({ requestId: 'hb-start', path: '/shuma/admin/session', method: 'GET' });
     store.recordHeartbeatFailure({
       requestId: 'hb-fail-1',
-      path: '/admin/session',
+      path: '/shuma/admin/session',
       method: 'GET',
       failureClass: 'transport',
       error: 'network unreachable'
@@ -5736,14 +5790,14 @@ test('dashboard route preflights dirty config logout before mutating session sta
 test('dashboard route lazily loads heavy tabs and keeps orchestration local', () => {
   const source = fs.readFileSync(path.join(DASHBOARD_ROOT, 'src/routes/+page.svelte'), 'utf8');
 
-  assert.match(source, /import\('\$lib\/components\/dashboard\/RedTeamTab\.svelte'\)/);
-  assert.match(source, /import\('\$lib\/components\/dashboard\/VerificationTab\.svelte'\)/);
-  assert.match(source, /import\('\$lib\/components\/dashboard\/TrapsTab\.svelte'\)/);
-  assert.match(source, /import\('\$lib\/components\/dashboard\/AdvancedTab\.svelte'\)/);
-  assert.match(source, /import\('\$lib\/components\/dashboard\/RateLimitingTab\.svelte'\)/);
-  assert.match(source, /import\('\$lib\/components\/dashboard\/GeoTab\.svelte'\)/);
-  assert.match(source, /import\('\$lib\/components\/dashboard\/RobotsTab\.svelte'\)/);
-  assert.match(source, /import\('\$lib\/components\/dashboard\/TuningTab\.svelte'\)/);
+  assert.match(source, /import\('\$lib\/components\/shuma\/dashboard\/RedTeamTab\.svelte'\)/);
+  assert.match(source, /import\('\$lib\/components\/shuma\/dashboard\/VerificationTab\.svelte'\)/);
+  assert.match(source, /import\('\$lib\/components\/shuma\/dashboard\/TrapsTab\.svelte'\)/);
+  assert.match(source, /import\('\$lib\/components\/shuma\/dashboard\/AdvancedTab\.svelte'\)/);
+  assert.match(source, /import\('\$lib\/components\/shuma\/dashboard\/RateLimitingTab\.svelte'\)/);
+  assert.match(source, /import\('\$lib\/components\/shuma\/dashboard\/GeoTab\.svelte'\)/);
+  assert.match(source, /import\('\$lib\/components\/shuma\/dashboard\/RobotsTab\.svelte'\)/);
+  assert.match(source, /import\('\$lib\/components\/shuma\/dashboard\/TuningTab\.svelte'\)/);
   assert.match(source, /\$lib\/runtime\/dashboard-route-controller\.js/);
   assert.match(source, /\$lib\/runtime\/dashboard-body-classes\.js/);
   assert.match(source, /\$lib\/runtime\/dashboard-adversary-sim\.js/);
@@ -5972,7 +6026,7 @@ test('login route exposes native password-manager-friendly form-post semantics',
   assert.match(loadSource, /faviconHref/);
   assert.match(loadSource, /assets\/shuma-gorath-pencil-closed\.png/);
   assert.match(source, /const passwordManagerIdentity = 'admin';/);
-  assert.match(source, /<form id="login-form" class="login-form" method="POST" action="\/admin\/login">/);
+  assert.match(source, /<form id="login-form" class="login-form" method="POST" action="\/shuma\/admin\/login">/);
   assert.match(source, /<label class="control-label" for="username">Account<\/label>/);
   assert.match(source, /name="username"/);
   assert.match(source, /id="username"/);
@@ -5988,7 +6042,7 @@ test('login route exposes native password-manager-friendly form-post semantics',
   assert.match(source, /name="password"/);
   assert.match(source, /autocomplete="current-password"/);
   assert.equal(source.includes('autocomplete="off"'), false);
-  assert.equal(source.includes("fetch('/admin/login'"), false);
+  assert.equal(source.includes("fetch('/shuma/admin/login'"), false);
   assert.equal(source.includes('JSON.stringify({ api_key: normalized })'), false);
   assert.equal(source.includes('event.preventDefault()'), false);
 });
@@ -6425,7 +6479,7 @@ test('dashboard native runtime restores session, normalizes tabs, and invalidate
       const bodyText = typeof init.body === 'string' ? init.body : '';
       requestLog.push({ url, method, headers, bodyText });
 
-      if (url.endsWith('/admin/session')) {
+      if (url.endsWith('/shuma/admin/session')) {
         return new Response(JSON.stringify({
           authenticated: true,
           csrf_token: 'csrf-123',
@@ -6436,7 +6490,7 @@ test('dashboard native runtime restores session, normalizes tabs, and invalidate
           headers: { 'Content-Type': 'application/json' }
         });
       }
-      if (url.endsWith('/admin/config')) {
+      if (url.endsWith('/shuma/admin/config')) {
         return new Response(JSON.stringify({
           config: { pow_enabled: false },
           runtime: {
@@ -6448,7 +6502,7 @@ test('dashboard native runtime restores session, normalizes tabs, and invalidate
           headers: { 'Content-Type': 'application/json' }
         });
       }
-      if (url.endsWith('/admin/logout')) {
+      if (url.endsWith('/shuma/admin/logout')) {
         return new Response('', { status: 204 });
       }
       throw new Error(`Unexpected fetch: ${method} ${url}`);
@@ -6479,14 +6533,14 @@ test('dashboard native runtime restores session, normalizes tabs, and invalidate
       assert.equal(store.getSession().authenticated, true);
       assert.equal(store.getRuntimeTelemetry().connection.state, 'connected');
       assert.equal(
-        requestLog.filter((entry) => entry.url.endsWith('/admin/session')).length >= 2,
+        requestLog.filter((entry) => entry.url.endsWith('/shuma/admin/session')).length >= 2,
         true
       );
 
       const nextConfig = await runtimeModule.updateDashboardConfig({ pow_enabled: false });
       assert.deepEqual(nextConfig, { pow_enabled: false });
 
-      const configRequest = requestLog.find((entry) => entry.url.endsWith('/admin/config'));
+      const configRequest = requestLog.find((entry) => entry.url.endsWith('/shuma/admin/config'));
       assert.ok(configRequest);
       assert.equal(configRequest.method, 'POST');
       assert.equal(configRequest.headers.get('X-Shuma-CSRF'), 'csrf-123');
@@ -6498,7 +6552,7 @@ test('dashboard native runtime restores session, normalizes tabs, and invalidate
       assert.equal(store.isTabStale('verification'), true);
 
       await runtimeModule.logoutDashboardSession();
-      const logoutRequest = requestLog.find((entry) => entry.url.endsWith('/admin/logout'));
+      const logoutRequest = requestLog.find((entry) => entry.url.endsWith('/shuma/admin/logout'));
       assert.ok(logoutRequest);
       assert.equal(logoutRequest.method, 'POST');
       assert.equal(logoutRequest.headers.get('X-Shuma-CSRF'), 'csrf-123');

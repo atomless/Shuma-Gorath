@@ -36,7 +36,7 @@ mod tests {
         assert!(is_maze_path(path_prefix()));
         assert!(is_maze_path(entry_path("def456").as_str()));
         assert!(!is_maze_path("/trap/abc123"));
-        assert!(!is_maze_path("/admin/config"));
+        assert!(!is_maze_path("/shuma/admin/config"));
         assert!(!is_maze_path("/api/data"));
     }
 

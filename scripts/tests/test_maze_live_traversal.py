@@ -36,11 +36,11 @@ class MazeLiveTraversalTests(unittest.TestCase):
 
         gate.opener = _Opener()
 
-        response = gate._request("GET", "/health")
+        response = gate._request("GET", "/shuma/health")
 
         self.assertEqual(response["status"], 200)
         self.assertEqual(captured["timeout"], 42)
-        self.assertEqual(captured["url"], "http://127.0.0.1:3000/health")
+        self.assertEqual(captured["url"], "http://127.0.0.1:3000/shuma/health")
 
     def test_extract_first_maze_link_returns_first_maze_href(self) -> None:
         html = """
@@ -75,7 +75,7 @@ class MazeLiveTraversalTests(unittest.TestCase):
 
     def test_extract_preview_entry_path_decodes_admin_preview_link(self) -> None:
         html = """
-        <a href="/admin/maze/preview?path=%2F_%2Fopaque123%2Fentry456">Continue</a>
+        <a href="/shuma/admin/maze/preview?path=%2F_%2Fopaque123%2Fentry456">Continue</a>
         """
 
         self.assertEqual(

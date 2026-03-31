@@ -1,6 +1,8 @@
 use serde_json::json;
 use spin_sdk::http::{Method, Request, Response};
 
+use crate::http_route_namespace as route_namespace;
+
 use super::recent_changes_ledger::{
     operator_snapshot_manual_change_row, record_operator_snapshot_recent_change_rows,
 };
@@ -143,7 +145,7 @@ pub(crate) fn adversary_sim_status_payload(
                 "retention_hours": super::api::event_log_retention_hours(),
                 "retention_health": crate::observability::retention::retention_health(store),
                 "cleanup_supported": crate::config::admin_config_write_enabled(),
-                "cleanup_endpoint": "/admin/adversary-sim/history/cleanup",
+                "cleanup_endpoint": format!("{}/adversary-sim/history/cleanup", route_namespace::SHUMA_ADMIN_PREFIX),
                 "cleanup_command": "make telemetry-clean"
             }),
         );
@@ -871,7 +873,12 @@ pub(crate) fn handle_admin_adversary_sim_control(
     if auth.requires_csrf(req) {
         let expected = auth.csrf_token.as_deref().unwrap_or("");
         if !crate::admin::auth::validate_session_csrf(req, expected) {
-            super::api::log_admin_csrf_denied(store, req, "/admin/adversary-sim/control", auth);
+            super::api::log_admin_csrf_denied(
+                store,
+                req,
+                format!("{}/adversary-sim/control", route_namespace::SHUMA_ADMIN_PREFIX).as_str(),
+                auth,
+            );
             return Response::new(403, "Forbidden: control trust boundary violation");
         }
     }

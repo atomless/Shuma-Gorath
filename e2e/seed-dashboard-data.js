@@ -50,7 +50,7 @@ async function request(baseURL, path, options = {}) {
 
 async function safeUnban(baseURL, ip) {
   try {
-    await request(baseURL, `/admin/unban?ip=${encodeURIComponent(ip)}`, {
+    await request(baseURL, `/shuma/admin/unban?ip=${encodeURIComponent(ip)}`, {
       method: "POST",
       headers: adminHeaders()
     });
@@ -69,7 +69,7 @@ async function seedDashboardData() {
   let originalShadowMode = false;
   let restoreShadowMode = false;
 
-  const config = await request(baseURL, "/admin/config", {
+  const config = await request(baseURL, "/shuma/admin/config", {
     headers: adminHeaders()
   });
   const configSnapshot =
@@ -85,7 +85,7 @@ async function seedDashboardData() {
   }
 
   try {
-    await request(baseURL, "/admin/config", {
+    await request(baseURL, "/shuma/admin/config", {
       method: "POST",
       headers: {
         ...adminHeaders(),
@@ -94,7 +94,7 @@ async function seedDashboardData() {
       body: JSON.stringify({ shadow_mode: false })
     });
 
-    await request(baseURL, "/admin/ban", {
+    await request(baseURL, "/shuma/admin/ban", {
       method: "POST",
       headers: {
         ...adminHeaders(),
@@ -122,13 +122,13 @@ async function seedDashboardData() {
     await safeUnban(baseURL, banIp);
     await safeUnban(baseURL, cdpIp);
 
-    await request(baseURL, "/admin/analytics", {
+    await request(baseURL, "/shuma/admin/analytics", {
       headers: adminHeaders()
     });
-    await request(baseURL, "/admin/events?hours=24", {
+    await request(baseURL, "/shuma/admin/events?hours=24", {
       headers: adminHeaders()
     });
-    const events = await request(baseURL, "/admin/events?hours=24", {
+    const events = await request(baseURL, "/shuma/admin/events?hours=24", {
       headers: adminHeaders()
     });
 
@@ -143,7 +143,7 @@ async function seedDashboardData() {
     };
   } finally {
     if (restoreShadowMode) {
-      await request(baseURL, "/admin/config", {
+      await request(baseURL, "/shuma/admin/config", {
         method: "POST",
         headers: {
           ...adminHeaders(),

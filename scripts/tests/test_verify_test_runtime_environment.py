@@ -29,7 +29,7 @@ class VerifyTestRuntimeEnvironmentTests(unittest.TestCase):
                 #!/usr/bin/env python3
                 import sys
 
-                if sys.argv[-1].endswith("/admin/session"):
+                if sys.argv[-1].endswith("/shuma/admin/session"):
                     sys.stdout.write('{"runtime_environment":"runtime-dev"}')
                     sys.exit(0)
                 sys.exit(1)
@@ -64,7 +64,7 @@ class VerifyTestRuntimeEnvironmentTests(unittest.TestCase):
                 #!/usr/bin/env python3
                 import sys
 
-                if sys.argv[-1].endswith("/admin/session"):
+                if sys.argv[-1].endswith("/shuma/admin/session"):
                     sys.stdout.write('{"runtime_environment":"runtime-prod"}')
                     sys.exit(0)
                 sys.exit(1)

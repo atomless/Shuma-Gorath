@@ -12,19 +12,19 @@ fn capabilities() -> crate::runtime::capabilities::PolicyExecutionCapabilities {
 }
 
 #[test]
-fn early_router_short_circuits_health_path() {
-    let req = request(Method::Get, "/health");
+fn early_router_short_circuits_shuma_health_path() {
+    let req = request(Method::Get, "/shuma/health");
     let caps = capabilities();
-    let resp = maybe_handle_early_route(&req, "/health", &caps);
+    let resp = maybe_handle_early_route(&req, "/shuma/health", &caps);
     assert!(resp.is_some());
     assert_eq!(*resp.unwrap().status(), 403u16);
 }
 
 #[test]
-fn early_router_short_circuits_admin_options() {
-    let req = request(Method::Options, "/admin/config");
+fn early_router_short_circuits_shuma_admin_options() {
+    let req = request(Method::Options, "/shuma/admin/config");
     let caps = capabilities();
-    let resp = maybe_handle_early_route(&req, "/admin/config", &caps);
+    let resp = maybe_handle_early_route(&req, "/shuma/admin/config", &caps);
     assert!(resp.is_some());
     assert_eq!(*resp.unwrap().status(), 403u16);
 }
@@ -56,10 +56,10 @@ fn early_router_short_circuits_maze_asset_paths() {
 }
 
 #[test]
-fn early_router_redirects_dashboard_root_to_index_html() {
-    let req = request(Method::Get, "/dashboard");
+fn early_router_redirects_shuma_dashboard_root_to_index_html() {
+    let req = request(Method::Get, "/shuma/dashboard");
     let caps = capabilities();
-    let resp = maybe_handle_early_route(&req, "/dashboard", &caps);
+    let resp = maybe_handle_early_route(&req, "/shuma/dashboard", &caps);
     assert!(resp.is_some());
     let resp = resp.unwrap();
     assert_eq!(*resp.status(), 308u16);
@@ -68,14 +68,14 @@ fn early_router_redirects_dashboard_root_to_index_html() {
         .find(|(name, _)| name.eq_ignore_ascii_case("location"))
         .and_then(|(_, value)| value.as_str())
         .unwrap_or("");
-    assert_eq!(location, "/dashboard/index.html");
+    assert_eq!(location, "/shuma/dashboard/index.html");
 }
 
 #[test]
-fn early_router_redirects_dashboard_trailing_slash_root_to_index_html() {
-    let req = request(Method::Get, "/dashboard/");
+fn early_router_redirects_shuma_dashboard_trailing_slash_root_to_index_html() {
+    let req = request(Method::Get, "/shuma/dashboard/");
     let caps = capabilities();
-    let resp = maybe_handle_early_route(&req, "/dashboard/", &caps);
+    let resp = maybe_handle_early_route(&req, "/shuma/dashboard/", &caps);
     assert!(resp.is_some());
     let resp = resp.unwrap();
     assert_eq!(*resp.status(), 308u16);
@@ -84,7 +84,7 @@ fn early_router_redirects_dashboard_trailing_slash_root_to_index_html() {
         .find(|(name, _)| name.eq_ignore_ascii_case("location"))
         .and_then(|(_, value)| value.as_str())
         .unwrap_or("");
-    assert_eq!(location, "/dashboard/index.html");
+    assert_eq!(location, "/shuma/dashboard/index.html");
 }
 
 #[test]

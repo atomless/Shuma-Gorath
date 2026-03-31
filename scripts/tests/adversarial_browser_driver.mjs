@@ -162,7 +162,7 @@ function mustUseSafePath(path) {
   if (!normalized.startsWith("/")) {
     throw new Error(`browser_driver_path_must_start_with_slash:${normalized}`);
   }
-  if (normalized.startsWith("/admin/") || normalized === "/admin") {
+  if (normalized.startsWith("/shuma/admin/") || normalized === "/shuma/admin") {
     throw new Error(`browser_driver_forbidden_path:${normalized}`);
   }
   return normalized;

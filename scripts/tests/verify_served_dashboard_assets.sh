@@ -3,7 +3,7 @@ set -euo pipefail
 
 BASE_URL="${1:-http://127.0.0.1:3000}"
 LOCAL_INDEX="${2:-dist/dashboard/index.html}"
-REMOTE_INDEX_URL="${BASE_URL%/}/dashboard/index.html"
+REMOTE_INDEX_URL="${BASE_URL%/}/shuma/dashboard/index.html"
 
 if [[ ! -f "${LOCAL_INDEX}" ]]; then
   echo "Dashboard asset verification failed: local file missing (${LOCAL_INDEX})."
@@ -32,4 +32,3 @@ echo "Expected latest local build: ${LOCAL_INDEX}"
 echo "Fetched from server: ${REMOTE_INDEX_URL}"
 echo "Restart Spin after dashboard build (for example, restart \`make dev\` or \`make run-prebuilt\`) and rerun tests."
 exit 1
-

@@ -51,7 +51,7 @@ async function requestJson(path, init = {}) {
 }
 
 async function controlAdversarySimViaApi(desiredEnabled) {
-  return requestJson('/admin/adversary-sim/control', {
+  return requestJson('/shuma/admin/adversary-sim/control', {
     method: 'POST',
     headers: adminHeaders({
       'Idempotency-Key': newDashboardIdempotencyKey()
@@ -62,7 +62,7 @@ async function controlAdversarySimViaApi(desiredEnabled) {
 
 async function controlAdversarySimViaSessionApi(page, desiredEnabled) {
   const result = await page.evaluate(async ({ desiredEnabled }) => {
-    const sessionResponse = await fetch('/admin/session', {
+    const sessionResponse = await fetch('/shuma/admin/session', {
       method: 'GET',
       credentials: 'same-origin'
     });
@@ -82,7 +82,7 @@ async function controlAdversarySimViaSessionApi(page, desiredEnabled) {
     if (csrfToken) {
       headers['X-Shuma-CSRF'] = csrfToken;
     }
-    const response = await fetch('/admin/adversary-sim/control', {
+    const response = await fetch('/shuma/admin/adversary-sim/control', {
       method: 'POST',
       credentials: 'same-origin',
       headers,
@@ -98,7 +98,7 @@ async function controlAdversarySimViaSessionApi(page, desiredEnabled) {
 
   if (!result?.ok) {
     throw new Error(
-      `session POST /admin/adversary-sim/control failed: ${result?.status || 0} ${String(result?.text || '').slice(0, 200)}`
+      `session POST /shuma/admin/adversary-sim/control failed: ${result?.status || 0} ${String(result?.text || '').slice(0, 200)}`
     );
   }
   return JSON.parse(String(result?.text || '{}') || '{}');
@@ -134,7 +134,7 @@ async function disableAdversarySimAndWaitOff(page) {
 
 async function fetchAdversarySimStatus() {
   const cacheBuster = `${Date.now().toString(16)}-${Math.floor(Math.random() * 0x1_0000_0000).toString(16)}`;
-  return requestJson(`/admin/adversary-sim/status?cache_bust=${cacheBuster}`, {
+  return requestJson(`/shuma/admin/adversary-sim/status?cache_bust=${cacheBuster}`, {
     method: 'GET',
     headers: adminHeaders({
       'Cache-Control': 'no-store',
@@ -251,7 +251,7 @@ async function setAdversaryToggleViaUi(page, desiredEnabled, timeoutMs = 60_000)
   }
   const controlResponses = [];
   const onResponse = (response) => {
-    if (!response.url().includes('/admin/adversary-sim/control')) return;
+    if (!response.url().includes('/shuma/admin/adversary-sim/control')) return;
     if (response.request().method() !== 'POST') return;
     controlResponses.push({
       status: response.status(),
@@ -310,14 +310,14 @@ async function setShadowModeViaUi(page, desiredEnabled, timeoutMs = 20_000) {
 }
 
 async function fetchMonitoringBootstrap() {
-  return requestJson('/admin/monitoring?hours=24&limit=50&bootstrap=1', {
+  return requestJson('/shuma/admin/monitoring?hours=24&limit=50&bootstrap=1', {
     method: 'GET',
     headers: adminHeaders({ 'Content-Type': 'application/json' })
   });
 }
 
 async function fetchMonitoringSnapshot(limit = 50) {
-  return requestJson(`/admin/monitoring?hours=24&limit=${encodeURIComponent(String(limit))}`, {
+  return requestJson(`/shuma/admin/monitoring?hours=24&limit=${encodeURIComponent(String(limit))}`, {
     method: 'GET',
     headers: adminHeaders({ 'Content-Type': 'application/json' })
   });
@@ -327,7 +327,7 @@ async function fetchMonitoringDelta(afterCursor = '') {
   const suffix = afterCursor
     ? `&after_cursor=${encodeURIComponent(String(afterCursor || '').trim())}`
     : '';
-  return requestJson(`/admin/monitoring/delta?hours=24&limit=40${suffix}`, {
+  return requestJson(`/shuma/admin/monitoring/delta?hours=24&limit=40${suffix}`, {
     method: 'GET',
     headers: adminHeaders({ 'Content-Type': 'application/json' })
   });
@@ -378,12 +378,12 @@ async function main() {
   const browser = await chromium.launch({ headless: true });
   const page = await browser.newPage();
   try {
-    await page.goto(`${BASE_URL}/dashboard/login.html?next=%2Fdashboard%2Findex.html`, {
+    await page.goto(`${BASE_URL}/shuma/dashboard/login.html?next=%2Fshuma%2Fdashboard%2Findex.html`, {
       waitUntil: 'domcontentloaded'
     });
     await page.fill('#current-password', API_KEY);
     await page.click('button[type="submit"]');
-    await page.waitForURL(/\/dashboard\/index\.html/, { timeout: READY_TIMEOUT_MS });
+    await page.waitForURL(/\/shuma/dashboard\/index\.html/, { timeout: READY_TIMEOUT_MS });
     await setAutoRefresh(page, true);
 
     const readyStart = Date.now();
@@ -486,7 +486,7 @@ async function main() {
     }
 
     await page.reload({ waitUntil: 'domcontentloaded' });
-    await page.waitForURL(/\/dashboard\/index\.html/, { timeout: READY_TIMEOUT_MS });
+    await page.waitForURL(/\/shuma/dashboard\/index\.html/, { timeout: READY_TIMEOUT_MS });
     const postReload = await assertDashboardReadyWithActiveSim(page);
 
     console.log(JSON.stringify({

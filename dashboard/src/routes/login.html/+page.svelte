@@ -42,7 +42,7 @@
 
   async function getSessionState() {
     try {
-      const resp = await fetch('/admin/session', { credentials: 'same-origin' });
+      const resp = await fetch('/shuma/admin/session', { credentials: 'same-origin' });
       if (!resp.ok) return null;
       return await resp.json();
     } catch (_e) {
@@ -140,7 +140,7 @@
 <main class="login-shell">
   <section class="login-card panel panel-border pad-md" aria-labelledby="login-title">
     <h1 id="login-title" class="hidden">Dashboard Login</h1>
-    <form id="login-form" class="login-form" method="POST" action="/admin/login">
+    <form id="login-form" class="login-form" method="POST" action="/shuma/admin/login">
       <label class="control-label" for="username">Account</label>
       <input
         id="username"

@@ -40,7 +40,7 @@ class RemoteTargetTests(unittest.TestCase):
                 "deploy": {
                     "spin_manifest_path": "/opt/shuma-gorath/spin.gateway.toml",
                     "surface_catalog_path": str(self.temp_dir / "catalog.json"),
-                    "smoke_path": "/health",
+                    "smoke_path": "/shuma/health",
                     "upstream_origin": "http://127.0.0.1:8080",
                 },
                 "metadata": {
@@ -169,7 +169,7 @@ class RemoteTargetTests(unittest.TestCase):
             )
 
         self.assertEqual(rc, 0)
-        self.assertEqual(run.call_args.args[0], ["open", "https://blog.example.com/dashboard"])
+        self.assertEqual(run.call_args.args[0], ["open", "https://blog.example.com/shuma/dashboard"])
 
     def test_invalid_receipt_schema_fails_cleanly(self) -> None:
         broken_path = self.receipts_dir / "broken.json"

@@ -179,13 +179,13 @@ class TelemetryFermyonEdgeEvidence:
 
     def run(self) -> dict[str, Any]:
         bootstrap_measurement = self.measure_json_endpoint(
-            f"/admin/monitoring?hours={self.hours}&limit={DEFAULT_BOOTSTRAP_LIMIT}&bootstrap=1"
+            f"/shuma/admin/monitoring?hours={self.hours}&limit={DEFAULT_BOOTSTRAP_LIMIT}&bootstrap=1"
         )
         delta_measurement = self.measure_json_endpoint(
-            f"/admin/monitoring/delta?hours={self.hours}&limit={DEFAULT_DELTA_LIMIT}"
+            f"/shuma/admin/monitoring/delta?hours={self.hours}&limit={DEFAULT_DELTA_LIMIT}"
         )
         forensic_measurement = self.measure_json_endpoint(
-            f"/admin/monitoring?hours={self.hours}&limit={DEFAULT_FORENSIC_LIMIT}&bootstrap=1&forensic=1"
+            f"/shuma/admin/monitoring?hours={self.hours}&limit={DEFAULT_FORENSIC_LIMIT}&bootstrap=1&forensic=1"
         )
         report = build_evidence_report(
             receipt=self.receipt,

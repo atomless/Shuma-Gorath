@@ -276,16 +276,16 @@ class _FakeLiveFeedbackLoopRemote(LIVE_FEEDBACK_LOOP_REMOTE.LiveFeedbackLoopRemo
         raise AssertionError(f"Unexpected SSH command: {command}")
 
     def _request_json(self, method: str, path: str, payload=None):
-        if path == "/admin/oversight/agent/status":
+        if path == "/shuma/admin/oversight/agent/status":
             if len(self._oversight_status_queue) > 1:
                 return self._oversight_status_queue.pop(0)
             return self._oversight_status_queue[0]
-        if path == "/admin/operator-snapshot":
+        if path == "/shuma/admin/operator-snapshot":
             return {
                 "schema_version": "operator_snapshot_v1",
                 "benchmark_results": {"overall_status": "healthy"},
             }
-        if path == "/admin/events?hours=2&limit=200":
+        if path == "/shuma/admin/events?hours=2&limit=200":
             return {
                 "recent_events": [
                     {
@@ -295,15 +295,15 @@ class _FakeLiveFeedbackLoopRemote(LIVE_FEEDBACK_LOOP_REMOTE.LiveFeedbackLoopRemo
                     }
                 ]
             }
-        if path == "/admin/oversight/history":
+        if path == "/shuma/admin/oversight/history":
             if len(self._history_queue) > 1:
                 return self._history_queue.pop(0)
             return self._history_queue[0]
-        if path == "/admin/adversary-sim/status":
+        if path == "/shuma/admin/adversary-sim/status":
             if len(self._adversary_status_queue) > 1:
                 return self._adversary_status_queue.pop(0)
             return self._adversary_status_queue[0]
-        if path == "/admin/adversary-sim/control":
+        if path == "/shuma/admin/adversary-sim/control":
             self._control_calls.append(payload)
             return {
                 "operation_id": "op-enable-1" if payload["enabled"] else "op-disable-1",
@@ -352,7 +352,7 @@ class _FakeLiveFeedbackLoopRemote(LIVE_FEEDBACK_LOOP_REMOTE.LiveFeedbackLoopRemo
         raise AssertionError(f"Unexpected internal request: {method} {path}")
 
     def _loopback_request_json(self, method: str, path: str, headers, payload=None):
-        if path == "/admin/adversary-sim/control":
+        if path == "/shuma/admin/adversary-sim/control":
             self._control_calls.append(payload)
             self._control_headers.append(headers)
             return {
@@ -400,7 +400,7 @@ class LiveFeedbackLoopRemoteBehaviorTests(unittest.TestCase):
         self.assertEqual(len(runner._control_headers), 1)
         self.assertEqual(runner._control_headers[0]["Host"], "shuma.example.com")
         self.assertEqual(runner._control_headers[0]["Origin"], "https://shuma.example.com")
-        self.assertEqual(runner._control_headers[0]["Referer"], "https://shuma.example.com/dashboard")
+        self.assertEqual(runner._control_headers[0]["Referer"], "https://shuma.example.com/shuma/dashboard")
         self.assertGreaterEqual(runner._disabled_calls, 1)
 
     def test_run_records_terminal_follow_on_judgment_and_episode_archive(self) -> None:

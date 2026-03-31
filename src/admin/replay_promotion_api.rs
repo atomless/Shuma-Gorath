@@ -153,7 +153,7 @@ mod tests {
         let mut builder = Request::builder();
         builder
             .method(method)
-            .uri("/admin/replay-promotion")
+            .uri("/shuma/admin/replay-promotion")
             .body(serde_json::to_vec(&body).expect("body serializes"));
         builder.build()
     }

@@ -4,6 +4,7 @@ use serde::Serialize;
 use serde::de::DeserializeOwned;
 
 use crate::challenge::KeyValueStore;
+use crate::http_route_namespace as route_namespace;
 use crate::observability::hot_read_documents::{
     monitoring_bootstrap_document_contract, monitoring_bootstrap_document_key,
     monitoring_bootstrap_drill_down_only_fields, monitoring_bootstrap_window_hours,
@@ -180,7 +181,8 @@ fn build_recent_events_tail_document<S: KeyValueStore>(
         false,
     );
     let continue_via = format!(
-        "/admin/monitoring/delta?hours={}&limit={}",
+        "{}/monitoring/delta?hours={}&limit={}",
+        route_namespace::SHUMA_ADMIN_PREFIX,
         monitoring_bootstrap_window_hours(),
         monitoring_recent_events_tail_max_records()
     );

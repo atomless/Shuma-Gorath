@@ -16,7 +16,7 @@ class ScraplingDeployPrepTests(unittest.TestCase):
         seed_path = self.temp_dir / "seed.json"
 
         receipt = prep.prepare_scrapling_deploy(
-            public_base_url="https://shuma.example.com/dashboard/index.html",
+            public_base_url="https://shuma.example.com/shuma/dashboard/index.html",
             runtime_mode="ssh_systemd",
             receipt_output=receipt_path,
             scope_output=scope_path,
@@ -114,7 +114,7 @@ class ScraplingDeployPrepTests(unittest.TestCase):
 
     def test_local_http_mode_supports_loopback_safe_localhost_seed(self) -> None:
         receipt = prep.prepare_scrapling_deploy(
-            public_base_url="http://localhost:3000/dashboard/index.html",
+            public_base_url="http://localhost:3000/shuma/dashboard/index.html",
             runtime_mode="ssh_systemd",
             receipt_output=self.temp_dir / "receipt.json",
             scope_output=self.temp_dir / "scope.json",

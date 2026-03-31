@@ -97,18 +97,18 @@ class SmokeSingleHostTests(unittest.TestCase):
                     body, status = "TLS validation failed", "000"
                 elif require_https_forward_proto and gateway_request and forwarded_proto_header.lower() != "x-forwarded-proto: https":
                     body, status = "HTTPS required", "403"
-                elif url.endswith("/admin/config") and required_admin_ip and forwarded_ip != required_admin_ip:
+                elif url.endswith("/shuma/admin/config") and required_admin_ip and forwarded_ip != required_admin_ip:
                     body, status = "Forbidden", "403"
-                elif url.endswith("/health"):
+                elif url.endswith("/shuma/health"):
                     health_status = os.environ.get("SHUMA_TEST_HEALTH_STATUS", "200")
                     body, status = ("OK", "200") if health_status == "200" else ("Forbidden", health_status)
-                elif url.endswith("/admin/config") and auth_header:
+                elif url.endswith("/shuma/admin/config") and auth_header:
                     body, status = '{"rate_limit":{}}', "200"
-                elif url.endswith("/admin/config") and os.environ.get("SHUMA_TEST_ADMIN_REDIRECT_UNAUTH") == "1":
+                elif url.endswith("/shuma/admin/config") and os.environ.get("SHUMA_TEST_ADMIN_REDIRECT_UNAUTH") == "1":
                     body, status = "", "302"
-                elif url.endswith("/admin/config"):
+                elif url.endswith("/shuma/admin/config"):
                     body, status = "Unauthorized", "401"
-                elif url.endswith("/metrics"):
+                elif url.endswith("/shuma/metrics"):
                     body, status = "bot_defence_requests_total 1\\n", "200"
                 elif url.endswith("/challenge/not-a-bot-checkbox"):
                     body, status = "I am not a bot", "200"
@@ -200,7 +200,7 @@ class SmokeSingleHostTests(unittest.TestCase):
     def test_skip_admin_auth_allows_proof_domain_smoke_without_admin_api_probe(self) -> None:
         result = self.run_smoke({"SHUMA_SMOKE_SKIP_ADMIN_AUTH": "true"})
         self.assertEqual(result.returncode, 0, msg=result.stderr or result.stdout)
-        self.assertIn("Skipping /admin/config auth checks", result.stdout)
+        self.assertIn("Skipping /shuma/admin/config auth checks", result.stdout)
 
     def test_skip_reserved_routes_allows_public_smoke_without_admin_or_metrics_probes(self) -> None:
         result = self.run_smoke({"SHUMA_SMOKE_SKIP_RESERVED_ROUTES": "true"})
@@ -220,7 +220,7 @@ class SmokeSingleHostTests(unittest.TestCase):
             }
         )
         self.assertEqual(result.returncode, 0, msg=result.stderr or result.stdout)
-        self.assertIn("Skipping /health check", result.stdout)
+        self.assertIn("Skipping /shuma/health check", result.stdout)
 
     def test_insecure_tls_flag_adds_k_for_sslip_proof_domains(self) -> None:
         result = self.run_smoke(

@@ -1,6 +1,7 @@
 use spin_sdk::http::Request;
 use spin_sdk::key_value::Store;
 
+use crate::http_route_namespace as route_namespace;
 use crate::runtime::request_outcome::HandledRequestResponse;
 
 fn active_botness_signal_ids(
@@ -29,7 +30,7 @@ pub(crate) fn compute_needs_js(
     }
 
     let browser_allowlist = cfg.browser_allowlist.as_slice();
-    let js_missing_verification = path != "/health"
+    let js_missing_verification = path != route_namespace::SHUMA_HEALTH_PATH
         && crate::signals::js_verification::needs_js_verification_with_allowlist(
             req,
             store,

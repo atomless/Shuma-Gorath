@@ -535,12 +535,12 @@ def admin_session_opener(base_url: str, env: dict[str, str]) -> tuple[Any, str]:
         {
             "username": "admin",
             "password": required_env_value(env, "SHUMA_API_KEY"),
-            "next": "/dashboard/index.html",
+            "next": "/shuma/dashboard/index.html",
         }
     ).encode("utf-8")
     login_status, login_response_body = http_text_request(
         method="POST",
-        url=f"{base_url.rstrip('/')}/admin/login",
+        url=f"{base_url.rstrip('/')}/shuma/admin/login",
         headers={
             "Content-Type": "application/x-www-form-urlencoded",
             "Origin": base_url.rstrip("/"),
@@ -555,7 +555,7 @@ def admin_session_opener(base_url: str, env: dict[str, str]) -> tuple[Any, str]:
 
     session_status, session_body = http_text_request(
         method="GET",
-        url=f"{base_url.rstrip('/')}/admin/session",
+        url=f"{base_url.rstrip('/')}/shuma/admin/session",
         headers={"Origin": base_url.rstrip("/")},
         opener=opener,
     )
@@ -590,7 +590,7 @@ def admin_json_request(
     if payload is not None:
         headers["Content-Type"] = "application/json"
         body = json.dumps(payload, separators=(",", ":")).encode("utf-8")
-    if url.endswith("/admin/adversary-sim/control"):
+    if url.endswith("/shuma/admin/adversary-sim/control"):
         headers["Idempotency-Key"] = str(uuid.uuid4())
     status, text = http_text_request(
         method=method,
@@ -610,9 +610,9 @@ def admin_json_request(
 def smoke_adversary_sim_generation(base_url: str, env: dict[str, str]) -> None:
     opener, csrf_token = admin_session_opener(base_url, env)
     origin = base_url.rstrip("/")
-    status_url = f"{origin}/admin/adversary-sim/status"
-    control_url = f"{origin}/admin/adversary-sim/control"
-    monitoring_delta_base_url = f"{origin}/admin/monitoring/delta?hours=24&limit=20"
+    status_url = f"{origin}/shuma/admin/adversary-sim/status"
+    control_url = f"{origin}/shuma/admin/adversary-sim/control"
+    monitoring_delta_base_url = f"{origin}/shuma/admin/monitoring/delta?hours=24&limit=20"
 
     def monitoring_delta_contains_simulation_event(payload: dict[str, Any]) -> bool:
         events = payload.get("events") if isinstance(payload, dict) else []
@@ -753,7 +753,7 @@ def smoke_adversary_sim_generation(base_url: str, env: dict[str, str]) -> None:
 def wait_for_adversary_sim_control_lease_release(base_url: str, env: dict[str, str]) -> None:
     opener, _ = admin_session_opener(base_url, env)
     origin = base_url.rstrip("/")
-    status_url = f"{origin}/admin/adversary-sim/status"
+    status_url = f"{origin}/shuma/admin/adversary-sim/status"
     deadline = time.time() + EDGE_CONTROL_LEASE_RELEASE_TIMEOUT_SECONDS
     last_raw = ""
 
@@ -797,8 +797,8 @@ def smoke_external_dashboard(base_url: str, env: dict[str, str]) -> None:
 
 
 def bootstrap_remote_config_if_missing(base_url: str, env: dict[str, str]) -> None:
-    config_url = f"{base_url.rstrip('/')}/admin/config"
-    bootstrap_url = f"{base_url.rstrip('/')}/admin/config/bootstrap"
+    config_url = f"{base_url.rstrip('/')}/shuma/admin/config"
+    bootstrap_url = f"{base_url.rstrip('/')}/shuma/admin/config/bootstrap"
     headers = admin_auth_headers(env, base_url)
     status, body = http_text_request(method="GET", url=config_url, headers=headers)
     if status == 200:
@@ -845,7 +845,7 @@ def public_route_smoke_acceptable(status: int, body: str) -> bool:
 def smoke_deployed_app(base_url: str, env: dict[str, str]) -> None:
     login_status, login_body = http_text_request(
         method="GET",
-        url=f"{base_url.rstrip('/')}/dashboard/login.html",
+        url=f"{base_url.rstrip('/')}/shuma/dashboard/login.html",
     )
     if login_status != 200 or "<!doctype html>" not in login_body.lower():
         raise SystemExit(
@@ -863,7 +863,7 @@ def smoke_deployed_app(base_url: str, env: dict[str, str]) -> None:
 
     config_status, config_body = http_text_request(
         method="GET",
-        url=f"{base_url.rstrip('/')}/admin/config",
+        url=f"{base_url.rstrip('/')}/shuma/admin/config",
         headers=admin_auth_headers(env, base_url),
     )
     if config_status != 200:

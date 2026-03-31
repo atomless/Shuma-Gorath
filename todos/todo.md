@@ -164,16 +164,6 @@ Current note:
   - and the next remaining blocker is projection truth: operator/admin and dashboard surfaces still need to distinguish judged mixed-attacker episodes from mere lane visibility.
 - Do not claim mixed-attacker strict-baseline proof from the new score spine alone; mixed-attacker proof projection and repeated retained improvement under mixed pressure still remain required.
 
-- [ ] ROUTE-NS-1C Move Shuma-owned control-plane, dashboard, health, and metrics routes under `/shuma/*`.
-  - Reference context:
-    - [`docs/research/2026-03-31-route-namespace-and-root-hosted-public-site-review.md`](../docs/research/2026-03-31-route-namespace-and-root-hosted-public-site-review.md)
-    - [`docs/plans/2026-03-31-route-namespace-and-root-hosted-public-site-plan.md`](../docs/plans/2026-03-31-route-namespace-and-root-hosted-public-site-plan.md)
-  - Closure gate:
-    - control-plane truth: `/admin/* -> /shuma/admin/*`, `/dashboard/* -> /shuma/dashboard/*`, `/health -> /shuma/health`, and `/metrics -> /shuma/metrics` must become the only canonical Shuma-owned control or operational paths
-    - auth truth: dashboard login, session, logout, and admin redirects must all work through the new `/shuma/*` namespace
-    - proof: add and pass `make test-shuma-control-route-migration`
-    - insufficient: leaving top-level legacy control routes active as canonical surfaces or relying on compatibility aliases by default
-
 - [ ] ROUTE-NS-1D Move internal Shuma supervisor and loop-control routes under `/shuma/internal/*`.
   - Reference context:
     - [`docs/research/2026-03-31-route-namespace-and-root-hosted-public-site-review.md`](../docs/research/2026-03-31-route-namespace-and-root-hosted-public-site-review.md)

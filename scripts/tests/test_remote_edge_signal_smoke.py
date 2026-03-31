@@ -94,7 +94,7 @@ class RemoteEdgeSignalSmokeTests(unittest.TestCase):
                     "deploy": {
                         "spin_manifest_path": "/opt/shuma-gorath/spin.gateway.toml",
                         "surface_catalog_path": str(self.temp_dir / "surface-catalog.json"),
-                        "smoke_path": "/health",
+                        "smoke_path": "/shuma/health",
                         "upstream_origin": "http://127.0.0.1:8080",
                     },
                     "metadata": {
@@ -144,14 +144,14 @@ class RemoteEdgeSignalSmokeTests(unittest.TestCase):
 
             def do_GET(self):
                 parsed = urlparse(self.path)
-                if parsed.path == "/admin/config":
+                if parsed.path == "/shuma/admin/config":
                     if not self._require_auth():
                         self._send_text("Unauthorized", 401)
                         return
                     self._send_json(state.config)
                     return
 
-                if parsed.path == "/admin/ban":
+                if parsed.path == "/shuma/admin/ban":
                     if not self._require_auth():
                         self._send_text("Unauthorized", 401)
                         return
@@ -197,7 +197,7 @@ class RemoteEdgeSignalSmokeTests(unittest.TestCase):
 
             def do_POST(self):
                 parsed = urlparse(self.path)
-                if parsed.path == "/admin/config":
+                if parsed.path == "/shuma/admin/config":
                     if not self._require_auth():
                         self._send_text("Unauthorized", 401)
                         return
@@ -212,7 +212,7 @@ class RemoteEdgeSignalSmokeTests(unittest.TestCase):
                     self._send_json(response)
                     return
 
-                if parsed.path == "/admin/unban":
+                if parsed.path == "/shuma/admin/unban":
                     if not self._require_auth():
                         self._send_text("Unauthorized", 401)
                         return

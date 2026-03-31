@@ -310,7 +310,7 @@ class DeployLinodeOneShotTests(unittest.TestCase):
         curl_log = self.curl_log.read_text(encoding="utf-8")
         self.assertNotIn("POST https://api.linode.com/v4/linode/instances\n", curl_log)
         self.assertIn("Host IP:   198.51.100.24", result.stdout)
-        self.assertIn("Dashboard: https://shuma.example.com/dashboard", result.stdout)
+        self.assertIn("Dashboard: https://shuma.example.com/shuma/dashboard", result.stdout)
         remote_receipt = json.loads(
             (self.remote_receipts_dir / "blog-prod.json").read_text(encoding="utf-8")
         )
@@ -400,7 +400,7 @@ class DeployLinodeOneShotTests(unittest.TestCase):
         )
         self.assertEqual(result.returncode, 0, msg=result.stderr or result.stdout)
         self.assertTrue(self.open_log.exists())
-        self.assertIn("https://shuma.example.com/dashboard", self.open_log.read_text(encoding="utf-8"))
+        self.assertIn("https://shuma.example.com/shuma/dashboard", self.open_log.read_text(encoding="utf-8"))
 
     def test_existing_instance_mode_rejects_profile_override(self) -> None:
         result = self.run_script(

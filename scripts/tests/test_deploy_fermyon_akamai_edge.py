@@ -751,7 +751,7 @@ class DeployFermyonAkamaiEdgeTests(unittest.TestCase):
             deploy.smoke_adversary_sim_generation("https://edge.example.com", {})
 
         self.assertTrue(
-            any("/admin/monitoring/delta?hours=24&limit=20&after_cursor=cursor-0" in url for url in calls)
+            any("/shuma/admin/monitoring/delta?hours=24&limit=20&after_cursor=cursor-0" in url for url in calls)
         )
 
     def test_smoke_adversary_sim_generation_uses_extended_timeout_for_control_posts(self) -> None:
@@ -808,7 +808,7 @@ class DeployFermyonAkamaiEdgeTests(unittest.TestCase):
         control_timeouts = [
             timeout_seconds
             for url, timeout_seconds in calls
-            if url == "https://edge.example.com/admin/adversary-sim/control"
+            if url == "https://edge.example.com/shuma/admin/adversary-sim/control"
         ]
         self.assertEqual(
             control_timeouts,
@@ -949,9 +949,9 @@ class DeployFermyonAkamaiEdgeTests(unittest.TestCase):
             deploy.bootstrap_remote_config_if_missing("https://app.example.com", env)
 
         self.assertEqual(http_calls[0][0], "GET")
-        self.assertEqual(http_calls[0][1], "https://app.example.com/admin/config")
+        self.assertEqual(http_calls[0][1], "https://app.example.com/shuma/admin/config")
         self.assertEqual(http_calls[1][0], "POST")
-        self.assertEqual(http_calls[1][1], "https://app.example.com/admin/config/bootstrap")
+        self.assertEqual(http_calls[1][1], "https://app.example.com/shuma/admin/config/bootstrap")
         self.assertEqual(
             json.loads(http_calls[1][3].decode("utf-8")),
             {"rate_limit": 321},

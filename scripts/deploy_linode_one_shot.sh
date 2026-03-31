@@ -853,7 +853,7 @@ info "Running remote bootstrap"
 ssh -o StrictHostKeyChecking=accept-new -i "${SSH_PRIVATE_KEY_FILE}" "shuma@${INSTANCE_IPV4}" "${REMOTE_CMD}"
 
 success "Deployment completed"
-DASHBOARD_URL="${BASE_URL}/dashboard"
+DASHBOARD_URL="${BASE_URL}/shuma/dashboard"
 REMOTE_TARGET_NAME="${REMOTE_NAME:-}"
 if [[ -z "${REMOTE_TARGET_NAME}" ]]; then
   if [[ -n "${DOMAIN_NAME}" ]]; then
@@ -905,13 +905,13 @@ if [[ "${ENABLE_CADDY_NORM}" == "true" ]]; then
   echo ""
   echo "URL:       ${BASE_URL}"
   echo "Dashboard: ${DASHBOARD_URL}"
-  echo "Health:    ${BASE_URL}/health (requires X-Shuma-Health-Secret header)"
+  echo "Health:    ${BASE_URL}/shuma/health (requires X-Shuma-Health-Secret header)"
   echo "Note:     If TLS is not yet active, verify DNS A/AAAA for ${DOMAIN_NAME} points to ${INSTANCE_IPV4} and restart Caddy."
 else
   echo ""
   echo "URL:       ${BASE_URL}"
   echo "Dashboard: ${DASHBOARD_URL}"
-  echo "Health:    ${BASE_URL}/health (requires X-Shuma-Health-Secret header)"
+  echo "Health:    ${BASE_URL}/shuma/health (requires X-Shuma-Health-Secret header)"
 fi
 
 echo "Linode ID: ${INSTANCE_ID}"

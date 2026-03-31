@@ -17,7 +17,7 @@ import {
 } from './dashboard-paths.js';
 
 const DASHBOARD_TABS = Object.freeze(['traffic', 'ip-bans', 'red-team', 'game-loop', 'tuning', 'verification', 'traps', 'rate-limiting', 'geo', 'policy', 'status', 'advanced', 'diagnostics']);
-const CONNECTION_HEARTBEAT_PATH = '/admin/session';
+const CONNECTION_HEARTBEAT_PATH = '/shuma/admin/session';
 const CONNECTION_HEARTBEAT_METHOD = 'GET';
 const CONNECTION_HEARTBEAT_INTERVAL_MS = 1000;
 const CONNECTION_HEARTBEAT_TIMEOUT_MS = 2500;
@@ -367,7 +367,7 @@ async function restoreSessionFromServer() {
   }
 
   try {
-    const response = await fetch(`${endpoint}/admin/session`, {
+    const response = await fetch(`${endpoint}/shuma/admin/session`, {
       method: 'GET',
       credentials: 'same-origin'
     });
@@ -536,7 +536,7 @@ export async function logoutDashboardSession() {
       headers.set('X-Shuma-CSRF', sessionState.csrfToken);
     }
     try {
-      await fetch(`${endpoint}/admin/logout`, {
+      await fetch(`${endpoint}/shuma/admin/logout`, {
         method: 'POST',
         headers,
         credentials: 'same-origin'

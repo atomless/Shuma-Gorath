@@ -10,14 +10,14 @@
 #   2. Run this script: ./scripts/tests/integration.sh
 #
 # This script runs integration test scenarios:
-#   1. Health check endpoint (GET /health)
+#   1. Health check endpoint (GET /shuma/health)
 #   2. PoW challenge + verification (if enabled)
 #   3. Root endpoint behavior (GET /)
 #   4. Honeypot ban detection (POST /instaban)
-#   5. Admin API unban (POST /admin/unban)
-#   6. Health check after ban/unban (GET /health)
-#   7. Config API - get config (GET /admin/config)
-#   8. Test mode toggle (POST /admin/config)
+#   5. Admin API unban (POST /shuma/admin/unban)
+#   6. Health check after ban/unban (GET /shuma/health)
+#   7. Config API - get config (GET /shuma/admin/config)
+#   8. Test mode toggle (POST /shuma/admin/config)
 #   9. Challenge failure routing flow (wrong/replay -> maze in shadow mode)
 #   10. Test mode behavior verification
 #   11. Test mode disable and blocking resumes
@@ -134,18 +134,18 @@ cleanup_integration_state() {
     curl -s "${ADMIN_REQUEST_HEADERS[@]}" -X POST \
       -H "Content-Type: application/json" \
       -d "${ORIGINAL_CONFIG_RESTORE_PAYLOAD}" \
-      "$BASE_URL/admin/config" > /dev/null || true
+      "$BASE_URL/shuma/admin/config" > /dev/null || true
   else
     # Fallback only when the original snapshot could not be captured.
     curl -s "${ADMIN_REQUEST_HEADERS[@]}" -X POST \
       -H "Content-Type: application/json" \
       -d '{"provider_backends":{"rate_limiter":"internal","fingerprint_signal":"internal"},"edge_integration_mode":"off","geo_edge_headers_enabled":false}' \
-      "$BASE_URL/admin/config" > /dev/null || true
+      "$BASE_URL/shuma/admin/config" > /dev/null || true
   fi
 
   for ip in "${TEST_CLEANUP_IPS[@]}"; do
     curl -s "${ADMIN_REQUEST_HEADERS[@]}" -X POST \
-      "$BASE_URL/admin/unban?ip=${ip}" > /dev/null || true
+      "$BASE_URL/shuma/admin/unban?ip=${ip}" > /dev/null || true
   done
 }
 
@@ -233,18 +233,18 @@ ADMIN_REQUEST_HEADERS=(
 )
 
 # Test 1: Health check
-info "Testing /health endpoint..."
+info "Testing /shuma/health endpoint..."
 
-health_resp=$(curl -s "${FORWARDED_SECRET_HEADER[@]}" "${HEALTH_SECRET_HEADER[@]}" -H "X-Forwarded-For: 127.0.0.1" "$BASE_URL/health")
+health_resp=$(curl -s "${FORWARDED_SECRET_HEADER[@]}" "${HEALTH_SECRET_HEADER[@]}" -H "X-Forwarded-For: 127.0.0.1" "$BASE_URL/shuma/health")
 if echo "$health_resp" | grep -q OK; then
-  pass "/health returns OK"
+  pass "/shuma/health returns OK"
 else
-  fail "/health did not return OK"
-  echo -e "${YELLOW}DEBUG /health response:${NC} $health_resp"
+  fail "/shuma/health did not return OK"
+  echo -e "${YELLOW}DEBUG /shuma/health response:${NC} $health_resp"
 fi
 
 info "Capturing original runtime config snapshot for exact restore..."
-original_config_snapshot=$(curl -s "${ADMIN_REQUEST_HEADERS[@]}" "$BASE_URL/admin/config")
+original_config_snapshot=$(curl -s "${ADMIN_REQUEST_HEADERS[@]}" "$BASE_URL/shuma/admin/config")
 snapshot_restore_payload=$(python3 -c 'import json,sys
 try:
     data=json.loads(sys.stdin.read())
@@ -262,40 +262,40 @@ info "Resetting shadow_mode=false before integration scenarios..."
 curl -s "${ADMIN_REQUEST_HEADERS[@]}" -X POST \
   -H "Content-Type: application/json" \
   -d '{"shadow_mode": false, "honeypot_enabled": true, "rate_limit": 1000, "not_a_bot_pass_score": 6, "not_a_bot_fail_score": 3, "not_a_bot_attempt_limit_per_window": 100, "not_a_bot_attempt_window_seconds": 300}' \
-  "$BASE_URL/admin/config" > /dev/null || true
+  "$BASE_URL/shuma/admin/config" > /dev/null || true
 
 info "Resetting GEO policy lists to empty defaults..."
 curl -s "${ADMIN_REQUEST_HEADERS[@]}" -X POST \
   -H "Content-Type: application/json" \
   -d '{"geo_edge_headers_enabled":false,"geo_risk":[],"geo_allow":[],"geo_challenge":[],"geo_maze":[],"geo_block":[]}' \
-  "$BASE_URL/admin/config" > /dev/null || true
+  "$BASE_URL/shuma/admin/config" > /dev/null || true
 
 info "Resetting Akamai backend toggles to defaults..."
 curl -s "${ADMIN_REQUEST_HEADERS[@]}" -X POST \
   -H "Content-Type: application/json" \
   -d '{"provider_backends":{"rate_limiter":"internal","fingerprint_signal":"internal"},"edge_integration_mode":"off"}' \
-  "$BASE_URL/admin/config" > /dev/null || true
+  "$BASE_URL/shuma/admin/config" > /dev/null || true
 
 info "Resetting allowlist/path allowlist to empty defaults..."
 curl -s "${ADMIN_REQUEST_HEADERS[@]}" -X POST \
   -H "Content-Type: application/json" \
   -d '{"allowlist":[],"path_allowlist_enabled":true,"path_allowlist":[]}' \
-  "$BASE_URL/admin/config" > /dev/null || true
+  "$BASE_URL/shuma/admin/config" > /dev/null || true
 
 info "Resetting IP-range policy to defaults..."
 curl -s "${ADMIN_REQUEST_HEADERS[@]}" -X POST \
   -H "Content-Type: application/json" \
   -d '{"ip_range_policy_mode":"off","ip_range_emergency_allowlist":[],"ip_range_custom_rules":[]}' \
-  "$BASE_URL/admin/config" > /dev/null || true
+  "$BASE_URL/shuma/admin/config" > /dev/null || true
 
 info "Clearing bans for integration test IPs..."
 for ip in "${TEST_CLEANUP_IPS[@]}"; do
   curl -s "${ADMIN_REQUEST_HEADERS[@]}" -X POST \
-    "$BASE_URL/admin/unban?ip=${ip}" > /dev/null || true
+    "$BASE_URL/shuma/admin/unban?ip=${ip}" > /dev/null || true
 done
 
 info "Resolving configured honeypot path..."
-config_snapshot=$(curl -s "${ADMIN_REQUEST_HEADERS[@]}" "$BASE_URL/admin/config")
+config_snapshot=$(curl -s "${ADMIN_REQUEST_HEADERS[@]}" "$BASE_URL/shuma/admin/config")
 resolved_honeypot=$(python3 -c 'import json,sys
 try:
     data=json.loads(sys.stdin.read())
@@ -537,7 +537,7 @@ info "Testing JS browser allowlist behavior independent of browser policy toggle
 curl -s "${ADMIN_REQUEST_HEADERS[@]}" -X POST \
   -H "Content-Type: application/json" \
   -d '{"browser_policy_enabled":false,"browser_allowlist":[["Chrome",120]]}' \
-  "$BASE_URL/admin/config" > /dev/null || true
+  "$BASE_URL/shuma/admin/config" > /dev/null || true
 
 js_allowlist_resp=$(curl -s -w "HTTPSTATUS:%{http_code}" "${FORWARDED_SECRET_HEADER[@]}" \
   -H "X-Forwarded-For: ${TEST_JS_ALLOWLIST_IP}" \
@@ -558,7 +558,7 @@ fi
 curl -s "${ADMIN_REQUEST_HEADERS[@]}" -X POST \
   -H "Content-Type: application/json" \
   -d '{"browser_policy_enabled":true,"browser_allowlist":[]}' \
-  "$BASE_URL/admin/config" > /dev/null || true
+  "$BASE_URL/shuma/admin/config" > /dev/null || true
 
 # Test 4: Honeypot triggers ban
 info "Testing honeypot ban..."
@@ -575,7 +575,7 @@ fi
 
 # Test 5: Unban integration test IP via admin API
 info "Testing admin unban for integration test IP..."
-curl -s "${ADMIN_REQUEST_HEADERS[@]}" -X POST "$BASE_URL/admin/unban?ip=${TEST_HONEYPOT_IP}" > /dev/null
+curl -s "${ADMIN_REQUEST_HEADERS[@]}" -X POST "$BASE_URL/shuma/admin/unban?ip=${TEST_HONEYPOT_IP}" > /dev/null
 resp=$(curl -s "${FORWARDED_SECRET_HEADER[@]}" -H "X-Forwarded-For: ${TEST_HONEYPOT_IP}" "$BASE_URL/")
 if ! echo "$resp" | grep -q 'Access Blocked'; then
   pass "Unban for integration test IP works"
@@ -584,31 +584,31 @@ else
 fi
 
 # Test 6: Health check after ban/unban
-info "Testing /health endpoint again..."
-if curl -sf "${FORWARDED_SECRET_HEADER[@]}" "${HEALTH_SECRET_HEADER[@]}" -H "X-Forwarded-For: 127.0.0.1" "$BASE_URL/health" | grep -q OK; then
-  pass "/health returns OK after ban/unban"
+info "Testing /shuma/health endpoint again..."
+if curl -sf "${FORWARDED_SECRET_HEADER[@]}" "${HEALTH_SECRET_HEADER[@]}" -H "X-Forwarded-For: 127.0.0.1" "$BASE_URL/shuma/health" | grep -q OK; then
+  pass "/shuma/health returns OK after ban/unban"
 else
-  fail "/health did not return OK after ban/unban"
+  fail "/shuma/health did not return OK after ban/unban"
 fi
 
 # Test 7: Get config via admin API
-info "Testing GET /admin/config..."
-config_resp=$(curl -s "${ADMIN_REQUEST_HEADERS[@]}" "$BASE_URL/admin/config")
+info "Testing GET /shuma/admin/config..."
+config_resp=$(curl -s "${ADMIN_REQUEST_HEADERS[@]}" "$BASE_URL/shuma/admin/config")
 if echo "$config_resp" | grep -q '"shadow_mode"'; then
-  pass "GET /admin/config returns shadow_mode field"
+  pass "GET /shuma/admin/config returns shadow_mode field"
 else
-  fail "GET /admin/config did not return shadow_mode"
+  fail "GET /shuma/admin/config did not return shadow_mode"
   echo -e "${YELLOW}DEBUG config response:${NC} $config_resp"
 fi
 
 # Test 8: Enable shadow mode
-info "Testing POST /admin/config to enable shadow_mode..."
+info "Testing POST /shuma/admin/config to enable shadow_mode..."
 enable_resp=$(curl -s "${ADMIN_REQUEST_HEADERS[@]}" -X POST -H "Content-Type: application/json" \
-  -d '{"shadow_mode": true}' "$BASE_URL/admin/config")
+  -d '{"shadow_mode": true}' "$BASE_URL/shuma/admin/config")
 if echo "$enable_resp" | grep -q '"shadow_mode":true'; then
-  pass "POST /admin/config enables shadow_mode"
+  pass "POST /shuma/admin/config enables shadow_mode"
 else
-  fail "POST /admin/config did not enable shadow_mode"
+  fail "POST /shuma/admin/config did not enable shadow_mode"
   echo -e "${YELLOW}DEBUG enable response:${NC} $enable_resp"
 fi
 
@@ -734,7 +734,7 @@ fi
 # Test 11: Shadow mode allows honeypot access without blocking
 info "Testing shadow_mode behavior (honeypot should not block)..."
 # First, unban the test IP to ensure clean state
-curl -s "${ADMIN_REQUEST_HEADERS[@]}" -X POST "$BASE_URL/admin/unban?ip=10.0.0.99" > /dev/null
+curl -s "${ADMIN_REQUEST_HEADERS[@]}" -X POST "$BASE_URL/shuma/admin/unban?ip=10.0.0.99" > /dev/null
 # Hit honeypot with test IP
 honeypot_resp=$(curl -s "${FORWARDED_SECRET_HEADER[@]}" -H "X-Forwarded-For: 10.0.0.99" "$BASE_URL$HONEYPOT_PATH")
 if ! echo "$honeypot_resp" | grep -q 'Access Blocked'; then
@@ -754,20 +754,20 @@ else
 fi
 
 # Test 12: Disable shadow mode and verify blocking resumes
-info "Testing POST /admin/config to disable shadow_mode..."
+info "Testing POST /shuma/admin/config to disable shadow_mode..."
 disable_resp=$(curl -s "${ADMIN_REQUEST_HEADERS[@]}" -X POST -H "Content-Type: application/json" \
-  -d '{"shadow_mode": false}' "$BASE_URL/admin/config")
+  -d '{"shadow_mode": false}' "$BASE_URL/shuma/admin/config")
 if echo "$disable_resp" | grep -q '"shadow_mode":false'; then
-  pass "POST /admin/config disables shadow_mode"
+  pass "POST /shuma/admin/config disables shadow_mode"
 else
-  fail "POST /admin/config did not disable shadow_mode"
+  fail "POST /shuma/admin/config did not disable shadow_mode"
   echo -e "${YELLOW}DEBUG disable response:${NC} $disable_resp"
 fi
 
 # Test 13: Verify blocking works again after shadow mode is disabled
 info "Testing that blocking resumes after shadow_mode disabled..."
 # Unban first to get clean state
-curl -s "${ADMIN_REQUEST_HEADERS[@]}" -X POST "$BASE_URL/admin/unban?ip=10.0.0.100" > /dev/null
+curl -s "${ADMIN_REQUEST_HEADERS[@]}" -X POST "$BASE_URL/shuma/admin/unban?ip=10.0.0.100" > /dev/null
 # Hit honeypot - should now actually ban
 curl -s "${FORWARDED_SECRET_HEADER[@]}" -H "X-Forwarded-For: 10.0.0.100" "$BASE_URL$HONEYPOT_PATH" > /dev/null
 block_resp=$(curl -s "${FORWARDED_SECRET_HEADER[@]}" -H "X-Forwarded-For: 10.0.0.100" "$BASE_URL/")
@@ -779,20 +779,20 @@ else
 fi
 
 # Cleanup: unban test IPs
-curl -s "${ADMIN_REQUEST_HEADERS[@]}" -X POST "$BASE_URL/admin/unban?ip=10.0.0.99" > /dev/null
-curl -s "${ADMIN_REQUEST_HEADERS[@]}" -X POST "$BASE_URL/admin/unban?ip=10.0.0.100" > /dev/null
-curl -s "${ADMIN_REQUEST_HEADERS[@]}" -X POST "$BASE_URL/admin/unban?ip=10.0.0.150" > /dev/null
+curl -s "${ADMIN_REQUEST_HEADERS[@]}" -X POST "$BASE_URL/shuma/admin/unban?ip=10.0.0.99" > /dev/null
+curl -s "${ADMIN_REQUEST_HEADERS[@]}" -X POST "$BASE_URL/shuma/admin/unban?ip=10.0.0.100" > /dev/null
+curl -s "${ADMIN_REQUEST_HEADERS[@]}" -X POST "$BASE_URL/shuma/admin/unban?ip=10.0.0.150" > /dev/null
 
 # Test 14: Tarpit abuse routing + progressive propagation
 info "Testing tarpit abuse routing and progressive propagation..."
 info "Clearing tarpit integration test IPs..."
 for ip in "${TEST_TARPIT_IP}" "${TEST_TARPIT_TAMPER_IP}" "${TARPIT_BURST_IPS[@]}"; do
   curl -s "${ADMIN_REQUEST_HEADERS[@]}" -X POST \
-    "$BASE_URL/admin/unban?ip=${ip}" > /dev/null || true
+    "$BASE_URL/shuma/admin/unban?ip=${ip}" > /dev/null || true
 done
 tarpit_cfg=$(curl -s "${ADMIN_REQUEST_HEADERS[@]}" -X POST -H "Content-Type: application/json" \
   -d '{"shadow_mode":true,"maze_enabled":true,"tarpit_enabled":true,"tarpit_progress_token_ttl_seconds":120,"tarpit_progress_replay_ttl_seconds":300,"tarpit_hashcash_min_difficulty":8,"tarpit_hashcash_max_difficulty":16,"tarpit_hashcash_base_difficulty":10,"tarpit_hashcash_adaptive":true,"tarpit_step_chunk_base_bytes":4096,"tarpit_step_chunk_max_bytes":12288,"tarpit_step_jitter_percent":15,"tarpit_shard_rotation_enabled":true,"tarpit_egress_window_seconds":60,"tarpit_egress_global_bytes_per_window":8388608,"tarpit_egress_per_ip_bucket_bytes_per_window":1048576,"tarpit_egress_per_flow_max_bytes":524288,"tarpit_egress_per_flow_max_duration_seconds":120,"tarpit_max_concurrent_global":10000,"tarpit_max_concurrent_per_ip_bucket":256,"tarpit_fallback_action":"maze"}' \
-  "$BASE_URL/admin/config")
+  "$BASE_URL/shuma/admin/config")
 if ! echo "$tarpit_cfg" | grep -q '"status":"updated"'; then
   fail "Failed to apply tarpit config"
   echo -e "${YELLOW}DEBUG tarpit config:${NC} $tarpit_cfg"
@@ -817,7 +817,7 @@ else
       echo -e "${YELLOW}DEBUG replay-prime status:${NC} $replay_prime_status"
     else
       disable_shadow_mode_resp=$(curl -s "${ADMIN_REQUEST_HEADERS[@]}" -X POST -H "Content-Type: application/json" \
-        -d '{"shadow_mode": false}' "$BASE_URL/admin/config")
+        -d '{"shadow_mode": false}' "$BASE_URL/shuma/admin/config")
       if ! echo "$disable_shadow_mode_resp" | grep -q '"shadow_mode":false'; then
         fail "Failed to disable shadow_mode before tarpit replay-abuse assertion"
         echo -e "${YELLOW}DEBUG disable shadow_mode response:${NC} $disable_shadow_mode_resp"
@@ -869,7 +869,7 @@ fi
 info "Testing tarpit budget saturation fallback (block) under concurrent abuse..."
 tarpit_budget_cfg=$(curl -s "${ADMIN_REQUEST_HEADERS[@]}" -X POST -H "Content-Type: application/json" \
   -d '{"shadow_mode":false,"maze_enabled":true,"tarpit_enabled":true,"tarpit_progress_token_ttl_seconds":120,"tarpit_progress_replay_ttl_seconds":300,"tarpit_hashcash_min_difficulty":8,"tarpit_hashcash_max_difficulty":16,"tarpit_hashcash_base_difficulty":10,"tarpit_hashcash_adaptive":true,"tarpit_step_chunk_base_bytes":4096,"tarpit_step_chunk_max_bytes":12288,"tarpit_step_jitter_percent":15,"tarpit_shard_rotation_enabled":true,"tarpit_egress_window_seconds":60,"tarpit_egress_global_bytes_per_window":8388608,"tarpit_egress_per_ip_bucket_bytes_per_window":1048576,"tarpit_egress_per_flow_max_bytes":524288,"tarpit_egress_per_flow_max_duration_seconds":120,"tarpit_max_concurrent_global":1,"tarpit_max_concurrent_per_ip_bucket":1,"tarpit_fallback_action":"block"}' \
-  "$BASE_URL/admin/config")
+  "$BASE_URL/shuma/admin/config")
 if ! echo "$tarpit_budget_cfg" | grep -q '"status":"updated"'; then
   fail "Failed to apply tarpit budget saturation config"
   echo -e "${YELLOW}DEBUG tarpit budget config:${NC} $tarpit_budget_cfg"
@@ -915,7 +915,7 @@ if [[ -z "${SHUMA_FORWARDED_IP_SECRET:-}" ]]; then
 else
   info "Testing GEO policy route: challenge tier..."
   geo_challenge_cfg=$(curl -s "${ADMIN_REQUEST_HEADERS[@]}" -X POST -H "Content-Type: application/json" \
-    -d '{"geo_edge_headers_enabled":true,"geo_risk":[],"geo_allow":[],"geo_challenge":["BR"],"geo_maze":[],"geo_block":[]}' "$BASE_URL/admin/config")
+    -d '{"geo_edge_headers_enabled":true,"geo_risk":[],"geo_allow":[],"geo_challenge":["BR"],"geo_maze":[],"geo_block":[]}' "$BASE_URL/shuma/admin/config")
   if ! echo "$geo_challenge_cfg" | grep -q '"geo_challenge":\["BR"\]'; then
     fail "Failed to apply GEO challenge policy config"
     echo -e "${YELLOW}DEBUG geo challenge config:${NC} $geo_challenge_cfg"
@@ -931,7 +931,7 @@ else
 
   info "Testing GEO policy route: maze tier..."
   geo_maze_cfg=$(curl -s "${ADMIN_REQUEST_HEADERS[@]}" -X POST -H "Content-Type: application/json" \
-    -d '{"geo_edge_headers_enabled":true,"geo_risk":[],"geo_allow":[],"geo_challenge":[],"geo_maze":["RU"],"geo_block":[],"maze_enabled":true,"maze_auto_ban":false}' "$BASE_URL/admin/config")
+    -d '{"geo_edge_headers_enabled":true,"geo_risk":[],"geo_allow":[],"geo_challenge":[],"geo_maze":["RU"],"geo_block":[],"maze_enabled":true,"maze_auto_ban":false}' "$BASE_URL/shuma/admin/config")
   if ! echo "$geo_maze_cfg" | grep -q '"geo_maze":\["RU"\]'; then
     fail "Failed to apply GEO maze policy config"
     echo -e "${YELLOW}DEBUG geo maze config:${NC} $geo_maze_cfg"
@@ -947,7 +947,7 @@ else
 
   info "Testing GEO policy route: block tier..."
   geo_block_cfg=$(curl -s "${ADMIN_REQUEST_HEADERS[@]}" -X POST -H "Content-Type: application/json" \
-    -d '{"geo_edge_headers_enabled":true,"geo_risk":[],"geo_allow":[],"geo_challenge":[],"geo_maze":[],"geo_block":["KP"]}' "$BASE_URL/admin/config")
+    -d '{"geo_edge_headers_enabled":true,"geo_risk":[],"geo_allow":[],"geo_challenge":[],"geo_maze":[],"geo_block":["KP"]}' "$BASE_URL/shuma/admin/config")
   if ! echo "$geo_block_cfg" | grep -q '"geo_block":\["KP"\]'; then
     fail "Failed to apply GEO block policy config"
     echo -e "${YELLOW}DEBUG geo block config:${NC} $geo_block_cfg"
@@ -966,7 +966,7 @@ else
 
   info "Resetting GEO policy lists after routing tests..."
   curl -s "${ADMIN_REQUEST_HEADERS[@]}" -X POST -H "Content-Type: application/json" \
-    -d '{"geo_edge_headers_enabled":false,"geo_risk":[],"geo_allow":[],"geo_challenge":[],"geo_maze":[],"geo_block":[]}' "$BASE_URL/admin/config" > /dev/null || true
+    -d '{"geo_edge_headers_enabled":false,"geo_risk":[],"geo_allow":[],"geo_challenge":[],"geo_maze":[],"geo_block":[]}' "$BASE_URL/shuma/admin/config" > /dev/null || true
 
   info "Testing legacy explicit maze/trap path rejection..."
   legacy_maze_resp=$(curl -s "${FORWARDED_SECRET_HEADER[@]}" -H "X-Forwarded-For: 10.0.0.233" "$BASE_URL/maze/legacy-path")
@@ -990,7 +990,7 @@ else
   info "Testing IP-range policy advisory mode..."
   advisory_cfg=$(curl -s "${ADMIN_REQUEST_HEADERS[@]}" -X POST -H "Content-Type: application/json" \
     -d '{"ip_range_policy_mode":"advisory","ip_range_custom_rules":[{"id":"advisory_block","enabled":true,"cidrs":["10.0.0.250/32"],"action":"forbidden_403"}]}' \
-    "$BASE_URL/admin/config")
+    "$BASE_URL/shuma/admin/config")
   if ! echo "$advisory_cfg" | grep -q '"ip_range_policy_mode":"advisory"'; then
     fail "Failed to apply advisory IP-range policy config"
     echo -e "${YELLOW}DEBUG advisory ip-range config:${NC} $advisory_cfg"
@@ -1012,7 +1012,7 @@ else
   info "Testing IP-range policy enforce mode block action..."
   enforce_cfg=$(curl -s "${ADMIN_REQUEST_HEADERS[@]}" -X POST -H "Content-Type: application/json" \
     -d '{"ip_range_policy_mode":"enforce","ip_range_custom_rules":[{"id":"enforce_block","enabled":true,"cidrs":["10.0.0.250/32"],"action":"forbidden_403"}]}' \
-    "$BASE_URL/admin/config")
+    "$BASE_URL/shuma/admin/config")
   if ! echo "$enforce_cfg" | grep -q '"ip_range_policy_mode":"enforce"'; then
     fail "Failed to apply enforce IP-range policy config"
     echo -e "${YELLOW}DEBUG enforce ip-range config:${NC} $enforce_cfg"
@@ -1032,7 +1032,7 @@ else
   info "Testing IP-range emergency allowlist precedence..."
   allowlist_cfg=$(curl -s "${ADMIN_REQUEST_HEADERS[@]}" -X POST -H "Content-Type: application/json" \
     -d '{"ip_range_policy_mode":"enforce","ip_range_emergency_allowlist":["10.0.0.250/32"],"ip_range_custom_rules":[{"id":"enforce_block","enabled":true,"cidrs":["10.0.0.250/32"],"action":"forbidden_403"}]}' \
-    "$BASE_URL/admin/config")
+    "$BASE_URL/shuma/admin/config")
   if ! echo "$allowlist_cfg" | grep -q '"ip_range_emergency_allowlist":\["10.0.0.250/32"\]'; then
     fail "Failed to apply emergency allowlist for IP-range policy"
     echo -e "${YELLOW}DEBUG allowlist ip-range config:${NC} $allowlist_cfg"
@@ -1054,24 +1054,24 @@ else
   info "Resetting IP-range policy lists after routing tests..."
   curl -s "${ADMIN_REQUEST_HEADERS[@]}" -X POST -H "Content-Type: application/json" \
     -d '{"ip_range_policy_mode":"off","ip_range_emergency_allowlist":[],"ip_range_custom_rules":[]}' \
-    "$BASE_URL/admin/config" > /dev/null || true
+    "$BASE_URL/shuma/admin/config" > /dev/null || true
 fi
 
 # Test 17: Prometheus metrics endpoint
-info "Testing GET /metrics (Prometheus format)..."
-metrics_resp=$(curl -s "${FORWARDED_SECRET_HEADER[@]}" "$BASE_URL/metrics")
+info "Testing GET /shuma/metrics (Prometheus format)..."
+metrics_resp=$(curl -s "${FORWARDED_SECRET_HEADER[@]}" "$BASE_URL/shuma/metrics")
 if echo "$metrics_resp" | grep -q 'bot_defence_requests_total'; then
-  pass "/metrics returns Prometheus-formatted metrics"
+  pass "/shuma/metrics returns Prometheus-formatted metrics"
 else
-  fail "/metrics did not return expected Prometheus format"
+  fail "/shuma/metrics did not return expected Prometheus format"
   echo -e "${YELLOW}DEBUG metrics response:${NC} $metrics_resp"
 fi
 
 # Verify metrics contain expected counters
 if echo "$metrics_resp" | grep -q 'bot_defence_bans_total'; then
-  pass "/metrics includes ban counters"
+  pass "/shuma/metrics includes ban counters"
 else
-  fail "/metrics missing ban counters"
+  fail "/shuma/metrics missing ban counters"
 fi
 
 # Verify monitoring parity metric families exist with bounded label vocabularies
@@ -1125,9 +1125,9 @@ print("1" if ok else "0")
 PY
 )
 if [[ "$metrics_family_guard_ok" == "1" ]]; then
-  pass "/metrics includes bounded monitoring parity metric families with expected labels"
+  pass "/shuma/metrics includes bounded monitoring parity metric families with expected labels"
 else
-  fail "/metrics monitoring parity metric families missing or label vocabularies drifted"
+  fail "/shuma/metrics monitoring parity metric families missing or label vocabularies drifted"
 fi
 
 # Test 17: CDP report endpoint exists
@@ -1153,30 +1153,30 @@ else
 fi
 
 # Test 19: CDP config available via admin API
-info "Testing CDP config in /admin/cdp..."
-cdp_config=$(curl -s "${ADMIN_REQUEST_HEADERS[@]}" "$BASE_URL/admin/cdp")
+info "Testing CDP config in /shuma/admin/cdp..."
+cdp_config=$(curl -s "${ADMIN_REQUEST_HEADERS[@]}" "$BASE_URL/shuma/admin/cdp")
 if echo "$cdp_config" | grep -qE '"enabled"|cdp_detection'; then
-  pass "/admin/cdp returns CDP configuration"
+  pass "/shuma/admin/cdp returns CDP configuration"
 else
-  fail "/admin/cdp not returning expected config"
+  fail "/shuma/admin/cdp not returning expected config"
   echo -e "${YELLOW}DEBUG cdp config:${NC} $cdp_config"
 fi
 
 # Test 20: CDP stats counters reflect reports
 info "Testing CDP stats counters..."
-cdp_stats_resp=$(curl -s "${ADMIN_REQUEST_HEADERS[@]}" "$BASE_URL/admin/cdp")
+cdp_stats_resp=$(curl -s "${ADMIN_REQUEST_HEADERS[@]}" "$BASE_URL/shuma/admin/cdp")
 cdp_total_detections=$(python3 -c 'import json,sys; d=json.loads(sys.stdin.read()); print(int(d.get("stats",{}).get("total_detections",0)))' <<< "$cdp_stats_resp")
 cdp_total_autobans=$(python3 -c 'import json,sys; d=json.loads(sys.stdin.read()); print(int(d.get("stats",{}).get("auto_bans",0)))' <<< "$cdp_stats_resp")
 if [[ "$cdp_total_detections" -ge 2 ]] && [[ "$cdp_total_autobans" -ge 1 ]]; then
   pass "CDP stats counters increment for detections and auto-bans"
 else
   fail "CDP stats counters did not increment as expected"
-  echo -e "${YELLOW}DEBUG /admin/cdp:${NC} $cdp_stats_resp"
+  echo -e "${YELLOW}DEBUG /shuma/admin/cdp:${NC} $cdp_stats_resp"
 fi
 
 # Test 21: Consolidated monitoring summary endpoint
 info "Testing monitoring summary endpoint..."
-monitoring_resp=$(curl -s "${ADMIN_REQUEST_HEADERS[@]}" "$BASE_URL/admin/monitoring?hours=24&limit=5")
+monitoring_resp=$(curl -s "${ADMIN_REQUEST_HEADERS[@]}" "$BASE_URL/shuma/admin/monitoring?hours=24&limit=5")
 monitoring_shape_ok=$(python3 -c 'import json,sys
 try:
     data=json.loads(sys.stdin.read())
@@ -1187,16 +1187,16 @@ summary=data.get("summary") or {}
 sections=["honeypot","challenge","pow","rate","geo"]
 ok=all(isinstance(summary.get(section), dict) for section in sections)
 prom=data.get("prometheus") or {}
-ok=ok and prom.get("endpoint")=="/metrics"
+ok=ok and prom.get("endpoint")=="/shuma/metrics"
 details=data.get("details") or {}
 detail_sections=["analytics","events","bans","maze","cdp","cdp_events"]
 ok=ok and all(isinstance(details.get(section), dict) for section in detail_sections)
 print("1" if ok else "0")' <<< "$monitoring_resp")
 if [[ "$monitoring_shape_ok" == "1" ]]; then
-  pass "/admin/monitoring returns structured telemetry summary"
+  pass "/shuma/admin/monitoring returns structured telemetry summary"
 else
-  fail "/admin/monitoring did not return expected summary shape"
-  echo -e "${YELLOW}DEBUG /admin/monitoring:${NC} $monitoring_resp"
+  fail "/shuma/admin/monitoring did not return expected summary shape"
+  echo -e "${YELLOW}DEBUG /shuma/admin/monitoring:${NC} $monitoring_resp"
 fi
 
 monitoring_activity_ok=$(python3 -c 'import json,sys
@@ -1211,13 +1211,13 @@ not_a_bot=int((summary.get("not_a_bot") or {}).get("submitted") or 0)
 geo=int((summary.get("geo") or {}).get("total_violations") or 0)
 print("1" if (honeypot >= 1 and not_a_bot >= 1 and geo >= 1) else "0")' <<< "$monitoring_resp")
 if [[ "$monitoring_activity_ok" == "1" ]]; then
-  pass "/admin/monitoring records non-zero telemetry after integration abuse flows"
+  pass "/shuma/admin/monitoring records non-zero telemetry after integration abuse flows"
 else
-  fail "/admin/monitoring counters remained zero after integration abuse flows"
-  echo -e "${YELLOW}DEBUG /admin/monitoring:${NC} $monitoring_resp"
+  fail "/shuma/admin/monitoring counters remained zero after integration abuse flows"
+  echo -e "${YELLOW}DEBUG /shuma/admin/monitoring:${NC} $monitoring_resp"
 fi
 
-monitoring_metrics_resp=$(curl -s "${FORWARDED_SECRET_HEADER[@]}" "$BASE_URL/metrics")
+monitoring_metrics_resp=$(curl -s "${FORWARDED_SECRET_HEADER[@]}" "$BASE_URL/shuma/metrics")
 monitoring_metrics_parity_ok=$(MONITORING_JSON="$monitoring_resp" METRICS_TEXT="$monitoring_metrics_resp" python3 - <<'PY'
 import json
 import os
@@ -1290,19 +1290,19 @@ print("1" if ok else "0")
 PY
 )
 if [[ "$monitoring_metrics_parity_ok" == "1" ]]; then
-  pass "/metrics monitoring families stay in parity with /admin/monitoring summary counters"
+  pass "/shuma/metrics monitoring families stay in parity with /shuma/admin/monitoring summary counters"
 else
-  fail "/metrics monitoring families are out of parity with /admin/monitoring summary counters"
-  echo -e "${YELLOW}DEBUG /metrics:${NC} $monitoring_metrics_resp"
-  echo -e "${YELLOW}DEBUG /admin/monitoring:${NC} $monitoring_resp"
+  fail "/shuma/metrics monitoring families are out of parity with /shuma/admin/monitoring summary counters"
+  echo -e "${YELLOW}DEBUG /shuma/metrics:${NC} $monitoring_metrics_resp"
+  echo -e "${YELLOW}DEBUG /shuma/admin/monitoring:${NC} $monitoring_resp"
 fi
 
 # Test 22: unban_ip function works via admin endpoint
 info "Testing unban functionality..."
 # First ban an IP
-curl -s "${ADMIN_REQUEST_HEADERS[@]}" -X POST "$BASE_URL/admin/ban?ip=10.0.0.202&reason=test" > /dev/null
+curl -s "${ADMIN_REQUEST_HEADERS[@]}" -X POST "$BASE_URL/shuma/admin/ban?ip=10.0.0.202&reason=test" > /dev/null
 # Then unban it
-unban_resp=$(curl -s "${ADMIN_REQUEST_HEADERS[@]}" -X POST "$BASE_URL/admin/unban?ip=10.0.0.202")
+unban_resp=$(curl -s "${ADMIN_REQUEST_HEADERS[@]}" -X POST "$BASE_URL/shuma/admin/unban?ip=10.0.0.202")
 if echo "$unban_resp" | grep -qi 'unbanned'; then
   pass "Unban via admin API works correctly"
 else
@@ -1315,12 +1315,12 @@ info "Testing external fingerprint additive precedence..."
 fingerprint_additive_cfg=$(curl -s "${ADMIN_REQUEST_HEADERS[@]}" -X POST \
   -H "Content-Type: application/json" \
   -d '{"provider_backends":{"fingerprint_signal":"external"},"edge_integration_mode":"additive","cdp_detection_enabled":true,"cdp_auto_ban":true}' \
-  "$BASE_URL/admin/config")
+  "$BASE_URL/shuma/admin/config")
 if ! echo "$fingerprint_additive_cfg" | grep -q '"status":"updated"'; then
   fail "Failed to apply external fingerprint additive config"
   echo -e "${YELLOW}DEBUG additive config:${NC} $fingerprint_additive_cfg"
 else
-  curl -s "${ADMIN_REQUEST_HEADERS[@]}" -X POST "$BASE_URL/admin/unban?ip=10.0.0.230" > /dev/null
+  curl -s "${ADMIN_REQUEST_HEADERS[@]}" -X POST "$BASE_URL/shuma/admin/unban?ip=10.0.0.230" > /dev/null
   edge_report=$(cat "${AKAMAI_FIXTURE_DIR}/fingerprint_additive_deny_signal.json" 2>/dev/null || true)
   if [[ -z "$edge_report" ]]; then
     fail "Missing Akamai additive fixture payload (${AKAMAI_FIXTURE_DIR}/fingerprint_additive_deny_signal.json)"
@@ -1352,12 +1352,12 @@ info "Testing external fingerprint authoritative precedence..."
 fingerprint_authoritative_cfg=$(curl -s "${ADMIN_REQUEST_HEADERS[@]}" -X POST \
   -H "Content-Type: application/json" \
   -d '{"provider_backends":{"fingerprint_signal":"external"},"edge_integration_mode":"authoritative","cdp_detection_enabled":true,"cdp_auto_ban":true}' \
-  "$BASE_URL/admin/config")
+  "$BASE_URL/shuma/admin/config")
 if ! echo "$fingerprint_authoritative_cfg" | grep -q '"status":"updated"'; then
   fail "Failed to apply external fingerprint authoritative config"
   echo -e "${YELLOW}DEBUG authoritative config:${NC} $fingerprint_authoritative_cfg"
 else
-  curl -s "${ADMIN_REQUEST_HEADERS[@]}" -X POST "$BASE_URL/admin/unban?ip=10.0.0.231" > /dev/null
+  curl -s "${ADMIN_REQUEST_HEADERS[@]}" -X POST "$BASE_URL/shuma/admin/unban?ip=10.0.0.231" > /dev/null
   edge_report=$(cat "${AKAMAI_FIXTURE_DIR}/fingerprint_authoritative_deny_signal.json" 2>/dev/null || true)
   if [[ -z "$edge_report" ]]; then
     fail "Missing Akamai authoritative fixture payload (${AKAMAI_FIXTURE_DIR}/fingerprint_authoritative_deny_signal.json)"
@@ -1391,7 +1391,7 @@ rate_fallback_payload=$(printf '{"provider_backends":{"rate_limiter":"external"}
 rate_fallback_cfg=$(curl -s "${ADMIN_REQUEST_HEADERS[@]}" -X POST \
   -H "Content-Type: application/json" \
   -d "${rate_fallback_payload}" \
-  "$BASE_URL/admin/config")
+  "$BASE_URL/shuma/admin/config")
 if ! echo "$rate_fallback_cfg" | grep -q '"status":"updated"'; then
   fail "Failed to apply external rate-limiter fallback config"
   echo -e "${YELLOW}DEBUG rate fallback config:${NC} $rate_fallback_cfg"
@@ -1406,8 +1406,8 @@ print(provider.get("rate_limiter",""))' <<< "$rate_fallback_cfg")
     echo -e "${YELLOW}DEBUG rate fallback config:${NC} $rate_fallback_cfg"
   fi
 
-  curl -s "${ADMIN_REQUEST_HEADERS[@]}" -X POST "$BASE_URL/admin/unban?ip=${TEST_RATE_FALLBACK_IP}" > /dev/null
-  rate_outage_before=$(curl -s "${FORWARDED_SECRET_HEADER[@]}" -H "X-Forwarded-For: ${TEST_RATE_FALLBACK_IP}" "$BASE_URL/metrics" | python3 -c 'import sys
+  curl -s "${ADMIN_REQUEST_HEADERS[@]}" -X POST "$BASE_URL/shuma/admin/unban?ip=${TEST_RATE_FALLBACK_IP}" > /dev/null
+  rate_outage_before=$(curl -s "${FORWARDED_SECRET_HEADER[@]}" -H "X-Forwarded-For: ${TEST_RATE_FALLBACK_IP}" "$BASE_URL/shuma/metrics" | python3 -c 'import sys
 total = 0
 for line in sys.stdin:
     line = line.strip()
@@ -1446,7 +1446,7 @@ print(total)')
     fi
   done
 
-  rate_outage_after=$(curl -s "${FORWARDED_SECRET_HEADER[@]}" -H "X-Forwarded-For: ${TEST_RATE_FALLBACK_IP}" "$BASE_URL/metrics" | python3 -c 'import sys
+  rate_outage_after=$(curl -s "${FORWARDED_SECRET_HEADER[@]}" -H "X-Forwarded-For: ${TEST_RATE_FALLBACK_IP}" "$BASE_URL/shuma/metrics" | python3 -c 'import sys
 total = 0
 for line in sys.stdin:
     line = line.strip()

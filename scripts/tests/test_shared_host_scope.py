@@ -10,7 +10,7 @@ class SharedHostScopeUnitTests(unittest.TestCase):
     def make_descriptor(self, **overrides):
         payload = {
             "allowed_hosts": ["Example.com", "www.example.com"],
-            "denied_path_prefixes": ["/private", "/admin"],
+            "denied_path_prefixes": ["/private", "/shuma/admin"],
             "require_https": True,
             "deny_ip_literals": True,
         }
@@ -28,7 +28,7 @@ class SharedHostScopeUnitTests(unittest.TestCase):
             ("example.com", "www.example.com"),
         )
         self.assertIn("/private", descriptor.denied_path_prefixes)
-        self.assertIn("/admin", descriptor.denied_path_prefixes)
+        self.assertIn("/shuma/admin", descriptor.denied_path_prefixes)
         self.assertIn("/internal", descriptor.denied_path_prefixes)
 
     def test_accepts_in_scope_https_candidate_and_strips_fragment(self):
@@ -78,9 +78,9 @@ class SharedHostScopeUnitTests(unittest.TestCase):
         self.assertEqual(decision.rejection_reason, "malformed_url")
 
     def test_rejects_denied_path_prefix_on_boundary_only(self):
-        descriptor = self.make_descriptor(denied_path_prefixes=["/admin"])
+        descriptor = self.make_descriptor(denied_path_prefixes=["/shuma/admin"])
         blocked = shared_host_scope.evaluate_url_candidate(
-            "https://example.com/admin/tools",
+            "https://example.com/shuma/admin/tools",
             descriptor,
         )
         allowed = shared_host_scope.evaluate_url_candidate(

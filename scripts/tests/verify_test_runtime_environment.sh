@@ -8,7 +8,7 @@ usage() {
   cat <<'EOF'
 Usage: verify_test_runtime_environment.sh [--base-url URL] [--expected-runtime-environment runtime-dev|runtime-prod]
 
-Checks GET /admin/session on an already-running local Spin server and verifies the
+Checks GET /shuma/admin/session on an already-running local Spin server and verifies the
 reported runtime_environment matches the expected full-suite test contract.
 EOF
 }
@@ -40,9 +40,9 @@ if [[ "${EXPECTED_RUNTIME_ENVIRONMENT}" != "runtime-dev" && "${EXPECTED_RUNTIME_
   exit 1
 fi
 
-response="$(curl -fsS --max-time 5 "${BASE_URL}/admin/session" 2>/dev/null || true)"
+response="$(curl -fsS --max-time 5 "${BASE_URL}/shuma/admin/session" 2>/dev/null || true)"
 if [[ -z "${response}" ]]; then
-  echo "Failed to read ${BASE_URL}/admin/session during full-suite runtime preflight." >&2
+  echo "Failed to read ${BASE_URL}/shuma/admin/session during full-suite runtime preflight." >&2
   echo "Ensure the local Spin server is running and reachable before invoking make test." >&2
   exit 1
 fi
@@ -65,7 +65,7 @@ PY
 )"
 
 if [[ -z "${runtime_environment}" ]]; then
-  echo "Full-suite runtime preflight could not determine runtime_environment from ${BASE_URL}/admin/session." >&2
+  echo "Full-suite runtime preflight could not determine runtime_environment from ${BASE_URL}/shuma/admin/session." >&2
   echo "Expected runtime_environment=${EXPECTED_RUNTIME_ENVIRONMENT}." >&2
   exit 1
 fi

@@ -121,47 +121,47 @@ class EdgeSignalSmokeBase:
         )
 
     def _get_config(self) -> dict[str, Any]:
-        _, body = self._request("GET", "/admin/config", headers=self._admin_headers())
+        _, body = self._request("GET", "/shuma/admin/config", headers=self._admin_headers())
         try:
             payload = json.loads(body)
         except json.JSONDecodeError as exc:
-            raise SmokeFailure(f"/admin/config returned invalid JSON: {exc}") from exc
+            raise SmokeFailure(f"/shuma/admin/config returned invalid JSON: {exc}") from exc
         if not isinstance(payload, dict):
-            raise SmokeFailure("/admin/config returned a non-object payload.")
+            raise SmokeFailure("/shuma/admin/config returned a non-object payload.")
         config = payload.get("config")
         if not isinstance(config, dict):
-            raise SmokeFailure("/admin/config returned a payload without a config object.")
+            raise SmokeFailure("/shuma/admin/config returned a payload without a config object.")
         return config
 
     def _patch_config(self, patch: dict[str, Any]) -> dict[str, Any]:
         body = json.dumps(patch).encode("utf-8")
         _, payload = self._request(
             "POST",
-            "/admin/config",
+            "/shuma/admin/config",
             body=body,
             headers=self._admin_headers({"Content-Type": "application/json"}),
         )
         try:
             parsed = json.loads(payload)
         except json.JSONDecodeError as exc:
-            raise SmokeFailure(f"/admin/config update returned invalid JSON: {exc}") from exc
+            raise SmokeFailure(f"/shuma/admin/config update returned invalid JSON: {exc}") from exc
         if not isinstance(parsed, dict):
-            raise SmokeFailure("/admin/config update returned a non-object payload.")
+            raise SmokeFailure("/shuma/admin/config update returned a non-object payload.")
         return parsed
 
     def _list_bans(self) -> list[dict[str, Any]]:
-        _, body = self._request("GET", "/admin/ban", headers=self._admin_headers())
+        _, body = self._request("GET", "/shuma/admin/ban", headers=self._admin_headers())
         try:
             payload = json.loads(body)
         except json.JSONDecodeError as exc:
-            raise SmokeFailure(f"/admin/ban returned invalid JSON: {exc}") from exc
+            raise SmokeFailure(f"/shuma/admin/ban returned invalid JSON: {exc}") from exc
         bans = payload.get("bans") if isinstance(payload, dict) else None
         if not isinstance(bans, list):
-            raise SmokeFailure("/admin/ban returned a non-list ban payload.")
+            raise SmokeFailure("/shuma/admin/ban returned a non-list ban payload.")
         return [ban for ban in bans if isinstance(ban, dict)]
 
     def _unban(self, ip: str) -> None:
-        self._request("POST", f"/admin/unban?ip={ip}", headers=self._admin_headers())
+        self._request("POST", f"/shuma/admin/unban?ip={ip}", headers=self._admin_headers())
 
     def _root_request(
         self,
@@ -272,7 +272,7 @@ class EdgeSignalSmokeBase:
             new_bans = {ip for ip in after_bans - before_bans if ip}
             if not new_bans:
                 raise SmokeFailure(
-                    "authoritative fingerprint follow-up blocked, but no new ban entry was visible via /admin/ban"
+                    "authoritative fingerprint follow-up blocked, but no new ban entry was visible via /shuma/admin/ban"
                 )
             self.cleanup_ban_ips.update(new_bans)
             self._record_check(

@@ -12,9 +12,9 @@
       "deny_ip_literals": true
     },
     "baseline_denied_path_prefixes": [
-      "/admin",
+      "/shuma/admin",
       "/internal",
-      "/dashboard",
+      "/shuma/dashboard",
       "/session",
       "/auth",
       "/login"

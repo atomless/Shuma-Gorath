@@ -1620,6 +1620,31 @@ test-shuma-root-public-site-serving: ## Validate the root-hosted contributor pub
 	@./scripts/set_crate_type.sh rlib
 	@cargo test static_bypass_excludes_root_public_metadata_paths -- --nocapture
 
+test-dashboard-shuma-route-contract: ## Validate dashboard path helpers and admin-client namespace wiring
+	@echo "$(CYAN)🧪 Running focused dashboard shuma-route checks...$(NC)"
+	@if ! command -v corepack >/dev/null 2>&1; then \
+		echo "$(RED)❌ Error: corepack not found (install Node.js 18+).$(NC)"; \
+		exit 1; \
+	fi
+	@corepack enable > /dev/null 2>&1 || true
+	@if [ ! -d node_modules/.pnpm ] || [ ! -x node_modules/.bin/vite ] || [ ! -x node_modules/.bin/svelte-check ] || [ ! -d node_modules/svelte ] || [ ! -d node_modules/@sveltejs/kit ] || [ ! -d node_modules/@playwright/test ]; then \
+		corepack pnpm install --offline --frozen-lockfile || corepack pnpm install --frozen-lockfile; \
+	fi
+	@$(MAKE) --no-print-directory test-dashboard-svelte-check
+	@node --test \
+		--test-name-pattern='dashboard shuma route helpers and admin client default to the shuma namespace' \
+		e2e/dashboard.modules.unit.test.js
+
+test-shuma-control-route-migration: ## Validate the /shuma/* control-plane, dashboard, health, and metrics migration contract
+	@echo "$(CYAN)🧪 Validating Shuma control-route migration...$(NC)"
+	@./scripts/set_crate_type.sh rlib
+	@cargo test early_router_short_circuits_shuma_health_path -- --nocapture
+	@cargo test early_router_short_circuits_shuma_admin_options -- --nocapture
+	@cargo test early_router_redirects_shuma_dashboard_root_to_index_html -- --nocapture
+	@cargo test early_router_redirects_shuma_dashboard_trailing_slash_root_to_index_html -- --nocapture
+	@python3 -m unittest scripts/tests/test_shuma_control_route_contract.py
+	@$(MAKE) --no-print-directory test-dashboard-shuma-route-contract
+
 sim-public-refresh: ## Regenerate the contributor sim-public artifact explicitly
 	@python3 "$(SIM_PUBLIC_SITE_GENERATOR)" \
 		--repo-root "$(CURDIR)" \

@@ -1,6 +1,8 @@
 use serde_json::json;
 use spin_sdk::http::{Method, Request, Response};
 
+use crate::http_route_namespace as route_namespace;
+
 use super::recent_changes_ledger::{
     operator_snapshot_manual_change_row, record_operator_snapshot_recent_change_rows,
 };
@@ -194,7 +196,7 @@ where
         &cfg,
         "admin-preview-ip-bucket",
         "admin-preview-ua-bucket",
-        "/admin/tarpit/preview",
+        format!("{}/tarpit/preview", route_namespace::SHUMA_ADMIN_PREFIX).as_str(),
         crate::tarpit::progress_path(),
     )
 }

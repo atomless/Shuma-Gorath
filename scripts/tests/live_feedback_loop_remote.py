@@ -415,7 +415,7 @@ PY"""
         raise SmokeFailure(f"Timed out waiting for {description}.")
 
     def _fetch_oversight_status(self) -> dict[str, Any]:
-        payload = self._request_json("GET", "/admin/oversight/agent/status")
+        payload = self._request_json("GET", "/shuma/admin/oversight/agent/status")
         if payload.get("schema_version") != "oversight_agent_status_v1":
             raise SmokeFailure(
                 f"Unexpected oversight status schema_version: {payload.get('schema_version')!r}"
@@ -434,7 +434,7 @@ PY"""
         return payload
 
     def _fetch_operator_snapshot(self) -> dict[str, Any]:
-        payload = self._request_json("GET", "/admin/operator-snapshot")
+        payload = self._request_json("GET", "/shuma/admin/operator-snapshot")
         if payload.get("schema_version") != "operator_snapshot_v1":
             raise SmokeFailure(
                 f"Unexpected operator snapshot schema_version: {payload.get('schema_version')!r}"
@@ -442,10 +442,10 @@ PY"""
         return payload
 
     def _fetch_adversary_sim_status(self) -> dict[str, Any]:
-        return self._request_json("GET", "/admin/adversary-sim/status")
+        return self._request_json("GET", "/shuma/admin/adversary-sim/status")
 
     def _fetch_oversight_history(self) -> dict[str, Any]:
-        payload = self._request_json("GET", "/admin/oversight/history")
+        payload = self._request_json("GET", "/shuma/admin/oversight/history")
         if payload.get("schema_version") != "oversight_history_v1":
             raise SmokeFailure(
                 f"Unexpected oversight history schema_version: {payload.get('schema_version')!r}"
@@ -453,7 +453,7 @@ PY"""
         return payload
 
     def _fetch_recent_events(self) -> dict[str, Any]:
-        payload = self._request_json("GET", "/admin/events?hours=2&limit=200")
+        payload = self._request_json("GET", "/shuma/admin/events?hours=2&limit=200")
         if "recent_events" not in payload:
             raise SmokeFailure("Recent events payload did not include recent_events.")
         return payload
@@ -489,7 +489,7 @@ PY"""
             if self.transport_mode == "ssh_loopback":
                 payload = self._loopback_request_json(
                     "POST",
-                    "/admin/adversary-sim/control",
+                    "/shuma/admin/adversary-sim/control",
                     {
                         "Authorization": f"Bearer {self.api_key}",
                         "Accept": "application/json",
@@ -497,7 +497,7 @@ PY"""
                         "Idempotency-Key": _idempotency_key("live-feedback-loop"),
                         "Host": self._public_host_header(),
                         "Origin": self.base_url,
-                        "Referer": f"{self.base_url}/dashboard",
+                        "Referer": f"{self.base_url}/shuma/dashboard",
                         "X-Forwarded-For": self._loopback_admin_forwarded_ip(),
                         "X-Forwarded-Proto": "https",
                         "X-Shuma-Forwarded-Secret": self.forwarded_ip_secret,
@@ -505,7 +505,7 @@ PY"""
                     {"enabled": True},
                 )
             else:
-                payload = self._request_json("POST", "/admin/adversary-sim/control", {"enabled": True})
+                payload = self._request_json("POST", "/shuma/admin/adversary-sim/control", {"enabled": True})
         except Exception as exc:
             if not _looks_like_timeout(exc):
                 raise
@@ -525,7 +525,7 @@ PY"""
             if self.transport_mode == "ssh_loopback":
                 payload = self._loopback_request_json(
                     "POST",
-                    "/admin/adversary-sim/control",
+                    "/shuma/admin/adversary-sim/control",
                     {
                         "Authorization": f"Bearer {self.api_key}",
                         "Accept": "application/json",
@@ -533,7 +533,7 @@ PY"""
                         "Idempotency-Key": _idempotency_key("live-feedback-loop"),
                         "Host": self._public_host_header(),
                         "Origin": self.base_url,
-                        "Referer": f"{self.base_url}/dashboard",
+                        "Referer": f"{self.base_url}/shuma/dashboard",
                         "X-Forwarded-For": self._loopback_admin_forwarded_ip(),
                         "X-Forwarded-Proto": "https",
                         "X-Shuma-Forwarded-Secret": self.forwarded_ip_secret,
@@ -541,7 +541,7 @@ PY"""
                     {"enabled": False},
                 )
             else:
-                payload = self._request_json("POST", "/admin/adversary-sim/control", {"enabled": False})
+                payload = self._request_json("POST", "/shuma/admin/adversary-sim/control", {"enabled": False})
         except Exception as exc:
             if not _looks_like_timeout(exc):
                 raise

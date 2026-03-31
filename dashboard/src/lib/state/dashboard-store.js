@@ -200,7 +200,7 @@ const appendControllerResetBreadcrumb = (heartbeat = {}, reason = 'heartbeat_con
         eventType: 'controller_reset',
         at: new Date().toISOString(),
         requestId: '',
-        path: '/admin/session',
+        path: '/shuma/admin/session',
         method: 'GET',
         statusCode: 0,
         failureClass: '',

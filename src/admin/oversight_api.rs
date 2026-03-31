@@ -673,7 +673,7 @@ fn validate_reconcile_result(
     let body = serde_json::to_vec(&proposal.patch).unwrap_or_default();
     let request = Request::builder()
         .method(Method::Post)
-        .uri("/admin/config/validate")
+        .uri("/shuma/admin/config/validate")
         .body(body)
         .build();
     let response = super::config_api::handle_admin_config_validate(&request, store, site_id);
@@ -1241,7 +1241,7 @@ mod tests {
 
         let request = Request::builder()
             .method(Method::Post)
-            .uri("/admin/oversight/reconcile")
+            .uri("/shuma/admin/oversight/reconcile")
             .body(Vec::new())
             .build();
         let response = handle_admin_oversight_reconcile(&request, &store, "default");
@@ -1254,7 +1254,7 @@ mod tests {
 
         let history_request = Request::builder()
             .method(Method::Get)
-            .uri("/admin/oversight/history")
+            .uri("/shuma/admin/oversight/history")
             .body(Vec::new())
             .build();
         let history_response = handle_admin_oversight_history(&history_request, &store, "default");
@@ -1342,7 +1342,7 @@ mod tests {
 
         let status_request = Request::builder()
             .method(Method::Get)
-            .uri("/admin/oversight/agent/status")
+            .uri("/shuma/admin/oversight/agent/status")
             .body(Vec::new())
             .build();
         let status_response =
@@ -1401,7 +1401,7 @@ mod tests {
 
         let request = Request::builder()
             .method(Method::Post)
-            .uri("/admin/oversight/reconcile")
+            .uri("/shuma/admin/oversight/reconcile")
             .body(Vec::new())
             .build();
         let response = handle_admin_oversight_reconcile(&request, &store, "default");
@@ -1508,7 +1508,7 @@ mod tests {
 
         let history_request = Request::builder()
             .method(Method::Get)
-            .uri("/admin/oversight/history")
+            .uri("/shuma/admin/oversight/history")
             .body(Vec::new())
             .build();
         let history_response = handle_admin_oversight_history(&history_request, &store, "default");

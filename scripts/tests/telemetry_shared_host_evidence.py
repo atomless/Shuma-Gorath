@@ -565,12 +565,12 @@ PY"""
         keyspace_summary = self.collect_remote_keyspace_summary()
         storage_samples = self.collect_remote_storage_samples()
         bootstrap_path = (
-            f"/admin/monitoring?hours={self.hours}&limit={DEFAULT_BOOTSTRAP_LIMIT}&bootstrap=1"
+            f"/shuma/admin/monitoring?hours={self.hours}&limit={DEFAULT_BOOTSTRAP_LIMIT}&bootstrap=1"
         )
-        delta_path = f"/admin/monitoring/delta?hours={self.hours}&limit={DEFAULT_DELTA_LIMIT}"
-        stream_path = f"/admin/monitoring/stream?hours={self.hours}&limit={DEFAULT_DELTA_LIMIT}"
+        delta_path = f"/shuma/admin/monitoring/delta?hours={self.hours}&limit={DEFAULT_DELTA_LIMIT}"
+        stream_path = f"/shuma/admin/monitoring/stream?hours={self.hours}&limit={DEFAULT_DELTA_LIMIT}"
         forensic_path = (
-            f"/admin/monitoring?hours={self.hours}&limit={DEFAULT_FORENSIC_LIMIT}&bootstrap=1&forensic=1"
+            f"/shuma/admin/monitoring?hours={self.hours}&limit={DEFAULT_FORENSIC_LIMIT}&bootstrap=1&forensic=1"
         )
         bootstrap_measurement = self.measure_json_endpoint(bootstrap_path)
         bootstrap_gzip_measurement = self.measure_json_endpoint(bootstrap_path, accept_gzip=True)

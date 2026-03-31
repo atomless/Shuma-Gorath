@@ -578,7 +578,7 @@ mod tests {
     #[test]
     fn validate_origin_and_fetch_metadata_rejects_cross_site_or_missing_origin() {
         let cross_site = request_with_headers(
-            "/admin/adversary-sim/control",
+            "/shuma/admin/adversary-sim/control",
             &[
                 ("host", "localhost:3000"),
                 ("origin", "http://localhost:3000"),
@@ -591,7 +591,7 @@ mod tests {
         );
 
         let missing_origin = request_with_headers(
-            "/admin/adversary-sim/control",
+            "/shuma/admin/adversary-sim/control",
             &[("host", "localhost:3000"), ("sec-fetch-site", "same-origin")],
         );
         assert_eq!(
@@ -603,7 +603,7 @@ mod tests {
     #[test]
     fn validate_origin_and_fetch_metadata_accepts_matching_origin() {
         let req = request_with_headers(
-            "/admin/adversary-sim/control",
+            "/shuma/admin/adversary-sim/control",
             &[
                 ("host", "localhost:3000"),
                 ("origin", "http://localhost:3000"),
@@ -618,7 +618,7 @@ mod tests {
     #[test]
     fn validate_origin_and_fetch_metadata_accepts_matching_origin_without_fetch_metadata() {
         let req = request_with_headers(
-            "/admin/adversary-sim/control",
+            "/shuma/admin/adversary-sim/control",
             &[("host", "localhost:3000"), ("origin", "http://localhost:3000")],
         );
 
@@ -629,7 +629,7 @@ mod tests {
     #[test]
     fn validate_origin_and_fetch_metadata_allows_host_missing_with_csrf_fallback() {
         let req = request_with_headers(
-            "/admin/adversary-sim/control",
+            "/shuma/admin/adversary-sim/control",
             &[("sec-fetch-site", "same-origin"), ("x-shuma-csrf", "csrf-token")],
         );
 
@@ -640,7 +640,7 @@ mod tests {
     #[test]
     fn validate_origin_and_fetch_metadata_rejects_host_missing_without_csrf() {
         let req = request_with_headers(
-            "/admin/adversary-sim/control",
+            "/shuma/admin/adversary-sim/control",
             &[("sec-fetch-site", "same-origin")],
         );
         assert_eq!(validate_origin_and_fetch_metadata(&req), Err("origin_host_missing"));
@@ -648,7 +648,7 @@ mod tests {
 
     #[test]
     fn validate_origin_and_fetch_metadata_rejects_missing_fetch_metadata_without_origin_or_csrf() {
-        let req = request_with_headers("/admin/adversary-sim/control", &[("host", "localhost:3000")]);
+        let req = request_with_headers("/shuma/admin/adversary-sim/control", &[("host", "localhost:3000")]);
         assert_eq!(validate_origin_and_fetch_metadata(&req), Err("fetch_metadata_missing"));
     }
 

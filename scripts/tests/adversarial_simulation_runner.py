@@ -1528,7 +1528,7 @@ class Runner:
             try:
                 result = self.request(
                     "GET",
-                    "/health",
+                    "/shuma/health",
                     headers=self.control_client.health_headers(),
                     plane="control",
                     count_request=False,
@@ -1539,7 +1539,7 @@ class Runner:
                 pass
             time.sleep(1)
         raise SimulationError(
-            f"Spin server was not ready at {self.base_url}/health within {timeout_seconds}s"
+            f"Spin server was not ready at {self.base_url}/shuma/health within {timeout_seconds}s"
         )
 
     def resolve_honeypot_path(self) -> str:
@@ -1597,29 +1597,29 @@ class Runner:
         self.record_control_plane_mutation(
             action="telemetry_history_cleanup",
             reason=reason,
-            details={"endpoint": "/admin/adversary-sim/history/cleanup"},
+            details={"endpoint": "/shuma/admin/adversary-sim/history/cleanup"},
         )
         result = self.admin_request(
             "POST",
-            "/admin/adversary-sim/history/cleanup",
+            "/shuma/admin/adversary-sim/history/cleanup",
             headers={TELEMETRY_CLEANUP_ACK_HEADER: TELEMETRY_CLEANUP_ACK_VALUE},
         )
         if result.status != 200:
             detail = collapse_whitespace(result.body)[:160]
             raise SimulationError(
-                "Failed to clear retained telemetry history via /admin/adversary-sim/history/cleanup: "
+                "Failed to clear retained telemetry history via /shuma/admin/adversary-sim/history/cleanup: "
                 f"status={result.status} body={detail}"
             )
         payload = parse_json_or_raise(
             result.body,
-            "Failed to parse /admin/adversary-sim/history/cleanup response",
+            "Failed to parse /shuma/admin/adversary-sim/history/cleanup response",
         )
         status = str(payload.get("status") or "").strip().lower()
         cleaned_flag = payload.get("cleaned") is True
         if status not in {"cleared", "cleaned"} and not cleaned_flag:
             detail = collapse_whitespace(result.body)[:160]
             raise SimulationError(
-                "Failed to clear retained telemetry history via /admin/adversary-sim/history/cleanup: "
+                "Failed to clear retained telemetry history via /shuma/admin/adversary-sim/history/cleanup: "
                 f"unexpected status={status or 'missing'} body={detail}"
             )
 
@@ -1627,12 +1627,12 @@ class Runner:
         result = self.admin_read_request(
             "GET",
             (
-                f"/admin/monitoring?hours={self.monitoring_hot_read_window_hours}"
+                f"/shuma/admin/monitoring?hours={self.monitoring_hot_read_window_hours}"
                 f"&limit={self.monitoring_bootstrap_limit}&bootstrap=1"
             ),
             timeout_seconds=self.observation_request_timeout_seconds,
         )
-        data = parse_json_or_raise(result.body, "Failed to parse /admin/monitoring response")
+        data = parse_json_or_raise(result.body, "Failed to parse /shuma/admin/monitoring response")
         return extract_monitoring_snapshot(data)
 
     def simulation_event_snapshot(self, hours: int = 24, limit: int = 500) -> Dict[str, Any]:
@@ -1643,7 +1643,7 @@ class Runner:
         result = self.admin_read_request(
             "GET",
             (
-                f"/admin/monitoring/delta?hours={self.monitoring_hot_read_window_hours}"
+                f"/shuma/admin/monitoring/delta?hours={self.monitoring_hot_read_window_hours}"
                 f"&limit={effective_limit}"
             ),
             timeout_seconds=self.observation_request_timeout_seconds,
@@ -1651,10 +1651,10 @@ class Runner:
         if result.status != 200:
             detail = collapse_whitespace(result.body)[:160]
             raise SimulationError(
-                f"Failed to read /admin/monitoring/delta: status={result.status} body={detail}"
+                f"Failed to read /shuma/admin/monitoring/delta: status={result.status} body={detail}"
             )
         payload = parse_json_or_raise(
-            result.body, "Failed to parse /admin/monitoring/delta response"
+            result.body, "Failed to parse /shuma/admin/monitoring/delta response"
         )
         recent_events = payload.get("events")
         recent_sim_runs = list_or_empty(payload.get("recent_sim_runs"))
@@ -1702,31 +1702,31 @@ class Runner:
         ]
 
     def ip_range_suggestions_snapshot(self, hours: int = 24, limit: int = 20) -> Dict[str, Any]:
-        result = self.admin_request("GET", f"/admin/ip-range/suggestions?hours={hours}&limit={limit}")
+        result = self.admin_request("GET", f"/shuma/admin/ip-range/suggestions?hours={hours}&limit={limit}")
         if result.status != 200:
             detail = collapse_whitespace(result.body)[:160]
             raise SimulationError(
-                f"Failed to read /admin/ip-range/suggestions: status={result.status} body={detail}"
+                f"Failed to read /shuma/admin/ip-range/suggestions: status={result.status} body={detail}"
             )
-        return parse_json_or_raise(result.body, "Failed to parse /admin/ip-range/suggestions response")
+        return parse_json_or_raise(result.body, "Failed to parse /shuma/admin/ip-range/suggestions response")
 
     def replay_promotion_snapshot(self) -> Dict[str, Any]:
         result = self.admin_read_request(
             "GET",
-            "/admin/replay-promotion",
+            "/shuma/admin/replay-promotion",
             timeout_seconds=self.observation_request_timeout_seconds,
         )
         if result.status != 200:
             detail = collapse_whitespace(result.body)[:160]
             raise SimulationError(
-                f"Failed to read /admin/replay-promotion: status={result.status} body={detail}"
+                f"Failed to read /shuma/admin/replay-promotion: status={result.status} body={detail}"
             )
         payload = parse_json_or_raise(
-            result.body, "Failed to parse /admin/replay-promotion response"
+            result.body, "Failed to parse /shuma/admin/replay-promotion response"
         )
         if str(payload.get("schema_version") or "").strip() != "replay_promotion_v1":
             raise SimulationError(
-                "Failed to read /admin/replay-promotion: unexpected schema_version"
+                "Failed to read /shuma/admin/replay-promotion: unexpected schema_version"
             )
         return payload
 
@@ -3138,11 +3138,11 @@ class Runner:
         return self.scenario_user_agent(scenario, isolate_cadence=True)
 
     def admin_get_config(self) -> Dict[str, Any]:
-        result = self.admin_request("GET", "/admin/config")
+        result = self.admin_request("GET", "/shuma/admin/config")
         if result.status != 200:
             detail = collapse_whitespace(result.body)[:160]
-            raise SimulationError(f"Failed to read /admin/config: status={result.status} body={detail}")
-        data = parse_json_or_raise(result.body, "Failed to parse /admin/config response")
+            raise SimulationError(f"Failed to read /shuma/admin/config: status={result.status} body={detail}")
+        data = parse_json_or_raise(result.body, "Failed to parse /shuma/admin/config response")
         return data.get("config") if isinstance(data.get("config"), dict) else data
 
     def admin_patch(self, payload: Dict[str, Any], reason: str = "admin_config_patch") -> None:
@@ -3157,18 +3157,18 @@ class Runner:
         )
         result = self.admin_request(
             "POST",
-            "/admin/config",
+            "/shuma/admin/config",
             json_body=payload,
             timeout_seconds=self.control_plane_write_timeout_seconds,
         )
         if result.status != 200:
             detail = collapse_whitespace(result.body)[:160]
-            raise SimulationError(f"Failed to apply /admin/config patch: status={result.status} body={detail}")
-        data = parse_json_or_raise(result.body, "Failed to parse /admin/config patch response")
+            raise SimulationError(f"Failed to apply /shuma/admin/config patch: status={result.status} body={detail}")
+        data = parse_json_or_raise(result.body, "Failed to parse /shuma/admin/config patch response")
         if data.get("status") != "updated":
             detail = collapse_whitespace(result.body)[:160]
             raise SimulationError(
-                f"Failed to apply /admin/config patch: expected status=updated body={detail}"
+                f"Failed to apply /shuma/admin/config patch: expected status=updated body={detail}"
             )
 
     def admin_unban(self, ip: str, reason: str = "admin_unban") -> None:
@@ -3184,7 +3184,7 @@ class Runner:
             try:
                 self.admin_request(
                     "POST",
-                    f"/admin/unban?{query}",
+                    f"/shuma/admin/unban?{query}",
                     timeout_seconds=self.control_plane_write_timeout_seconds,
                 )
                 return

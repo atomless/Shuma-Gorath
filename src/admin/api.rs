@@ -42,6 +42,7 @@ use super::recent_changes_ledger::{
     operator_snapshot_recent_change_with_decision_id, record_operator_snapshot_recent_change_rows,
     OperatorSnapshotRecentChangeLedgerRow,
 };
+use crate::http_route_namespace as route_namespace;
 use crate::observability::decision_ledger::{
     record_decision, OperatorDecisionDraft, OperatorDecisionEvidenceReference,
 };
@@ -2500,7 +2501,7 @@ mod tests {
         let mut builder = Request::builder();
         builder
             .method(Method::Get)
-            .uri(format!("/admin/monitoring/delta?after_cursor={}", oversized).as_str());
+            .uri(format!("/shuma/admin/monitoring/delta?after_cursor={}", oversized).as_str());
         let req = builder.build();
         let resp = handle_admin_monitoring_delta(&req, &store);
         assert_eq!(*resp.status(), 400u16);
@@ -2529,7 +2530,7 @@ mod tests {
         let mut builder = Request::builder();
         builder
             .method(Method::Get)
-            .uri("/admin/monitoring/delta?hours=1&limit=10");
+            .uri("/shuma/admin/monitoring/delta?hours=1&limit=10");
         let req = builder.build();
         let resp = handle_admin_monitoring_delta(&req, &store);
         assert_eq!(*resp.status(), 200u16);
@@ -2542,7 +2543,7 @@ mod tests {
             payload
                 .get("stream_endpoint")
                 .and_then(|value| value.as_str()),
-            Some("/admin/monitoring/stream")
+            Some("/shuma/admin/monitoring/stream")
         );
         assert_eq!(
             payload
@@ -2575,7 +2576,7 @@ mod tests {
         let mut builder = Request::builder();
         builder
             .method(Method::Get)
-            .uri("/admin/monitoring?hours=1&limit=10");
+            .uri("/shuma/admin/monitoring?hours=1&limit=10");
         let req = builder.build();
         let resp = handle_admin_monitoring(&req, &store);
         assert_eq!(*resp.status(), 200u16);
@@ -2636,7 +2637,7 @@ mod tests {
         let mut builder = Request::builder();
         builder
             .method(Method::Get)
-            .uri("/admin/monitoring?hours=24&limit=10");
+            .uri("/shuma/admin/monitoring?hours=24&limit=10");
         let req = builder.build();
         let resp = handle_admin_monitoring(&req, &store);
         assert_eq!(*resp.status(), 200u16);
@@ -2760,7 +2761,7 @@ mod tests {
         let mut builder = Request::builder();
         builder
             .method(Method::Get)
-            .uri("/admin/operator-snapshot")
+            .uri("/shuma/admin/operator-snapshot")
             .header("host", "localhost:3000")
             .header("authorization", "Bearer changeme-dev-only-api-key")
             .header("origin", "http://localhost:3000")
@@ -2891,7 +2892,7 @@ mod tests {
         let mut builder = Request::builder();
         builder
             .method(Method::Get)
-            .uri("/admin/operator-snapshot")
+            .uri("/shuma/admin/operator-snapshot")
             .header("host", "localhost:3000")
             .header("authorization", "Bearer changeme-dev-only-api-key")
             .header("origin", "http://localhost:3000")
@@ -2931,7 +2932,7 @@ mod tests {
         let mut builder = Request::builder();
         builder
             .method(Method::Get)
-            .uri("/admin/benchmark-suite")
+            .uri("/shuma/admin/benchmark-suite")
             .header("host", "localhost:3000")
             .header("authorization", "Bearer changeme-dev-only-api-key")
             .header("origin", "http://localhost:3000")
@@ -2993,7 +2994,7 @@ mod tests {
         let mut builder = Request::builder();
         builder
             .method(Method::Post)
-            .uri("/admin/benchmark-suite")
+            .uri("/shuma/admin/benchmark-suite")
             .header("host", "localhost:3000")
             .header("authorization", "Bearer changeme-dev-only-api-key")
             .header("origin", "http://localhost:3000")
@@ -3012,7 +3013,7 @@ mod tests {
         let mut builder = Request::builder();
         builder
             .method(Method::Get)
-            .uri("/admin/benchmark-results")
+            .uri("/shuma/admin/benchmark-results")
             .header("host", "localhost:3000")
             .header("authorization", "Bearer changeme-dev-only-api-key")
             .header("origin", "http://localhost:3000")
@@ -3121,7 +3122,7 @@ mod tests {
         let mut builder = Request::builder();
         builder
             .method(Method::Get)
-            .uri("/admin/benchmark-results")
+            .uri("/shuma/admin/benchmark-results")
             .header("host", "localhost:3000")
             .header("authorization", "Bearer changeme-dev-only-api-key")
             .header("origin", "http://localhost:3000")
@@ -3162,7 +3163,7 @@ mod tests {
         let mut builder = Request::builder();
         builder
             .method(Method::Post)
-            .uri("/admin/benchmark-results")
+            .uri("/shuma/admin/benchmark-results")
             .header("host", "localhost:3000")
             .header("authorization", "Bearer changeme-dev-only-api-key")
             .header("origin", "http://localhost:3000")
@@ -3195,7 +3196,7 @@ mod tests {
         let mut baseline_builder = Request::builder();
         baseline_builder
             .method(Method::Get)
-            .uri("/admin/monitoring/delta?hours=1&limit=10");
+            .uri("/shuma/admin/monitoring/delta?hours=1&limit=10");
         let baseline_req = baseline_builder.build();
         let baseline_resp = handle_admin_monitoring_delta(&baseline_req, &store);
         assert_eq!(*baseline_resp.status(), 200u16);
@@ -3211,7 +3212,7 @@ mod tests {
         let mut delta_builder = Request::builder();
         delta_builder.method(Method::Get).uri(
             format!(
-                "/admin/monitoring/delta?hours=1&limit=10&after_cursor={}",
+                "/shuma/admin/monitoring/delta?hours=1&limit=10&after_cursor={}",
                 anchor_cursor
             )
             .as_str(),
@@ -3269,7 +3270,7 @@ mod tests {
         let mut builder = Request::builder();
         builder
             .method(Method::Get)
-            .uri("/admin/monitoring/delta?hours=1&limit=10");
+            .uri("/shuma/admin/monitoring/delta?hours=1&limit=10");
         let req = builder.build();
         let resp = handle_admin_monitoring_delta(&req, &store);
         assert_eq!(*resp.status(), 200u16);
@@ -3332,7 +3333,7 @@ mod tests {
         let mut builder = Request::builder();
         builder
             .method(Method::Get)
-            .uri("/admin/monitoring/stream?hours=1&limit=10")
+            .uri("/shuma/admin/monitoring/stream?hours=1&limit=10")
             .header("Last-Event-ID", first_cursor.as_str());
         let req = builder.build();
         let resp = handle_admin_monitoring_stream(&req, &store);
@@ -3409,7 +3410,7 @@ mod tests {
         let mut first_builder = Request::builder();
         first_builder
             .method(Method::Get)
-            .uri("/admin/monitoring/stream?hours=1&limit=1");
+            .uri("/shuma/admin/monitoring/stream?hours=1&limit=1");
         let first_req = first_builder.build();
         let first_resp = handle_admin_monitoring_stream(&first_req, &store);
         assert_eq!(*first_resp.status(), 200u16);
@@ -3419,7 +3420,7 @@ mod tests {
         let mut second_builder = Request::builder();
         second_builder
             .method(Method::Get)
-            .uri("/admin/monitoring/stream?hours=1&limit=1")
+            .uri("/shuma/admin/monitoring/stream?hours=1&limit=1")
             .header("Last-Event-ID", first_cursor.as_str());
         let second_req = second_builder.build();
         let second_resp = handle_admin_monitoring_stream(&second_req, &store);
@@ -3488,7 +3489,7 @@ mod tests {
         let mut builder = Request::builder();
         builder
             .method(Method::Get)
-            .uri("/admin/ip-bans/delta?hours=1&limit=10");
+            .uri("/shuma/admin/ip-bans/delta?hours=1&limit=10");
         let req = builder.build();
         let resp = handle_admin_ip_bans_delta(&req, &store, "default");
         assert_eq!(*resp.status(), 200u16);
@@ -3548,7 +3549,7 @@ mod tests {
         let mut builder = Request::builder();
         builder
             .method(Method::Get)
-            .uri("/admin/ip-bans/delta?hours=1&limit=10");
+            .uri("/shuma/admin/ip-bans/delta?hours=1&limit=10");
         let req = builder.build();
         let resp = handle_admin_ip_bans_delta(&req, &store, "default");
         assert_eq!(*resp.status(), 200u16);
@@ -3588,7 +3589,7 @@ mod tests {
         let mut builder = Request::builder();
         builder
             .method(Method::Get)
-            .uri("/admin/ip-bans/delta?hours=1&limit=10");
+            .uri("/shuma/admin/ip-bans/delta?hours=1&limit=10");
         let req = builder.build();
         let resp = handle_admin_ip_bans_delta(&req, &store, "default");
         assert_eq!(*resp.status(), 200u16);
@@ -3686,7 +3687,7 @@ mod tests {
     fn expensive_admin_read_limiter_blocks_at_limit() {
         let store = MockStore::new();
         let mut builder = spin_sdk::http::Request::builder();
-        builder.method(Method::Get).uri("/admin/events");
+        builder.method(Method::Get).uri("/shuma/admin/events");
         let req = builder.build();
 
         let ip = crate::extract_client_ip(&req);
@@ -3848,7 +3849,7 @@ mod admin_config_tests {
         let mut builder = Request::builder();
         builder
             .method(Method::Post)
-            .uri("/admin/adversary-sim/history/cleanup")
+            .uri("/shuma/admin/adversary-sim/history/cleanup")
             .header("host", "localhost:3000")
             .header("authorization", "Bearer changeme-dev-only-api-key")
             .header("origin", "http://localhost:3000")
@@ -3894,7 +3895,7 @@ mod admin_config_tests {
         let mut builder = Request::builder();
         builder
             .method(Method::Post)
-            .uri("/admin/adversary-sim/control")
+            .uri("/shuma/admin/adversary-sim/control")
             .header("host", "localhost:3000")
             .header("authorization", "Bearer changeme-dev-only-api-key")
             .header("idempotency-key", idempotency_key);
@@ -4317,7 +4318,7 @@ mod admin_config_tests {
         let mut builder = Request::builder();
         builder
             .method(Method::Get)
-            .uri("/admin/adversary-sim/status")
+            .uri("/shuma/admin/adversary-sim/status")
             .header("host", "localhost:3000")
             .header("authorization", authorization.as_str())
             .header("x-shuma-forwarded-secret", "test-forwarded-secret")
@@ -4499,7 +4500,7 @@ mod admin_config_tests {
         let store = TestStore::default();
         let req = make_request(
             Method::Post,
-            "/admin/config",
+            "/shuma/admin/config",
             br#"{"shadow_mode":true}"#.to_vec(),
         );
 
@@ -4589,7 +4590,7 @@ mod admin_config_tests {
 
         let req = make_request(
             Method::Get,
-            "/admin/monitoring?hours=24&limit=10&bootstrap=1",
+            "/shuma/admin/monitoring?hours=24&limit=10&bootstrap=1",
             Vec::new(),
         );
         let response = handle_admin_monitoring(&req, &store);
@@ -4696,7 +4697,7 @@ mod admin_config_tests {
 
         let req = make_request(
             Method::Get,
-            "/admin/monitoring?hours=24&limit=200&bootstrap=1",
+            "/shuma/admin/monitoring?hours=24&limit=200&bootstrap=1",
             Vec::new(),
         );
         let resp = handle_admin_monitoring(&req, &store);
@@ -4803,7 +4804,7 @@ mod admin_config_tests {
             .set("config:default", &serde_json::to_vec(&cfg).unwrap())
             .unwrap();
 
-        let req = make_request(Method::Get, "/admin/config/export", Vec::new());
+        let req = make_request(Method::Get, "/shuma/admin/config/export", Vec::new());
         let resp = handle_admin_config_export(&req, &store, "default");
         assert_eq!(*resp.status(), 200u16);
 
@@ -5072,7 +5073,7 @@ mod admin_config_tests {
         std::env::set_var("SHUMA_BAN_STORE_REDIS_URL", "redis://secret@redis:6379");
 
         let store = TestStore::default();
-        let req = make_request(Method::Get, "/admin/config/export", Vec::new());
+        let req = make_request(Method::Get, "/shuma/admin/config/export", Vec::new());
         let resp = handle_admin_config_export(&req, &store, "default");
         assert_eq!(*resp.status(), 200u16);
 
@@ -5117,7 +5118,7 @@ mod admin_config_tests {
     #[test]
     fn admin_config_includes_challenge_fields() {
         let _lock = crate::test_support::lock_env();
-        let req = make_request(Method::Get, "/admin/config", Vec::new());
+        let req = make_request(Method::Get, "/shuma/admin/config", Vec::new());
         let store = TestStore::default();
         let resp = handle_admin_config(&req, &store, "default");
         assert_eq!(*resp.status(), 200u16);
@@ -5222,7 +5223,7 @@ mod admin_config_tests {
         std::env::set_var("SHUMA_ADMIN_CONFIG_WRITE_ENABLED", "true");
         let store = TestStore::default();
 
-        let get_req = make_request(Method::Get, "/admin/config", Vec::new());
+        let get_req = make_request(Method::Get, "/shuma/admin/config", Vec::new());
         let get_resp = handle_admin_config(&get_req, &store, "default");
         assert_eq!(*get_resp.status(), 200u16);
         assert_eq!(
@@ -5240,7 +5241,7 @@ mod admin_config_tests {
 
         let post_req = make_request(
             Method::Post,
-            "/admin/config",
+            "/shuma/admin/config",
             br#"{"shadow_mode": false}"#.to_vec(),
         );
         let post_resp = handle_admin_config(&post_req, &store, "default");
@@ -5267,7 +5268,7 @@ mod admin_config_tests {
         std::env::set_var("SHUMA_GATEWAY_DEPLOYMENT_PROFILE", "shared-server");
         std::env::set_var("SHUMA_LOCAL_PROD_DIRECT_MODE", "true");
 
-        let req = make_request(Method::Get, "/admin/config", Vec::new());
+        let req = make_request(Method::Get, "/shuma/admin/config", Vec::new());
         let store = TestStore::default();
         let resp = handle_admin_config(&req, &store, "default");
         assert_eq!(*resp.status(), 200u16);
@@ -5336,7 +5337,7 @@ mod admin_config_tests {
         crate::config::clear_runtime_cache_for_tests();
 
         let config_resp = handle_admin_config(
-            &make_request(Method::Get, "/admin/config", Vec::new()),
+            &make_request(Method::Get, "/shuma/admin/config", Vec::new()),
             &store,
             "default",
         );
@@ -5365,7 +5366,7 @@ mod admin_config_tests {
         let _lock = crate::test_support::lock_env();
         std::env::set_var("SHUMA_GATEWAY_DEPLOYMENT_PROFILE", "edge-fermyon");
 
-        let req = make_request(Method::Get, "/admin/config", Vec::new());
+        let req = make_request(Method::Get, "/shuma/admin/config", Vec::new());
         let store = TestStore::default();
         let resp = handle_admin_config(&req, &store, "default");
         assert_eq!(*resp.status(), 200u16);
@@ -5391,7 +5392,7 @@ mod admin_config_tests {
     #[test]
     fn manual_ban_write_result_returns_503_without_logging_success_when_sync_fails() {
         let store = TestStore::default();
-        let req = make_request(Method::Post, "/admin/ban", Vec::new());
+        let req = make_request(Method::Post, "/shuma/admin/ban", Vec::new());
 
         let resp = finalize_manual_ban_result(
             &store,
@@ -5409,7 +5410,7 @@ mod admin_config_tests {
     #[test]
     fn manual_unban_write_result_returns_503_without_logging_success_when_sync_fails() {
         let store = TestStore::default();
-        let req = make_request(Method::Post, "/admin/unban?ip=198.51.100.21", Vec::new());
+        let req = make_request(Method::Post, "/shuma/admin/unban?ip=198.51.100.21", Vec::new());
 
         let resp = finalize_manual_unban_result(
             &store,
@@ -5438,7 +5439,7 @@ mod admin_config_tests {
         std::env::set_var("SHUMA_FRONTIER_OPENAI_API_KEY", "sk-openai-test");
         std::env::set_var("SHUMA_FRONTIER_OPENAI_MODEL", "gpt-5-mini");
 
-        let req = make_request(Method::Get, "/admin/config", Vec::new());
+        let req = make_request(Method::Get, "/shuma/admin/config", Vec::new());
         let store = TestStore::default();
         let resp = handle_admin_config(&req, &store, "default");
         assert_eq!(*resp.status(), 200u16);
@@ -5493,12 +5494,12 @@ mod admin_config_tests {
         std::env::set_var("SHUMA_RUNTIME_ENV", "runtime-dev");
 
         let body = br#"{"adversary_sim_enabled":true}"#.to_vec();
-        let req = make_request(Method::Post, "/admin/config", body);
+        let req = make_request(Method::Post, "/shuma/admin/config", body);
         let store = TestStore::default();
         let resp = handle_admin_config(&req, &store, "default");
         assert_eq!(*resp.status(), 400u16);
         let message = String::from_utf8_lossy(resp.body());
-        assert!(message.contains("/admin/adversary-sim/control"));
+        assert!(message.contains("/shuma/admin/adversary-sim/control"));
 
         std::env::remove_var("SHUMA_ADMIN_CONFIG_WRITE_ENABLED");
         std::env::remove_var("SHUMA_RUNTIME_ENV");
@@ -5510,7 +5511,7 @@ mod admin_config_tests {
         std::env::set_var("SHUMA_ADMIN_CONFIG_WRITE_ENABLED", "true");
 
         let body = br#"{"adversary_sim_duration_seconds":240}"#.to_vec();
-        let req = make_request(Method::Post, "/admin/config", body);
+        let req = make_request(Method::Post, "/shuma/admin/config", body);
         let store = TestStore::default();
         let resp = handle_admin_config(&req, &store, "default");
         assert_eq!(*resp.status(), 200u16);
@@ -5535,7 +5536,7 @@ mod admin_config_tests {
         std::env::set_var("SHUMA_ADMIN_CONFIG_WRITE_ENABLED", "true");
 
         let body = br#"{"shadow_mode":true}"#.to_vec();
-        let req = make_request(Method::Post, "/admin/config", body);
+        let req = make_request(Method::Post, "/shuma/admin/config", body);
         let store = TestStore::default();
         let resp = handle_admin_config(&req, &store, "default");
         assert_eq!(*resp.status(), 200u16);
@@ -5562,12 +5563,12 @@ mod admin_config_tests {
         std::env::set_var("SHUMA_ADMIN_CONFIG_WRITE_ENABLED", "true");
 
         let body = br#"{"shadow_mode":true,"rate_limit":321}"#.to_vec();
-        let req = make_request(Method::Post, "/admin/config", body);
+        let req = make_request(Method::Post, "/shuma/admin/config", body);
         let store = TestStore::default();
         let resp = handle_admin_config(&req, &store, "default");
         assert_eq!(*resp.status(), 200u16);
 
-        let snapshot_req = make_request(Method::Get, "/admin/operator-snapshot", Vec::new());
+        let snapshot_req = make_request(Method::Get, "/shuma/admin/operator-snapshot", Vec::new());
         let snapshot_resp = handle_admin_operator_snapshot(&snapshot_req, &store);
         assert_eq!(*snapshot_resp.status(), 200u16);
         let payload: serde_json::Value = serde_json::from_slice(snapshot_resp.body()).unwrap();
@@ -5642,7 +5643,7 @@ mod admin_config_tests {
         std::env::set_var("SHUMA_ADMIN_CONFIG_WRITE_ENABLED", "true");
 
         let body = br#"{"adversary_sim_duration_seconds":901}"#.to_vec();
-        let req = make_request(Method::Post, "/admin/config", body);
+        let req = make_request(Method::Post, "/shuma/admin/config", body);
         let store = TestStore::default();
         let resp = handle_admin_config(&req, &store, "default");
         assert_eq!(*resp.status(), 400u16);
@@ -5663,7 +5664,7 @@ mod admin_config_tests {
 
         let on_req = make_request(
             Method::Post,
-            "/admin/adversary-sim/control",
+            "/shuma/admin/adversary-sim/control",
             br#"{"enabled":true}"#.to_vec(),
         );
         let on_resp = handle_admin_adversary_sim_control(&on_req, &store, "default", &auth);
@@ -5693,7 +5694,7 @@ mod admin_config_tests {
         // Simulate a new runtime instance where in-memory ephemeral overrides are not retained.
         crate::config::clear_runtime_cache_for_tests();
 
-        let status_req = make_request(Method::Get, "/admin/adversary-sim/status", Vec::new());
+        let status_req = make_request(Method::Get, "/shuma/admin/adversary-sim/status", Vec::new());
         let status_resp = handle_admin_adversary_sim_status(&status_req, &store, "default", &auth);
         assert_eq!(*status_resp.status(), 200u16);
         assert_eq!(
@@ -5723,7 +5724,7 @@ mod admin_config_tests {
 
         let off_req = make_request(
             Method::Post,
-            "/admin/adversary-sim/control",
+            "/shuma/admin/adversary-sim/control",
             br#"{"enabled":false}"#.to_vec(),
         );
         let off_resp = handle_admin_adversary_sim_control(&off_req, &store, "default", &auth);
@@ -5787,13 +5788,13 @@ mod admin_config_tests {
 
         let on_req = make_request(
             Method::Post,
-            "/admin/adversary-sim/control",
+            "/shuma/admin/adversary-sim/control",
             br#"{"enabled":true}"#.to_vec(),
         );
         let on_resp = handle_admin_adversary_sim_control(&on_req, &store, "default", &auth);
         assert_eq!(*on_resp.status(), 200u16);
 
-        let status_req = make_request(Method::Get, "/admin/adversary-sim/status", Vec::new());
+        let status_req = make_request(Method::Get, "/shuma/admin/adversary-sim/status", Vec::new());
         let status_resp = handle_admin_adversary_sim_status(&status_req, &store, "default", &auth);
         assert_eq!(*status_resp.status(), 200u16);
         let status_json: serde_json::Value = serde_json::from_slice(status_resp.body()).unwrap();
@@ -5834,7 +5835,7 @@ mod admin_config_tests {
         let on_resp = handle_admin_adversary_sim_control(
             &make_request(
                 Method::Post,
-                "/admin/adversary-sim/control",
+                "/shuma/admin/adversary-sim/control",
                 br#"{"enabled":true}"#.to_vec(),
             ),
             &store,
@@ -5886,7 +5887,7 @@ mod admin_config_tests {
         let off_resp = handle_admin_adversary_sim_control(
             &make_request(
                 Method::Post,
-                "/admin/adversary-sim/control",
+                "/shuma/admin/adversary-sim/control",
                 br#"{"enabled":false}"#.to_vec(),
             ),
             &store,
@@ -7094,7 +7095,7 @@ mod admin_config_tests {
 
         let status_req = Request::builder()
             .method(Method::Get)
-            .uri("/admin/oversight/agent/status")
+            .uri("/shuma/admin/oversight/agent/status")
             .body(Vec::new())
             .build();
         let status_resp = handle_admin_oversight_agent_status(&status_req, &store, "default");
@@ -7174,7 +7175,7 @@ mod admin_config_tests {
 
         let status_req = Request::builder()
             .method(Method::Get)
-            .uri("/admin/oversight/agent/status")
+            .uri("/shuma/admin/oversight/agent/status")
             .body(Vec::new())
             .build();
         let pending_status_resp =
@@ -7378,7 +7379,7 @@ mod admin_config_tests {
 
         let status_req = Request::builder()
             .method(Method::Get)
-            .uri("/admin/oversight/agent/status")
+            .uri("/shuma/admin/oversight/agent/status")
             .body(Vec::new())
             .build();
         let pending_status_resp =
@@ -7395,7 +7396,7 @@ mod admin_config_tests {
             Some("improved")
         );
 
-        let sim_status_req = make_request(Method::Get, "/admin/adversary-sim/status", Vec::new());
+        let sim_status_req = make_request(Method::Get, "/shuma/admin/adversary-sim/status", Vec::new());
         let sim_status_resp =
             handle_admin_adversary_sim_status(&sim_status_req, &store, "default", &auth);
         assert_eq!(*sim_status_resp.status(), 200u16);
@@ -7577,7 +7578,7 @@ mod admin_config_tests {
 
         let status_req = Request::builder()
             .method(Method::Get)
-            .uri("/admin/oversight/agent/status")
+            .uri("/shuma/admin/oversight/agent/status")
             .body(Vec::new())
             .build();
         let pending_status_resp =
@@ -7746,7 +7747,7 @@ mod admin_config_tests {
 
         let status_req = Request::builder()
             .method(Method::Get)
-            .uri("/admin/oversight/agent/status")
+            .uri("/shuma/admin/oversight/agent/status")
             .body(Vec::new())
             .build();
         let status_resp = handle_admin_oversight_agent_status(&status_req, &store, "default");
@@ -7772,7 +7773,7 @@ mod admin_config_tests {
 
         let history_req = Request::builder()
             .method(Method::Get)
-            .uri("/admin/oversight/history")
+            .uri("/shuma/admin/oversight/history")
             .body(Vec::new())
             .build();
         let history_resp = handle_admin_oversight_history(&history_req, &store, "default");
@@ -7944,7 +7945,7 @@ mod admin_config_tests {
 
         let status_req = Request::builder()
             .method(Method::Get)
-            .uri("/admin/oversight/agent/status")
+            .uri("/shuma/admin/oversight/agent/status")
             .body(Vec::new())
             .build();
         let pending_status_resp =
@@ -8077,7 +8078,7 @@ mod admin_config_tests {
 
         let status_req = Request::builder()
             .method(Method::Get)
-            .uri("/admin/oversight/agent/status")
+            .uri("/shuma/admin/oversight/agent/status")
             .body(Vec::new())
             .build();
         let first_status_resp =
@@ -8160,7 +8161,7 @@ mod admin_config_tests {
 
         let history_req = Request::builder()
             .method(Method::Get)
-            .uri("/admin/oversight/history")
+            .uri("/shuma/admin/oversight/history")
             .body(Vec::new())
             .build();
         let history_resp = handle_admin_oversight_history(&history_req, &store, "default");
@@ -8203,7 +8204,7 @@ mod admin_config_tests {
 
         let snapshot_req = Request::builder()
             .method(Method::Get)
-            .uri("/admin/operator-snapshot")
+            .uri("/shuma/admin/operator-snapshot")
             .header("host", "localhost:3000")
             .header("authorization", "Bearer changeme-dev-only-api-key")
             .header("origin", "http://localhost:3000")
@@ -8284,7 +8285,7 @@ mod admin_config_tests {
 
         let history_req = Request::builder()
             .method(Method::Get)
-            .uri("/admin/oversight/history")
+            .uri("/shuma/admin/oversight/history")
             .body(Vec::new())
             .build();
         let history_resp = handle_admin_oversight_history(&history_req, &store, "default");
@@ -8337,12 +8338,12 @@ mod admin_config_tests {
 
         let status_req = Request::builder()
             .method(Method::Get)
-            .uri("/admin/oversight/agent/status")
+            .uri("/shuma/admin/oversight/agent/status")
             .body(Vec::new())
             .build();
         let history_req = Request::builder()
             .method(Method::Get)
-            .uri("/admin/oversight/history")
+            .uri("/shuma/admin/oversight/history")
             .body(Vec::new())
             .build();
         let periodic_req = make_internal_oversight_request(
@@ -8621,7 +8622,7 @@ mod admin_config_tests {
             serde_json::from_slice(&store.get("config:default").unwrap().unwrap()).unwrap();
         assert!(!persisted_cfg.adversary_sim_enabled);
         let config_resp = handle_admin_config(
-            &make_request(Method::Get, "/admin/config", Vec::new()),
+            &make_request(Method::Get, "/shuma/admin/config", Vec::new()),
             &store,
             "default",
         );
@@ -8674,7 +8675,7 @@ mod admin_config_tests {
         state.last_generation_error = None;
         crate::admin::adversary_sim::save_state(&store, "default", &state).unwrap();
 
-        let status_req = make_request(Method::Get, "/admin/adversary-sim/status", Vec::new());
+        let status_req = make_request(Method::Get, "/shuma/admin/adversary-sim/status", Vec::new());
         let status_resp = handle_admin_adversary_sim_status(&status_req, &store, "default", &auth);
         assert_eq!(*status_resp.status(), 200u16);
         let status_json: serde_json::Value = serde_json::from_slice(status_resp.body()).unwrap();
@@ -8763,7 +8764,7 @@ mod admin_config_tests {
             }
         }
 
-        let status_req = make_request(Method::Get, "/admin/adversary-sim/status", Vec::new());
+        let status_req = make_request(Method::Get, "/shuma/admin/adversary-sim/status", Vec::new());
         let status_resp = handle_admin_adversary_sim_status(&status_req, &store, "default", &auth);
         assert_eq!(*status_resp.status(), 200u16);
         let status_json: serde_json::Value = serde_json::from_slice(status_resp.body()).unwrap();
@@ -8919,7 +8920,7 @@ mod admin_config_tests {
 
         let monitoring_req = make_request(
             Method::Get,
-            "/admin/monitoring?hours=24&limit=10",
+            "/shuma/admin/monitoring?hours=24&limit=10",
             Vec::new(),
         );
         let monitoring_resp = handle_admin_monitoring(&monitoring_req, &store);
@@ -9039,7 +9040,7 @@ mod admin_config_tests {
 
         let monitoring_req = make_request(
             Method::Get,
-            "/admin/monitoring?hours=24&limit=10",
+            "/shuma/admin/monitoring?hours=24&limit=10",
             Vec::new(),
         );
         let monitoring_resp = handle_admin_monitoring(&monitoring_req, &store);
@@ -9162,7 +9163,7 @@ mod admin_config_tests {
 
         let monitoring_req = make_request(
             Method::Get,
-            "/admin/monitoring?hours=24&limit=10",
+            "/shuma/admin/monitoring?hours=24&limit=10",
             Vec::new(),
         );
         let monitoring_resp = handle_admin_monitoring(&monitoring_req, &store);
@@ -9249,7 +9250,7 @@ mod admin_config_tests {
             )
             .unwrap();
 
-        let status_req = make_request(Method::Get, "/admin/adversary-sim/status", Vec::new());
+        let status_req = make_request(Method::Get, "/shuma/admin/adversary-sim/status", Vec::new());
         let status_resp = handle_admin_adversary_sim_status(&status_req, &store, "default", &auth);
         assert_eq!(*status_resp.status(), 200u16);
         let status_json: serde_json::Value = serde_json::from_slice(status_resp.body()).unwrap();
@@ -9307,7 +9308,7 @@ mod admin_config_tests {
         };
         crate::admin::adversary_sim::save_state(&store, "default", &stale_running_state).unwrap();
 
-        let status_req = make_request(Method::Get, "/admin/adversary-sim/status", Vec::new());
+        let status_req = make_request(Method::Get, "/shuma/admin/adversary-sim/status", Vec::new());
         let status_resp = handle_admin_adversary_sim_status(&status_req, &store, "default", &auth);
         assert_eq!(*status_resp.status(), 200u16);
         let status_json: serde_json::Value = serde_json::from_slice(status_resp.body()).unwrap();
@@ -9373,7 +9374,7 @@ mod admin_config_tests {
         };
         crate::admin::adversary_sim::save_state(&store, "default", &stale_running_state).unwrap();
 
-        let status_req = make_request(Method::Get, "/admin/adversary-sim/status", Vec::new());
+        let status_req = make_request(Method::Get, "/shuma/admin/adversary-sim/status", Vec::new());
         let status_resp = handle_admin_adversary_sim_status(&status_req, &store, "default", &auth);
         assert_eq!(*status_resp.status(), 200u16);
         let status_json: serde_json::Value = serde_json::from_slice(status_resp.body()).unwrap();
@@ -9433,7 +9434,7 @@ mod admin_config_tests {
         state.active_lane_count = 2;
         crate::admin::adversary_sim::save_state(&store, "default", &state).unwrap();
 
-        let status_req = make_request(Method::Get, "/admin/adversary-sim/status", Vec::new());
+        let status_req = make_request(Method::Get, "/shuma/admin/adversary-sim/status", Vec::new());
         let status_resp = handle_admin_adversary_sim_status(&status_req, &store, "default", &auth);
         assert_eq!(*status_resp.status(), 200u16);
         let status_json: serde_json::Value = serde_json::from_slice(status_resp.body()).unwrap();
@@ -9455,7 +9456,7 @@ mod admin_config_tests {
         );
         crate::config::clear_runtime_cache_for_tests();
         let config_resp = handle_admin_config(
-            &make_request(Method::Get, "/admin/config", Vec::new()),
+            &make_request(Method::Get, "/shuma/admin/config", Vec::new()),
             &store,
             "default",
         );
@@ -9543,7 +9544,7 @@ mod admin_config_tests {
         assert_eq!(*off_resp.status(), 409u16);
         assert!(String::from_utf8_lossy(off_resp.body()).contains("payload mismatch"));
 
-        let status_req = make_request(Method::Get, "/admin/adversary-sim/status", Vec::new());
+        let status_req = make_request(Method::Get, "/shuma/admin/adversary-sim/status", Vec::new());
         let status_resp = handle_admin_adversary_sim_status(&status_req, &store, "default", &auth);
         assert_eq!(*status_resp.status(), 200u16);
         let status_json: serde_json::Value = serde_json::from_slice(status_resp.body()).unwrap();
@@ -9778,7 +9779,7 @@ mod admin_config_tests {
         let mut builder = Request::builder();
         builder
             .method(Method::Post)
-            .uri("/admin/adversary-sim/control")
+            .uri("/shuma/admin/adversary-sim/control")
             .header("host", "localhost:3000")
             .header("authorization", "Bearer changeme-dev-only-api-key")
             .header("sec-fetch-site", "same-origin")
@@ -10139,7 +10140,7 @@ mod admin_config_tests {
         };
         crate::admin::adversary_sim::save_state(&store, "default", &stale_running_state).unwrap();
 
-        let status_req = make_request(Method::Get, "/admin/adversary-sim/status", Vec::new());
+        let status_req = make_request(Method::Get, "/shuma/admin/adversary-sim/status", Vec::new());
         let status_resp = handle_admin_adversary_sim_status(&status_req, &store, "default", &auth);
         assert_eq!(*status_resp.status(), 200u16);
         let status_json: serde_json::Value = serde_json::from_slice(status_resp.body()).unwrap();
@@ -10175,7 +10176,7 @@ mod admin_config_tests {
         let status_req = make_internal_supervisor_status_request("test-admin-key");
         assert!(request_bypasses_admin_ip_allowlist(
             &status_req,
-            "/admin/adversary-sim/status"
+            "/shuma/admin/adversary-sim/status"
         ));
 
         let beat_req = make_internal_beat_request("test-admin-key");
@@ -10187,7 +10188,7 @@ mod admin_config_tests {
         let mut other = Request::builder();
         other
             .method(Method::Get)
-            .uri("/admin/config")
+            .uri("/shuma/admin/config")
             .header("host", "localhost:3000")
             .header("authorization", "Bearer test-admin-key")
             .header("x-shuma-forwarded-secret", "test-forwarded-secret")
@@ -10197,7 +10198,7 @@ mod admin_config_tests {
         let other_req = other.body(Vec::new()).build();
         assert!(!request_bypasses_admin_ip_allowlist(
             &other_req,
-            "/admin/config"
+            "/shuma/admin/config"
         ));
 
         clear_env(&[
@@ -10226,15 +10227,15 @@ mod admin_config_tests {
         let mut status = Request::builder();
         status
             .method(Method::Get)
-            .uri("/admin/adversary-sim/status?edge_cron_secret=test-edge-cron-secret")
+            .uri("/shuma/admin/adversary-sim/status?edge_cron_secret=test-edge-cron-secret")
             .header(
                 "spin-full-url",
-                "https://edge.example.com/admin/adversary-sim/status?edge_cron_secret=test-edge-cron-secret",
+                "https://edge.example.com/shuma/admin/adversary-sim/status?edge_cron_secret=test-edge-cron-secret",
             );
         let status_req = status.body(Vec::new()).build();
         assert!(!request_bypasses_admin_ip_allowlist(
             &status_req,
-            "/admin/adversary-sim/status"
+            "/shuma/admin/adversary-sim/status"
         ));
 
         clear_env(&[
@@ -10258,7 +10259,7 @@ mod admin_config_tests {
 
         let post_req = make_request(
             Method::Post,
-            "/admin/maze/seeds",
+            "/shuma/admin/maze/seeds",
             br#"{
                 "sources":[
                     {
@@ -10277,7 +10278,7 @@ mod admin_config_tests {
         let post_resp = handle_admin_maze_seed_sources(&post_req, &store, "default");
         assert_eq!(*post_resp.status(), 200u16);
 
-        let get_req = make_request(Method::Get, "/admin/maze/seeds", Vec::new());
+        let get_req = make_request(Method::Get, "/shuma/admin/maze/seeds", Vec::new());
         let get_resp = handle_admin_maze_seed_sources(&get_req, &store, "default");
         assert_eq!(*get_resp.status(), 200u16);
         let get_json: serde_json::Value = serde_json::from_slice(get_resp.body()).unwrap();
@@ -10289,7 +10290,7 @@ mod admin_config_tests {
             Some(1)
         );
 
-        let refresh_req = make_request(Method::Post, "/admin/maze/seeds/refresh", Vec::new());
+        let refresh_req = make_request(Method::Post, "/shuma/admin/maze/seeds/refresh", Vec::new());
         let refresh_resp = handle_admin_maze_seed_refresh(&refresh_req, &store, "default");
         assert_eq!(*refresh_resp.status(), 200u16);
         let refresh_json: serde_json::Value = serde_json::from_slice(refresh_resp.body()).unwrap();
@@ -10310,7 +10311,7 @@ mod admin_config_tests {
     fn admin_maze_seed_refresh_requires_operator_provider() {
         let _lock = crate::test_support::lock_env();
         let store = TestStore::default();
-        let refresh_req = make_request(Method::Post, "/admin/maze/seeds/refresh", Vec::new());
+        let refresh_req = make_request(Method::Post, "/shuma/admin/maze/seeds/refresh", Vec::new());
         let refresh_resp = handle_admin_maze_seed_refresh(&refresh_req, &store, "default");
         assert_eq!(*refresh_resp.status(), 409u16);
     }
@@ -10322,7 +10323,7 @@ mod admin_config_tests {
         let preview_path = crate::maze::entry_path("preview-segment");
         let req = make_request(
             Method::Get,
-            format!("/admin/maze/preview?path={}", preview_path).as_str(),
+            format!("/shuma/admin/maze/preview?path={}", preview_path).as_str(),
             Vec::new(),
         );
         let resp = handle_admin_maze_preview(&req, &store, "default");
@@ -10332,7 +10333,7 @@ mod admin_config_tests {
         assert!(!body.contains("Preview-only path."));
         assert!(!body.contains("mt="));
         assert!(!body.contains("data-shuma-covert-decoy"));
-        assert!(body.contains("/admin/maze/preview?path="));
+        assert!(body.contains("/shuma/admin/maze/preview?path="));
     }
 
     #[test]
@@ -10354,7 +10355,7 @@ mod admin_config_tests {
                 .collect::<std::collections::HashMap<_, _>>()
         };
 
-        let req = make_request(Method::Get, "/admin/maze/preview", Vec::new());
+        let req = make_request(Method::Get, "/shuma/admin/maze/preview", Vec::new());
         let resp = handle_admin_maze_preview(&req, &store, "default");
         assert_eq!(*resp.status(), 200u16);
 
@@ -10372,23 +10373,23 @@ mod admin_config_tests {
     fn admin_maze_preview_is_get_only_read_path() {
         let _lock = crate::test_support::lock_env();
         let store = TestStore::default();
-        let req = make_request(Method::Post, "/admin/maze/preview", Vec::new());
+        let req = make_request(Method::Post, "/shuma/admin/maze/preview", Vec::new());
         let resp = handle_admin_maze_preview(&req, &store, "default");
         assert_eq!(*resp.status(), 405u16);
         assert!(!request_requires_admin_write(
-            "/admin/maze/preview",
+            "/shuma/admin/maze/preview",
             &Method::Get
         ));
-        assert!(sanitize_path("/admin/maze/preview"));
-        assert!(sanitize_path("/admin/tarpit/preview"));
-        assert!(sanitize_path("/admin/ip-range/suggestions"));
-        assert!(sanitize_path("/admin/operator-snapshot"));
-        assert!(sanitize_path("/admin/operator-objectives"));
-        assert!(sanitize_path("/admin/replay-promotion"));
-        assert!(sanitize_path("/admin/benchmark-suite"));
-        assert!(sanitize_path("/admin/monitoring/stream"));
-        assert!(sanitize_path("/admin/ip-bans/stream"));
-        assert!(sanitize_path("/admin/adversary-sim/history/cleanup"));
+        assert!(sanitize_path("/shuma/admin/maze/preview"));
+        assert!(sanitize_path("/shuma/admin/tarpit/preview"));
+        assert!(sanitize_path("/shuma/admin/ip-range/suggestions"));
+        assert!(sanitize_path("/shuma/admin/operator-snapshot"));
+        assert!(sanitize_path("/shuma/admin/operator-objectives"));
+        assert!(sanitize_path("/shuma/admin/replay-promotion"));
+        assert!(sanitize_path("/shuma/admin/benchmark-suite"));
+        assert!(sanitize_path("/shuma/admin/monitoring/stream"));
+        assert!(sanitize_path("/shuma/admin/ip-bans/stream"));
+        assert!(sanitize_path("/shuma/admin/adversary-sim/history/cleanup"));
     }
 
     #[test]
@@ -10396,7 +10397,7 @@ mod admin_config_tests {
         let _lock = crate::test_support::lock_env();
         let store = TestStore::default();
 
-        let req = make_request(Method::Get, "/admin/tarpit/preview", Vec::new());
+        let req = make_request(Method::Get, "/shuma/admin/tarpit/preview", Vec::new());
         let resp = handle_admin_tarpit_preview(&req, &store, "default");
         assert_eq!(*resp.status(), 200u16);
         let body = String::from_utf8_lossy(resp.body());
@@ -10432,7 +10433,7 @@ mod admin_config_tests {
                 .collect::<std::collections::HashMap<_, _>>()
         };
 
-        let req = make_request(Method::Get, "/admin/tarpit/preview", Vec::new());
+        let req = make_request(Method::Get, "/shuma/admin/tarpit/preview", Vec::new());
         let resp = handle_admin_tarpit_preview(&req, &store, "default");
         assert_eq!(*resp.status(), 200u16);
 
@@ -10445,11 +10446,11 @@ mod admin_config_tests {
         };
         assert_eq!(before, after);
 
-        let post_req = make_request(Method::Post, "/admin/tarpit/preview", Vec::new());
+        let post_req = make_request(Method::Post, "/shuma/admin/tarpit/preview", Vec::new());
         let post_resp = handle_admin_tarpit_preview(&post_req, &store, "default");
         assert_eq!(*post_resp.status(), 405u16);
         assert!(!request_requires_admin_write(
-            "/admin/tarpit/preview",
+            "/shuma/admin/tarpit/preview",
             &Method::Get
         ));
     }
@@ -10481,7 +10482,7 @@ mod admin_config_tests {
 
         let req = make_request(
             Method::Get,
-            "/admin/monitoring?hours=24&limit=5",
+            "/shuma/admin/monitoring?hours=24&limit=5",
             Vec::new(),
         );
         let resp = handle_admin_monitoring(&req, &store);
@@ -10512,7 +10513,7 @@ mod admin_config_tests {
             body.get("prometheus")
                 .and_then(|v| v.get("endpoint"))
                 .and_then(|v| v.as_str()),
-            Some("/metrics")
+            Some(route_namespace::SHUMA_METRICS_PATH)
         );
         assert!(body
             .get("prometheus")
@@ -10524,7 +10525,7 @@ mod admin_config_tests {
             .get("prometheus")
             .and_then(|v| v.get("example_js"))
             .and_then(|v| v.as_str())
-            .map(|value| value.contains("fetch('/metrics')"))
+            .map(|value| value.contains("fetch('/shuma/metrics')"))
             .unwrap_or(false));
         assert!(body
             .get("prometheus")
@@ -10632,7 +10633,7 @@ mod admin_config_tests {
 
         let req = make_request(
             Method::Get,
-            "/admin/monitoring?hours=24&limit=5",
+            "/shuma/admin/monitoring?hours=24&limit=5",
             Vec::new(),
         );
         let resp = handle_admin_monitoring(&req, &store);
@@ -10699,7 +10700,7 @@ mod admin_config_tests {
 
         let req = make_request(
             Method::Get,
-            "/admin/monitoring?hours=24&limit=50",
+            "/shuma/admin/monitoring?hours=24&limit=50",
             Vec::new(),
         );
         let resp = handle_admin_monitoring(&req, &store);
@@ -10743,7 +10744,7 @@ mod admin_config_tests {
 
         let req = make_request(
             Method::Get,
-            "/admin/monitoring/delta?hours=1&limit=10",
+            "/shuma/admin/monitoring/delta?hours=1&limit=10",
             Vec::new(),
         );
         let resp = handle_admin_monitoring_delta(&req, &store);
@@ -10821,7 +10822,7 @@ mod admin_config_tests {
 
         let req = make_request(
             Method::Get,
-            "/admin/monitoring/delta?hours=24&limit=40",
+            "/shuma/admin/monitoring/delta?hours=24&limit=40",
             Vec::new(),
         );
         let resp = handle_admin_monitoring_delta(&req, &store);
@@ -10910,7 +10911,7 @@ mod admin_config_tests {
 
         let monitoring_req = make_request(
             Method::Get,
-            "/admin/monitoring?hours=24&limit=10",
+            "/shuma/admin/monitoring?hours=24&limit=10",
             Vec::new(),
         );
         let monitoring_resp = handle_admin_monitoring(&monitoring_req, &store);
@@ -10943,7 +10944,7 @@ mod admin_config_tests {
 
         let delta_req = make_request(
             Method::Get,
-            "/admin/monitoring/delta?hours=24&limit=10",
+            "/shuma/admin/monitoring/delta?hours=24&limit=10",
             Vec::new(),
         );
         let delta_resp = handle_admin_monitoring_delta(&delta_req, &store);
@@ -10962,7 +10963,7 @@ mod admin_config_tests {
             Some("external_probe")
         );
 
-        let events_req = make_request(Method::Get, "/admin/events?hours=24", Vec::new());
+        let events_req = make_request(Method::Get, "/shuma/admin/events?hours=24", Vec::new());
         let events_resp = handle_admin_events(&events_req, &store);
         assert_eq!(*events_resp.status(), 200u16);
         let events_payload: serde_json::Value = serde_json::from_slice(events_resp.body()).unwrap();
@@ -10981,7 +10982,7 @@ mod admin_config_tests {
 
         let stream_req = make_request(
             Method::Get,
-            "/admin/monitoring/stream?hours=24&limit=10",
+            "/shuma/admin/monitoring/stream?hours=24&limit=10",
             Vec::new(),
         );
         let stream_resp = handle_admin_monitoring_stream(&stream_req, &store);
@@ -11071,7 +11072,7 @@ mod admin_config_tests {
 
         let req_default = make_request(
             Method::Get,
-            "/admin/monitoring?hours=24&limit=5",
+            "/shuma/admin/monitoring?hours=24&limit=5",
             Vec::new(),
         );
         let resp_default = handle_admin_monitoring(&req_default, &store);
@@ -11218,7 +11219,7 @@ mod admin_config_tests {
 
         let req = make_request(
             Method::Get,
-            "/admin/monitoring?hours=24&limit=10",
+            "/shuma/admin/monitoring?hours=24&limit=10",
             Vec::new(),
         );
         let resp = handle_admin_monitoring(&req, &store);
@@ -11293,7 +11294,7 @@ mod admin_config_tests {
 
         let req_default = make_request(
             Method::Get,
-            "/admin/monitoring?hours=24&limit=5",
+            "/shuma/admin/monitoring?hours=24&limit=5",
             Vec::new(),
         );
         let resp_default = handle_admin_monitoring(&req_default, &store);
@@ -11335,7 +11336,7 @@ mod admin_config_tests {
         let req_forensic = make_request(
             Method::Get,
             format!(
-                "/admin/monitoring?hours=24&limit=5&forensic=1&forensic_ack={}",
+                "/shuma/admin/monitoring?hours=24&limit=5&forensic=1&forensic_ack={}",
                 SECURITY_FORENSIC_ACK_VALUE
             )
             .as_str(),
@@ -11394,7 +11395,7 @@ mod admin_config_tests {
 
         let req_default = make_request(
             Method::Get,
-            "/admin/monitoring?hours=24&limit=5",
+            "/shuma/admin/monitoring?hours=24&limit=5",
             Vec::new(),
         );
         let resp_default = handle_admin_monitoring(&req_default, &store);
@@ -11442,7 +11443,7 @@ mod admin_config_tests {
         let req_forensic = make_request(
             Method::Get,
             format!(
-                "/admin/monitoring?hours=24&limit=5&forensic=1&forensic_ack={}",
+                "/shuma/admin/monitoring?hours=24&limit=5&forensic=1&forensic_ack={}",
                 SECURITY_FORENSIC_ACK_VALUE
             )
             .as_str(),
@@ -11512,7 +11513,7 @@ mod admin_config_tests {
 
         let req_default = make_request(
             Method::Get,
-            "/admin/monitoring/delta?hours=24&limit=10",
+            "/shuma/admin/monitoring/delta?hours=24&limit=10",
             Vec::new(),
         );
         let resp_default = handle_admin_monitoring_delta(&req_default, &store);
@@ -11533,7 +11534,7 @@ mod admin_config_tests {
         let req_forensic = make_request(
             Method::Get,
             format!(
-                "/admin/monitoring/delta?hours=24&limit=10&forensic=1&forensic_ack={}",
+                "/shuma/admin/monitoring/delta?hours=24&limit=10&forensic=1&forensic_ack={}",
                 SECURITY_FORENSIC_ACK_VALUE
             )
             .as_str(),
@@ -11562,7 +11563,7 @@ mod admin_config_tests {
 
         let req = make_request(
             Method::Get,
-            "/admin/monitoring?hours=720&limit=50",
+            "/shuma/admin/monitoring?hours=720&limit=50",
             Vec::new(),
         );
         let resp = handle_admin_monitoring(&req, &store);
@@ -11624,7 +11625,7 @@ mod admin_config_tests {
             );
         }
 
-        let req = make_request(Method::Get, "/admin/monitoring?hours=1&limit=1", Vec::new());
+        let req = make_request(Method::Get, "/shuma/admin/monitoring?hours=1&limit=1", Vec::new());
         let resp = handle_admin_monitoring(&req, &store);
         assert_eq!(*resp.status(), 200u16);
         assert_eq!(
@@ -11687,7 +11688,7 @@ mod admin_config_tests {
         let mut builder = Request::builder();
         builder
             .method(Method::Get)
-            .uri("/admin/monitoring?hours=24&limit=50")
+            .uri("/shuma/admin/monitoring?hours=24&limit=50")
             .header("host", "localhost:3000")
             .header("authorization", "Bearer changeme-dev-only-api-key")
             .header("origin", "http://localhost:3000")
@@ -11758,7 +11759,7 @@ mod admin_config_tests {
 
         let req = make_request(
             Method::Get,
-            "/admin/ip-range/suggestions?hours=24&limit=5",
+            "/shuma/admin/ip-range/suggestions?hours=24&limit=5",
             Vec::new(),
         );
         let resp = handle_admin_ip_range_suggestions(&req, &store, "default");
@@ -11826,7 +11827,7 @@ mod admin_config_tests {
 
         let req = make_request(
             Method::Get,
-            "/admin/ip-range/suggestions?hours=24&limit=5",
+            "/shuma/admin/ip-range/suggestions?hours=24&limit=5",
             Vec::new(),
         );
         let resp = handle_admin_ip_range_suggestions(&req, &store, "default");
@@ -12137,7 +12138,7 @@ mod admin_config_tests {
         let _lock = crate::test_support::lock_env();
         std::env::set_var("SHUMA_ADMIN_CONFIG_WRITE_ENABLED", "false");
         let body = br#"{"shadow_mode":true}"#.to_vec();
-        let req = make_request(Method::Post, "/admin/config", body);
+        let req = make_request(Method::Post, "/shuma/admin/config", body);
         let store = TestStore::default();
         let resp = handle_admin_config(&req, &store, "default");
         assert_eq!(*resp.status(), 403u16);
@@ -12165,7 +12166,7 @@ mod admin_config_tests {
           "geo_block": ["kp"]
         }"#
         .to_vec();
-        let post_req = make_request(Method::Post, "/admin/config", body);
+        let post_req = make_request(Method::Post, "/shuma/admin/config", body);
         let post_resp = handle_admin_config(&post_req, &store, "default");
         assert_eq!(*post_resp.status(), 200u16);
         let post_json: serde_json::Value = serde_json::from_slice(post_resp.body()).unwrap();
@@ -12183,7 +12184,7 @@ mod admin_config_tests {
         assert_eq!(cfg.get("geo_maze").unwrap(), &serde_json::json!(["RU"]));
         assert_eq!(cfg.get("geo_block").unwrap(), &serde_json::json!(["KP"]));
 
-        let get_req = make_request(Method::Get, "/admin/config", Vec::new());
+        let get_req = make_request(Method::Get, "/shuma/admin/config", Vec::new());
         let get_resp = handle_admin_config(&get_req, &store, "default");
         assert_eq!(*get_resp.status(), 200u16);
         let get_json: serde_json::Value = serde_json::from_slice(get_resp.body()).unwrap();
@@ -12219,7 +12220,7 @@ mod admin_config_tests {
         std::env::set_var("SHUMA_ADMIN_CONFIG_WRITE_ENABLED", "true");
         let store = TestStore::default();
         let body = br#"{"geo_risk": ["US", "ZZ"]}"#.to_vec();
-        let post_req = make_request(Method::Post, "/admin/config", body);
+        let post_req = make_request(Method::Post, "/shuma/admin/config", body);
         let post_resp = handle_admin_config(&post_req, &store, "default");
         assert_eq!(*post_resp.status(), 400u16);
         let msg = String::from_utf8_lossy(post_resp.body());
@@ -12237,7 +12238,7 @@ mod admin_config_tests {
 
         let post_req = make_request(
             Method::Post,
-            "/admin/config",
+            "/shuma/admin/config",
             br#"{"js_required_enforced":false}"#.to_vec(),
         );
         let post_resp = handle_admin_config(&post_req, &store, "default");
@@ -12270,7 +12271,7 @@ mod admin_config_tests {
 
         let post_req = make_request(
             Method::Post,
-            "/admin/config",
+            "/shuma/admin/config",
             br#"{"rate_limit":321}"#.to_vec(),
         );
         let post_resp = handle_admin_config(&post_req, &store, "default");
@@ -12305,7 +12306,7 @@ mod admin_config_tests {
         payload["rate_limit"] = serde_json::json!(444);
         let req = make_request(
             Method::Post,
-            "/admin/config/bootstrap",
+            "/shuma/admin/config/bootstrap",
             serde_json::to_vec(&payload).unwrap(),
         );
 
@@ -12336,7 +12337,7 @@ mod admin_config_tests {
 
         let post_req = make_request(
             Method::Post,
-            "/admin/config",
+            "/shuma/admin/config",
             br#"{
                 "ai_policy_block_training": false,
                 "ai_policy_block_search": true,
@@ -12432,7 +12433,7 @@ mod admin_config_tests {
 
         let post_req = make_request(
             Method::Post,
-            "/admin/config",
+            "/shuma/admin/config",
             br#"{"rate_limit":0}"#.to_vec(),
         );
         let post_resp = handle_admin_config(&post_req, &store, "default");
@@ -12450,7 +12451,7 @@ mod admin_config_tests {
         let store = TestStore::default();
         let post_req = make_request(
             Method::Post,
-            "/admin/config",
+            "/shuma/admin/config",
             br#"{"rate_limit":100,"unknown_key":true}"#.to_vec(),
         );
         let post_resp = handle_admin_config(&post_req, &store, "default");
@@ -12467,7 +12468,7 @@ mod admin_config_tests {
         let store = TestStore::default();
         let post_req = make_request(
             Method::Post,
-            "/admin/config",
+            "/shuma/admin/config",
             br#"{"sim_telemetry_namespace":"legacy-sim-plane"}"#.to_vec(),
         );
         let post_resp = handle_admin_config(&post_req, &store, "default");
@@ -12484,7 +12485,7 @@ mod admin_config_tests {
         let store = TestStore::default();
         let post_req = make_request(
             Method::Post,
-            "/admin/config",
+            "/shuma/admin/config",
             br#"{"rate_limit":"100"}"#.to_vec(),
         );
         let post_resp = handle_admin_config(&post_req, &store, "default");
@@ -12503,7 +12504,7 @@ mod admin_config_tests {
 
         let req = make_request(
             Method::Post,
-            "/admin/config/validate",
+            "/shuma/admin/config/validate",
             br#"{"rate_limit":1234}"#.to_vec(),
         );
         let resp = handle_admin_config_validate(&req, &store, "default");
@@ -12529,7 +12530,7 @@ mod admin_config_tests {
         let store = TestStore::default();
         let req = make_request(
             Method::Post,
-            "/admin/config/validate",
+            "/shuma/admin/config/validate",
             br#"{"rate_limit":"oops"}"#.to_vec(),
         );
         let resp = handle_admin_config_validate(&req, &store, "default");
@@ -12566,7 +12567,7 @@ mod admin_config_tests {
 
         let post_req = make_request(
             Method::Post,
-            "/admin/config",
+            "/shuma/admin/config",
             br#"{
                 "honeypot_enabled": false,
                 "honeypots": ["/instaban", "/trap-b"],
@@ -12755,7 +12756,7 @@ mod admin_config_tests {
         ];
 
         for payload in invalid_payloads {
-            let post_req = make_request(Method::Post, "/admin/config", payload);
+            let post_req = make_request(Method::Post, "/shuma/admin/config", payload);
             let post_resp = handle_admin_config(&post_req, &store, "default");
             assert_eq!(*post_resp.status(), 400u16);
             let msg = String::from_utf8_lossy(post_resp.body());
@@ -12772,7 +12773,7 @@ mod admin_config_tests {
         let store = TestStore::default();
         let post_req = make_request(
             Method::Post,
-            "/admin/config",
+            "/shuma/admin/config",
             br#"{"honeypots":["/instaban","/trap/%7Ebot"]}"#.to_vec(),
         );
         let post_resp = handle_admin_config(&post_req, &store, "default");
@@ -12788,7 +12789,7 @@ mod admin_config_tests {
 
         let post_req = make_request(
             Method::Post,
-            "/admin/config",
+            "/shuma/admin/config",
             br#"{"pow_enabled":false}"#.to_vec(),
         );
         let post_resp = handle_admin_config(&post_req, &store, "default");
@@ -12815,7 +12816,7 @@ mod admin_config_tests {
 
         let post_req = make_request(
             Method::Post,
-            "/admin/config",
+            "/shuma/admin/config",
             br#"{"challenge_puzzle_transform_count":7}"#.to_vec(),
         );
         let post_resp = handle_admin_config(&post_req, &store, "default");
@@ -12842,7 +12843,7 @@ mod admin_config_tests {
 
         let post_req = make_request(
             Method::Post,
-            "/admin/config",
+            "/shuma/admin/config",
             br#"{
                 "challenge_puzzle_seed_ttl_seconds": 240,
                 "challenge_puzzle_attempt_limit_per_window": 8,
@@ -12884,7 +12885,7 @@ mod admin_config_tests {
 
         let post_req = make_request(
             Method::Post,
-            "/admin/config",
+            "/shuma/admin/config",
             br#"{"challenge_puzzle_enabled":false}"#.to_vec(),
         );
         let post_resp = handle_admin_config(&post_req, &store, "default");
@@ -12911,7 +12912,7 @@ mod admin_config_tests {
 
         let post_req = make_request(
             Method::Post,
-            "/admin/config",
+            "/shuma/admin/config",
             br#"{"tarpit_enabled":false}"#.to_vec(),
         );
         let post_resp = handle_admin_config(&post_req, &store, "default");
@@ -12938,7 +12939,7 @@ mod admin_config_tests {
 
         let post_req = make_request(
             Method::Post,
-            "/admin/config",
+            "/shuma/admin/config",
             br#"{
                 "tarpit_progress_token_ttl_seconds": 140,
                 "tarpit_progress_replay_ttl_seconds": 420,
@@ -13076,7 +13077,7 @@ mod admin_config_tests {
 
         let invalid_token_ttl = make_request(
             Method::Post,
-            "/admin/config",
+            "/shuma/admin/config",
             br#"{"tarpit_progress_token_ttl_seconds": 10}"#.to_vec(),
         );
         let invalid_token_ttl_resp = handle_admin_config(&invalid_token_ttl, &store, "default");
@@ -13086,7 +13087,7 @@ mod admin_config_tests {
 
         let invalid_chunk_bounds = make_request(
             Method::Post,
-            "/admin/config",
+            "/shuma/admin/config",
             br#"{"tarpit_step_chunk_base_bytes": 8192, "tarpit_step_chunk_max_bytes": 1024}"#
                 .to_vec(),
         );
@@ -13098,7 +13099,7 @@ mod admin_config_tests {
 
         let invalid_budget = make_request(
             Method::Post,
-            "/admin/config",
+            "/shuma/admin/config",
             br#"{"tarpit_max_concurrent_global": 2, "tarpit_max_concurrent_per_ip_bucket": 5}"#
                 .to_vec(),
         );
@@ -13109,7 +13110,7 @@ mod admin_config_tests {
 
         let invalid_egress = make_request(
             Method::Post,
-            "/admin/config",
+            "/shuma/admin/config",
             br#"{
                 "tarpit_egress_global_bytes_per_window": 10000,
                 "tarpit_egress_per_ip_bucket_bytes_per_window": 12000
@@ -13123,7 +13124,7 @@ mod admin_config_tests {
 
         let invalid_fallback = make_request(
             Method::Post,
-            "/admin/config",
+            "/shuma/admin/config",
             br#"{"tarpit_fallback_action":"challenge"}"#.to_vec(),
         );
         let invalid_fallback_resp = handle_admin_config(&invalid_fallback, &store, "default");
@@ -13141,7 +13142,7 @@ mod admin_config_tests {
         let store = TestStore::default();
         let post_req = make_request(
             Method::Post,
-            "/admin/config",
+            "/shuma/admin/config",
             br#"{"challenge_puzzle_transform_count":9}"#.to_vec(),
         );
         let post_resp = handle_admin_config(&post_req, &store, "default");
@@ -13159,7 +13160,7 @@ mod admin_config_tests {
 
         let invalid_seed_ttl = make_request(
             Method::Post,
-            "/admin/config",
+            "/shuma/admin/config",
             br#"{"challenge_puzzle_seed_ttl_seconds": 301}"#.to_vec(),
         );
         let invalid_seed_ttl_resp = handle_admin_config(&invalid_seed_ttl, &store, "default");
@@ -13169,7 +13170,7 @@ mod admin_config_tests {
 
         let invalid_attempt_limit = make_request(
             Method::Post,
-            "/admin/config",
+            "/shuma/admin/config",
             br#"{"challenge_puzzle_attempt_limit_per_window": 0}"#.to_vec(),
         );
         let invalid_attempt_limit_resp =
@@ -13180,7 +13181,7 @@ mod admin_config_tests {
 
         let invalid_attempt_window = make_request(
             Method::Post,
-            "/admin/config",
+            "/shuma/admin/config",
             br#"{"challenge_puzzle_attempt_window_seconds": 3601}"#.to_vec(),
         );
         let invalid_attempt_window_resp =
@@ -13200,7 +13201,7 @@ mod admin_config_tests {
 
         let post_req = make_request(
             Method::Post,
-            "/admin/config",
+            "/shuma/admin/config",
             br#"{
                 "not_a_bot_enabled": false,
                 "not_a_bot_risk_threshold": 2,
@@ -13272,7 +13273,7 @@ mod admin_config_tests {
 
         let invalid_threshold = make_request(
             Method::Post,
-            "/admin/config",
+            "/shuma/admin/config",
             br#"{"not_a_bot_risk_threshold": 11}"#.to_vec(),
         );
         let invalid_threshold_resp = handle_admin_config(&invalid_threshold, &store, "default");
@@ -13282,7 +13283,7 @@ mod admin_config_tests {
 
         let invalid_score_order = make_request(
             Method::Post,
-            "/admin/config",
+            "/shuma/admin/config",
             br#"{"not_a_bot_pass_score": 6, "not_a_bot_fail_score": 7}"#.to_vec(),
         );
         let invalid_score_order_resp = handle_admin_config(&invalid_score_order, &store, "default");
@@ -13301,7 +13302,7 @@ mod admin_config_tests {
 
         let post_req = make_request(
             Method::Post,
-            "/admin/config",
+            "/shuma/admin/config",
             br#"{"defence_modes":{"rate":"signal","geo":"enforce","js":"off"}}"#.to_vec(),
         );
         let post_resp = handle_admin_config(&post_req, &store, "default");
@@ -13339,7 +13340,7 @@ mod admin_config_tests {
 
         let post_req = make_request(
             Method::Post,
-            "/admin/config",
+            "/shuma/admin/config",
             br#"{
                 "ip_range_policy_mode":"enforce",
                 "ip_range_emergency_allowlist":["203.0.113.0/24"],
@@ -13403,7 +13404,7 @@ mod admin_config_tests {
 
         let invalid_cidr = make_request(
             Method::Post,
-            "/admin/config",
+            "/shuma/admin/config",
             br#"{"ip_range_custom_rules":[{"id":"bad","enabled":true,"cidrs":["invalid"],"action":"forbidden_403"}]}"#
                 .to_vec(),
         );
@@ -13413,7 +13414,7 @@ mod admin_config_tests {
 
         let missing_redirect = make_request(
             Method::Post,
-            "/admin/config",
+            "/shuma/admin/config",
             br#"{"ip_range_custom_rules":[{"id":"redir","enabled":true,"cidrs":["203.0.113.0/24"],"action":"redirect_308"}]}"#
                 .to_vec(),
         );
@@ -13423,7 +13424,7 @@ mod admin_config_tests {
 
         let custom_standard = make_request(
             Method::Post,
-            "/admin/config",
+            "/shuma/admin/config",
             br#"{"ip_range_custom_rules":[{"id":"noop","enabled":true,"cidrs":["203.0.113.0/24"],"action":"standard"}]}"#
                 .to_vec(),
         );
@@ -13442,7 +13443,7 @@ mod admin_config_tests {
 
         let post_req = make_request(
             Method::Post,
-            "/admin/config",
+            "/shuma/admin/config",
             br#"{"defence_modes":{"rate":"invalid"}}"#.to_vec(),
         );
         let post_resp = handle_admin_config(&post_req, &store, "default");
@@ -13461,7 +13462,7 @@ mod admin_config_tests {
 
         let post_req = make_request(
             Method::Post,
-            "/admin/config",
+            "/shuma/admin/config",
             br#"{"defence_modes":{"rate":"both","foo":"off"}}"#.to_vec(),
         );
         let post_resp = handle_admin_config(&post_req, &store, "default");
@@ -13480,7 +13481,7 @@ mod admin_config_tests {
 
         let post_req = make_request(
             Method::Post,
-            "/admin/config",
+            "/shuma/admin/config",
             br#"{
                 "provider_backends": {
                     "rate_limiter": "external",
@@ -13540,7 +13541,7 @@ mod admin_config_tests {
 
         let post_req = make_request(
             Method::Post,
-            "/admin/config",
+            "/shuma/admin/config",
             br#"{"provider_backends":{"rate_limiter":"invalid"}}"#.to_vec(),
         );
         let post_resp = handle_admin_config(&post_req, &store, "default");
@@ -13559,7 +13560,7 @@ mod admin_config_tests {
 
         let post_req = make_request(
             Method::Post,
-            "/admin/config",
+            "/shuma/admin/config",
             br#"{"edge_integration_mode":"invalid"}"#.to_vec(),
         );
         let post_resp = handle_admin_config(&post_req, &store, "default");
@@ -13578,7 +13579,7 @@ mod admin_config_tests {
 
         let post_req = make_request(
             Method::Post,
-            "/admin/config",
+            "/shuma/admin/config",
             br#"{"provider_backends":{"fingerprint_signal":"external","unknown":"external"}}"#
                 .to_vec(),
         );
@@ -13615,7 +13616,7 @@ mod admin_config_tests {
             }
         }"#
         .to_vec();
-        let req = make_request(Method::Post, "/admin/config", body);
+        let req = make_request(Method::Post, "/shuma/admin/config", body);
         let resp = handle_admin_config(&req, &store, "default");
         assert_eq!(*resp.status(), 200u16, "{:?}", resp.body());
 
@@ -13658,7 +13659,7 @@ mod admin_config_tests {
             }
         }"#
         .to_vec();
-        let req = make_request(Method::Post, "/admin/config", body);
+        let req = make_request(Method::Post, "/shuma/admin/config", body);
         let resp = handle_admin_config(&req, &store, "default");
         assert_eq!(*resp.status(), 400u16);
         let msg = String::from_utf8_lossy(resp.body());
@@ -13681,7 +13682,7 @@ mod admin_config_tests {
             }
         }"#
         .to_vec();
-        let req = make_request(Method::Post, "/admin/config", body);
+        let req = make_request(Method::Post, "/shuma/admin/config", body);
         let resp = handle_admin_config(&req, &store, "default");
         assert_eq!(*resp.status(), 400u16);
         let msg = String::from_utf8_lossy(resp.body());
@@ -13726,11 +13727,11 @@ mod admin_auth_tests {
         let mut builder = Request::builder();
         builder
             .method(Method::Post)
-            .uri("/admin/login")
+            .uri("/shuma/admin/login")
             .header("content-type", "application/x-www-form-urlencoded")
             .body(
                 format!(
-                    "password={}&next=%2Fdashboard%2Findex.html",
+                    "password={}&next=%2Fshuma%2Fdashboard%2Findex.html",
                     percent_encoding::utf8_percent_encode(
                         api_key,
                         percent_encoding::NON_ALPHANUMERIC
@@ -13745,7 +13746,7 @@ mod admin_auth_tests {
         let mut builder = Request::builder();
         builder
             .method(Method::Post)
-            .uri("/admin/login")
+            .uri("/shuma/admin/login")
             .header("content-type", "application/x-www-form-urlencoded")
             .body(
                 format!(
@@ -13763,13 +13764,13 @@ mod admin_auth_tests {
 
     fn logout_request() -> Request {
         let mut builder = Request::builder();
-        builder.method(Method::Post).uri("/admin/logout");
+        builder.method(Method::Post).uri("/shuma/admin/logout");
         builder.build()
     }
 
     fn session_request() -> Request {
         let mut builder = Request::builder();
-        builder.method(Method::Get).uri("/admin/session");
+        builder.method(Method::Get).uri("/shuma/admin/session");
         builder.build()
     }
 
@@ -13785,21 +13786,21 @@ mod admin_auth_tests {
         assert_eq!(*first.status(), 303u16);
         assert_eq!(
             first.header("location").and_then(|value| value.as_str()),
-            Some("/dashboard/login.html?next=%2Fdashboard%2Findex.html&error=invalid_key")
+            Some("/shuma/dashboard/login.html?next=%2Fshuma%2Fdashboard%2Findex.html&error=invalid_key")
         );
 
         let second = handle_admin_login(&req, &store);
         assert_eq!(*second.status(), 303u16);
         assert_eq!(
             second.header("location").and_then(|value| value.as_str()),
-            Some("/dashboard/login.html?next=%2Fdashboard%2Findex.html&error=invalid_key")
+            Some("/shuma/dashboard/login.html?next=%2Fshuma%2Fdashboard%2Findex.html&error=invalid_key")
         );
 
         let third = handle_admin_login(&req, &store);
         assert_eq!(*third.status(), 303u16);
         assert_eq!(
             third.header("location").and_then(|value| value.as_str()),
-            Some("/dashboard/login.html?next=%2Fdashboard%2Findex.html&error=rate_limited&retry_after=60")
+            Some("/shuma/dashboard/login.html?next=%2Fshuma%2Fdashboard%2Findex.html&error=rate_limited&retry_after=60")
         );
 
         std::env::remove_var("SHUMA_ADMIN_AUTH_FAILURE_LIMIT_PER_MINUTE");
@@ -13818,7 +13819,7 @@ mod admin_auth_tests {
         assert_eq!(*resp.status(), 303u16);
         assert_eq!(
             resp.header("location").and_then(|value| value.as_str()),
-            Some("/dashboard/index.html")
+            Some("/shuma/dashboard/index.html")
         );
         assert!(resp
             .header("set-cookie")
@@ -13841,7 +13842,7 @@ mod admin_auth_tests {
         assert_eq!(*resp.status(), 303u16);
         assert_eq!(
             resp.header("location").and_then(|value| value.as_str()),
-            Some("/dashboard/index.html")
+            Some("/shuma/dashboard/index.html")
         );
 
         std::env::remove_var("SHUMA_API_KEY");
@@ -13885,88 +13886,88 @@ mod admin_auth_tests {
 
     #[test]
     fn write_access_matrix_covers_only_mutating_admin_routes() {
-        assert!(request_requires_admin_write("/admin/config", &Method::Post));
+        assert!(request_requires_admin_write("/shuma/admin/config", &Method::Post));
         assert!(request_requires_admin_write(
-            "/admin/operator-objectives",
-            &Method::Post
-        ));
-        assert!(request_requires_admin_write(
-            "/admin/replay-promotion",
+            "/shuma/admin/operator-objectives",
             &Method::Post
         ));
         assert!(request_requires_admin_write(
-            "/admin/config/bootstrap",
+            "/shuma/admin/replay-promotion",
             &Method::Post
         ));
         assert!(request_requires_admin_write(
-            "/admin/config/validate",
+            "/shuma/admin/config/bootstrap",
             &Method::Post
         ));
         assert!(request_requires_admin_write(
-            "/admin/adversary-sim/control",
+            "/shuma/admin/config/validate",
             &Method::Post
         ));
         assert!(request_requires_admin_write(
-            "/admin/adversary-sim/history/cleanup",
+            "/shuma/admin/adversary-sim/control",
             &Method::Post
         ));
-        assert!(request_requires_admin_write("/admin/ban", &Method::Post));
-        assert!(request_requires_admin_write("/admin/unban", &Method::Post));
-        assert!(!request_requires_admin_write(
-            "/admin/maze/preview",
+        assert!(request_requires_admin_write(
+            "/shuma/admin/adversary-sim/history/cleanup",
             &Method::Post
         ));
+        assert!(request_requires_admin_write("/shuma/admin/ban", &Method::Post));
+        assert!(request_requires_admin_write("/shuma/admin/unban", &Method::Post));
         assert!(!request_requires_admin_write(
-            "/admin/tarpit/preview",
-            &Method::Post
-        ));
-        assert!(!request_requires_admin_write(
-            "/admin/events",
+            "/shuma/admin/maze/preview",
             &Method::Post
         ));
         assert!(!request_requires_admin_write(
-            "/admin/monitoring",
+            "/shuma/admin/tarpit/preview",
             &Method::Post
         ));
         assert!(!request_requires_admin_write(
-            "/admin/operator-snapshot",
+            "/shuma/admin/events",
+            &Method::Post
+        ));
+        assert!(!request_requires_admin_write(
+            "/shuma/admin/monitoring",
+            &Method::Post
+        ));
+        assert!(!request_requires_admin_write(
+            "/shuma/admin/operator-snapshot",
             &Method::Get
         ));
         assert!(!request_requires_admin_write(
-            "/admin/operator-objectives",
+            "/shuma/admin/operator-objectives",
             &Method::Get
         ));
         assert!(!request_requires_admin_write(
-            "/admin/replay-promotion",
+            "/shuma/admin/replay-promotion",
             &Method::Get
         ));
         assert!(!request_requires_admin_write(
-            "/admin/benchmark-suite",
+            "/shuma/admin/benchmark-suite",
             &Method::Get
         ));
-        assert!(!request_requires_admin_write("/admin/config", &Method::Get));
+        assert!(!request_requires_admin_write("/shuma/admin/config", &Method::Get));
         assert!(!request_requires_admin_write(
-            "/admin/config/bootstrap",
-            &Method::Get
-        ));
-        assert!(!request_requires_admin_write(
-            "/admin/config/validate",
+            "/shuma/admin/config/bootstrap",
             &Method::Get
         ));
         assert!(!request_requires_admin_write(
-            "/admin/adversary-sim/control",
+            "/shuma/admin/config/validate",
             &Method::Get
         ));
         assert!(!request_requires_admin_write(
-            "/admin/adversary-sim/status",
+            "/shuma/admin/adversary-sim/control",
             &Method::Get
         ));
         assert!(!request_requires_admin_write(
-            "/admin/adversary-sim/history/cleanup",
+            "/shuma/admin/adversary-sim/status",
             &Method::Get
         ));
         assert!(!request_requires_admin_write(
-            "/admin/analytics",
+            "/shuma/admin/adversary-sim/history/cleanup",
+            &Method::Get
+        ));
+        assert!(!request_requires_admin_write(
+            "/shuma/admin/analytics",
             &Method::Get
         ));
     }
@@ -14093,44 +14094,44 @@ where
 fn sanitize_path(path: &str) -> bool {
     matches!(
         path,
-        "/admin"
-            | "/admin/login"
-            | "/admin/session"
-            | "/admin/logout"
-            | "/admin/ban"
-            | "/admin/unban"
-            | "/admin/analytics"
-            | "/admin/events"
-            | "/admin/operator-snapshot"
-            | "/admin/operator-objectives"
-            | "/admin/oversight/reconcile"
-            | "/admin/oversight/history"
-            | "/admin/oversight/agent/status"
-            | "/admin/replay-promotion"
-            | "/admin/benchmark-suite"
-            | "/admin/benchmark-results"
-            | "/admin/config"
-            | "/admin/config/bootstrap"
-            | "/admin/config/validate"
-            | "/admin/config/export"
-            | "/admin/adversary-sim/control"
-            | "/admin/adversary-sim/status"
-            | "/admin/adversary-sim/history/cleanup"
-            | "/admin/maze"
-            | "/admin/maze/preview"
-            | "/admin/tarpit/preview"
-            | "/admin/maze/seeds"
-            | "/admin/maze/seeds/refresh"
-            | "/admin/robots"
-            | "/admin/robots/preview"
-            | "/admin/cdp"
-            | "/admin/cdp/events"
-            | "/admin/monitoring"
-            | "/admin/monitoring/delta"
-            | "/admin/monitoring/stream"
-            | "/admin/ip-bans/delta"
-            | "/admin/ip-bans/stream"
-            | "/admin/ip-range/suggestions"
+        "/shuma/admin"
+            | "/shuma/admin/login"
+            | "/shuma/admin/session"
+            | "/shuma/admin/logout"
+            | "/shuma/admin/ban"
+            | "/shuma/admin/unban"
+            | "/shuma/admin/analytics"
+            | "/shuma/admin/events"
+            | "/shuma/admin/operator-snapshot"
+            | "/shuma/admin/operator-objectives"
+            | "/shuma/admin/oversight/reconcile"
+            | "/shuma/admin/oversight/history"
+            | "/shuma/admin/oversight/agent/status"
+            | "/shuma/admin/replay-promotion"
+            | "/shuma/admin/benchmark-suite"
+            | "/shuma/admin/benchmark-results"
+            | "/shuma/admin/config"
+            | "/shuma/admin/config/bootstrap"
+            | "/shuma/admin/config/validate"
+            | "/shuma/admin/config/export"
+            | "/shuma/admin/adversary-sim/control"
+            | "/shuma/admin/adversary-sim/status"
+            | "/shuma/admin/adversary-sim/history/cleanup"
+            | "/shuma/admin/maze"
+            | "/shuma/admin/maze/preview"
+            | "/shuma/admin/tarpit/preview"
+            | "/shuma/admin/maze/seeds"
+            | "/shuma/admin/maze/seeds/refresh"
+            | "/shuma/admin/robots"
+            | "/shuma/admin/robots/preview"
+            | "/shuma/admin/cdp"
+            | "/shuma/admin/cdp/events"
+            | "/shuma/admin/monitoring"
+            | "/shuma/admin/monitoring/delta"
+            | "/shuma/admin/monitoring/stream"
+            | "/shuma/admin/ip-bans/delta"
+            | "/shuma/admin/ip-bans/stream"
+            | "/shuma/admin/ip-range/suggestions"
     )
 }
 
@@ -14163,8 +14164,8 @@ fn clear_session_cookie_value() -> String {
     )
 }
 
-const DASHBOARD_LOGIN_PATH: &str = "/dashboard/login.html";
-const DASHBOARD_INDEX_PATH: &str = "/dashboard/index.html";
+const DASHBOARD_LOGIN_PATH: &str = "/shuma/dashboard/login.html";
+const DASHBOARD_INDEX_PATH: &str = "/shuma/dashboard/index.html";
 const DASHBOARD_LOGIN_QUERY_COMPONENT_ENCODE_SET: &percent_encoding::AsciiSet =
     &percent_encoding::CONTROLS
         .add(b' ')
@@ -14246,7 +14247,7 @@ fn normalize_dashboard_login_next(raw: Option<&str>) -> String {
     if trimmed.chars().any(|ch| ch.is_control()) {
         return fallback;
     }
-    if !trimmed.starts_with("/dashboard/") {
+    if !trimmed.starts_with("/shuma/dashboard/") {
         return fallback;
     }
     trimmed.to_string()
@@ -14461,18 +14462,18 @@ fn request_requires_admin_write(path: &str, method: &Method) -> bool {
     }
     matches!(
         path,
-        "/admin/ban"
-            | "/admin/unban"
-            | "/admin/config"
-            | "/admin/operator-objectives"
-            | "/admin/oversight/reconcile"
-            | "/admin/replay-promotion"
-            | "/admin/config/bootstrap"
-            | "/admin/config/validate"
-            | "/admin/adversary-sim/control"
-            | "/admin/adversary-sim/history/cleanup"
-            | "/admin/maze/seeds"
-            | "/admin/maze/seeds/refresh"
+        "/shuma/admin/ban"
+            | "/shuma/admin/unban"
+            | "/shuma/admin/config"
+            | "/shuma/admin/operator-objectives"
+            | "/shuma/admin/oversight/reconcile"
+            | "/shuma/admin/replay-promotion"
+            | "/shuma/admin/config/bootstrap"
+            | "/shuma/admin/config/validate"
+            | "/shuma/admin/adversary-sim/control"
+            | "/shuma/admin/adversary-sim/history/cleanup"
+            | "/shuma/admin/maze/seeds"
+            | "/shuma/admin/maze/seeds/refresh"
     )
 }
 
@@ -14662,7 +14663,7 @@ where
     if auth.requires_csrf(req) {
         let expected = auth.csrf_token.as_deref().unwrap_or("");
         if !crate::admin::auth::validate_session_csrf(req, expected) {
-            log_admin_csrf_denied(store, req, "/admin/logout", &auth);
+            log_admin_csrf_denied(store, req, "/shuma/admin/logout", &auth);
             return Response::new(403, "Forbidden");
         }
     }
@@ -17527,7 +17528,7 @@ pub(super) fn validate_admin_config_patch_shape(
         .unwrap_or(false)
     {
         return Err(
-            "Invalid config payload: adversary_sim_enabled must be changed via POST /admin/adversary-sim/control"
+            "Invalid config payload: adversary_sim_enabled must be changed via POST /shuma/admin/adversary-sim/control"
                 .to_string(),
         );
     }
@@ -20213,7 +20214,7 @@ where
                 "total_events_in_window": total_recent_events_in_window,
                 "returned_events": recent_events.len(),
                 "has_more": recent_events_has_more,
-                "continue_via": format!("/admin/monitoring/delta?hours={hours}&limit={}", limit.clamp(1, MONITORING_STREAM_MAX_BUFFER_EVENTS)),
+                "continue_via": format!("/shuma/admin/monitoring/delta?hours={hours}&limit={}", limit.clamp(1, MONITORING_STREAM_MAX_BUFFER_EVENTS)),
                 "response_shaping_reason": if query_budget.status == "exceeded" { "query_budget_guardrail" } else { "requested" }
             }
         },
@@ -20465,7 +20466,7 @@ where
                     "total_events_in_window": total_events_in_window,
                     "returned_events": recent_events.len(),
                     "has_more": has_more,
-                    "continue_via": format!("/admin/monitoring/delta?hours={hours}&limit={}", limit.clamp(1, MONITORING_STREAM_MAX_BUFFER_EVENTS)),
+                    "continue_via": format!("/shuma/admin/monitoring/delta?hours={hours}&limit={}", limit.clamp(1, MONITORING_STREAM_MAX_BUFFER_EVENTS)),
                     "response_shaping_reason": "bootstrap_recent_tail"
                 }
             },
@@ -20643,15 +20644,15 @@ where
 
 pub(super) fn monitoring_prometheus_helper_payload() -> serde_json::Value {
     json!({
-        "endpoint": "/metrics",
+        "endpoint": route_namespace::SHUMA_METRICS_PATH,
         "notes": [
-            "/metrics returns one full Prometheus text payload and accepts no query arguments.",
-            "For bounded JSON summaries use /admin/monitoring?hours=<1-720>&limit=<1-50>, then read summary.* fields."
+            "/shuma/metrics returns one full Prometheus text payload and accepts no query arguments.",
+            "For bounded JSON summaries use /shuma/admin/monitoring?hours=<1-720>&limit=<1-50>, then read summary.* fields."
         ],
-        "example_js": "const metricsText = await fetch('/metrics').then(r => r.text());",
+        "example_js": "const metricsText = await fetch('/shuma/metrics').then(r => r.text());",
         "example_output": "# TYPE bot_defence_requests_total counter\nbot_defence_requests_total{path=\"main\"} 128\n# TYPE bot_defence_blocks_total counter\nbot_defence_blocks_total 9\n# TYPE bot_defence_bans_total counter\nbot_defence_bans_total{reason=\"honeypot\"} 3\n# TYPE bot_defence_active_bans gauge\nbot_defence_active_bans 2",
         "example_stats": "const lines = metricsText.split('\\n');\nconst metricValue = (prefix) => {\n  const line = lines.find((entry) => entry.startsWith(prefix));\n  return line ? Number(line.slice(prefix.length).trim()) : null;\n};\nconst stats = {\n  requestsMain: metricValue('bot_defence_requests_total{path=\\\"main\\\"} '),\n  honeypotBans: metricValue('bot_defence_bans_total{reason=\\\"honeypot\\\"} '),\n  blocksTotal: metricValue('bot_defence_blocks_total '),\n  activeBans: metricValue('bot_defence_active_bans ')\n};",
-        "example_windowed": "const apiKey = 'YOUR_ADMIN_API_KEY';\nconst params = new URLSearchParams({ hours: '24', limit: '10' });\nconst monitoring = await fetch(`/admin/monitoring?${params}`, {\n  headers: { Authorization: `Bearer ${apiKey}` }\n}).then(r => r.json());",
+        "example_windowed": "const apiKey = 'YOUR_ADMIN_API_KEY';\nconst params = new URLSearchParams({ hours: '24', limit: '10' });\nconst monitoring = await fetch(`/shuma/admin/monitoring?${params}`, {\n  headers: { Authorization: `Bearer ${apiKey}` }\n}).then(r => r.json());",
         "example_summary_stats": "const stats = {\n  honeypotHits: monitoring.summary.honeypot.total_hits,\n  challengeFailures: monitoring.summary.challenge.total_failures,\n  notABotServed: monitoring.summary.not_a_bot.served,\n  notABotPass: monitoring.summary.not_a_bot.pass,\n  notABotAbandonmentRate: monitoring.summary.not_a_bot.abandonment_ratio,\n  powFailures: monitoring.summary.pow.total_failures,\n  powSuccesses: monitoring.summary.pow.total_successes,\n  powSuccessRatio: monitoring.summary.pow.success_ratio,\n  rateViolations: monitoring.summary.rate.total_violations,\n  geoViolations: monitoring.summary.geo.total_violations\n};",
         "docs": {
             "observability": "https://github.com/atomless/Shuma-Gorath/blob/main/docs/observability.md",
@@ -20689,7 +20690,7 @@ pub(super) fn log_admin_csrf_denied<S: crate::challenge::KeyValueStore>(
 
 fn request_bypasses_admin_ip_allowlist(req: &Request, path: &str) -> bool {
     match path {
-        "/admin/adversary-sim/status" => {
+        "/shuma/admin/adversary-sim/status" => {
             crate::admin::auth::is_internal_adversary_sim_supervisor_request(req)
         }
         OVERSIGHT_AGENT_INTERNAL_PATH => {
@@ -20902,40 +20903,40 @@ fn finalize_manual_unban_result<S: crate::challenge::KeyValueStore>(
     Response::new(200, "Unbanned")
 }
 
-/// Handles all /admin API endpoints.
+/// Handles all /shuma/admin API endpoints.
 /// Supports:
-///   - POST /admin/login: Exchange API key for short-lived admin session cookie
-///   - GET /admin/session: Return current admin auth session state
-///   - POST /admin/logout: Clear admin session cookie
-///   - GET /admin/ban: List all bans for the site
-///   - POST /admin/ban: Manually ban an IP (expects JSON body: {"ip": "1.2.3.4", "duration": 3600}; reason is fixed to "manual_ban")
-///   - POST /admin/unban?ip=...: Remove a ban for an IP
-///   - GET /admin/analytics: Return ban count and shadow_mode status
-///   - GET /admin/events: Query event log
-///   - GET /admin/cdp/events: Query CDP-only events
-///   - GET /admin/operator-snapshot: Query the machine-first operator snapshot contract
-///   - GET/POST /admin/operator-objectives: Read or update the persisted operator-objectives contract
-///   - GET/POST /admin/replay-promotion: Read or materialize bounded replay-promotion lineage
-///   - GET /admin/benchmark-suite: Query the machine-first benchmark family registry
-///   - GET /admin/benchmark-results: Query the bounded machine-first benchmark result envelope
-///   - GET /admin/monitoring: Query consolidated monitoring telemetry summaries
-///   - GET /admin/monitoring/delta: Cursor-based monitoring event deltas (`after_cursor`, `limit`, `next_cursor`)
-///   - GET /admin/monitoring/stream: One-shot SSE cursor delta (`Last-Event-ID` resume supported)
-///   - GET /admin/ip-bans/delta: Cursor-based ban/unban deltas plus active-ban snapshot
-///   - GET /admin/ip-bans/stream: One-shot SSE ban delta (`Last-Event-ID` resume supported)
-///   - GET /admin/ip-range/suggestions: Query IP range recommendation suggestions
-///   - GET /admin/config: Get current config including shadow_mode status
-///   - POST /admin/config: Update config (e.g., toggle shadow_mode)
-///   - POST /admin/config/bootstrap: Seed missing KV config explicitly from a full config payload
-///   - POST /admin/config/validate: Validate a config patch without persisting changes
-///   - GET /admin/config/export: Export non-secret runtime config for immutable deploy handoff
-///   - POST /admin/adversary-sim/control: Start/stop adversary simulation orchestration
-///   - GET /admin/adversary-sim/status: Read orchestration state and guardrails
-///   - POST /admin/adversary-sim/history/cleanup: Explicitly clear retained telemetry history
+///   - POST /shuma/admin/login: Exchange API key for short-lived admin session cookie
+///   - GET /shuma/admin/session: Return current admin auth session state
+///   - POST /shuma/admin/logout: Clear admin session cookie
+///   - GET /shuma/admin/ban: List all bans for the site
+///   - POST /shuma/admin/ban: Manually ban an IP (expects JSON body: {"ip": "1.2.3.4", "duration": 3600}; reason is fixed to "manual_ban")
+///   - POST /shuma/admin/unban?ip=...: Remove a ban for an IP
+///   - GET /shuma/admin/analytics: Return ban count and shadow_mode status
+///   - GET /shuma/admin/events: Query event log
+///   - GET /shuma/admin/cdp/events: Query CDP-only events
+///   - GET /shuma/admin/operator-snapshot: Query the machine-first operator snapshot contract
+///   - GET/POST /shuma/admin/operator-objectives: Read or update the persisted operator-objectives contract
+///   - GET/POST /shuma/admin/replay-promotion: Read or materialize bounded replay-promotion lineage
+///   - GET /shuma/admin/benchmark-suite: Query the machine-first benchmark family registry
+///   - GET /shuma/admin/benchmark-results: Query the bounded machine-first benchmark result envelope
+///   - GET /shuma/admin/monitoring: Query consolidated monitoring telemetry summaries
+///   - GET /shuma/admin/monitoring/delta: Cursor-based monitoring event deltas (`after_cursor`, `limit`, `next_cursor`)
+///   - GET /shuma/admin/monitoring/stream: One-shot SSE cursor delta (`Last-Event-ID` resume supported)
+///   - GET /shuma/admin/ip-bans/delta: Cursor-based ban/unban deltas plus active-ban snapshot
+///   - GET /shuma/admin/ip-bans/stream: One-shot SSE ban delta (`Last-Event-ID` resume supported)
+///   - GET /shuma/admin/ip-range/suggestions: Query IP range recommendation suggestions
+///   - GET /shuma/admin/config: Get current config including shadow_mode status
+///   - POST /shuma/admin/config: Update config (e.g., toggle shadow_mode)
+///   - POST /shuma/admin/config/bootstrap: Seed missing KV config explicitly from a full config payload
+///   - POST /shuma/admin/config/validate: Validate a config patch without persisting changes
+///   - GET /shuma/admin/config/export: Export non-secret runtime config for immutable deploy handoff
+///   - POST /shuma/admin/adversary-sim/control: Start/stop adversary simulation orchestration
+///   - GET /shuma/admin/adversary-sim/status: Read orchestration state and guardrails
+///   - POST /shuma/admin/adversary-sim/history/cleanup: Explicitly clear retained telemetry history
 ///     (runtime-dev, or runtime-prod with X-Shuma-Telemetry-Cleanup-Ack acknowledgement header)
-///   - GET /admin/maze/preview: Render a non-operational maze preview for operators
-///   - GET /admin/tarpit/preview: Render a non-operational progressive tarpit preview for operators
-///   - GET /admin: API help
+///   - GET /shuma/admin/maze/preview: Render a non-operational maze preview for operators
+///   - GET /shuma/admin/tarpit/preview: Render a non-operational progressive tarpit preview for operators
+///   - GET /shuma/admin: API help
 pub fn handle_admin(req: &Request) -> Response {
     let path = req.path();
     // Optional admin IP allowlist
@@ -20951,7 +20952,7 @@ pub fn handle_admin(req: &Request) -> Response {
         return Response::new(400, "Bad Request: Invalid admin endpoint");
     }
 
-    if path == "/admin/login" || path == "/admin/session" || path == "/admin/logout" {
+    if path == "/shuma/admin/login" || path == "/shuma/admin/session" || path == "/shuma/admin/logout" {
         let store = match Store::open_default() {
             Ok(s) => s,
             Err(_) => return Response::new(500, "Key-value store error"),
@@ -20960,7 +20961,7 @@ pub fn handle_admin(req: &Request) -> Response {
             .ok()
             .map(|cfg| crate::providers::registry::ProviderRegistry::from_config(&cfg));
         return match path {
-            "/admin/login" => handle_admin_login_with_failure_handler(req, &store, || {
+            "/shuma/admin/login" => handle_admin_login_with_failure_handler(req, &store, || {
                 register_admin_auth_failure_with_selected_rate_limiter(
                     &store,
                     req,
@@ -20968,8 +20969,8 @@ pub fn handle_admin(req: &Request) -> Response {
                     provider_registry.as_ref(),
                 )
             }),
-            "/admin/session" => handle_admin_session(req, &store),
-            "/admin/logout" => handle_admin_logout_with_failure_handler(req, &store, || {
+            "/shuma/admin/session" => handle_admin_session(req, &store),
+            "/shuma/admin/logout" => handle_admin_logout_with_failure_handler(req, &store, || {
                 register_admin_auth_failure_with_selected_rate_limiter(
                     &store,
                     req,
@@ -20986,7 +20987,7 @@ pub fn handle_admin(req: &Request) -> Response {
     if !has_bearer && !has_session_cookie {
         if matches!(
             path,
-            "/admin/adversary-sim/control" | "/admin/adversary-sim/history/cleanup"
+            "/shuma/admin/adversary-sim/control" | "/shuma/admin/adversary-sim/history/cleanup"
         ) {
             if let Ok(store) = Store::open_default() {
                 let client_ip = crate::extract_client_ip(req);
@@ -21019,7 +21020,7 @@ pub fn handle_admin(req: &Request) -> Response {
     if !auth.is_authorized() {
         if matches!(
             path,
-            "/admin/adversary-sim/control" | "/admin/adversary-sim/history/cleanup"
+            "/shuma/admin/adversary-sim/control" | "/shuma/admin/adversary-sim/history/cleanup"
         ) {
             let client_ip = crate::extract_client_ip(req);
             log_event(
@@ -21059,13 +21060,13 @@ pub fn handle_admin(req: &Request) -> Response {
     let site_id = "default";
 
     match path {
-        "/admin/events" => {
+        "/shuma/admin/events" => {
             if expensive_admin_read_is_limited(&store, req, &auth, provider_registry.as_ref()) {
                 return too_many_admin_read_requests_response();
             }
             handle_admin_events(req, &store)
         }
-        "/admin/cdp/events" => {
+        "/shuma/admin/cdp/events" => {
             if expensive_admin_read_is_limited(&store, req, &auth, provider_registry.as_ref()) {
                 return too_many_admin_read_requests_response();
             }
@@ -21131,27 +21132,27 @@ pub fn handle_admin(req: &Request) -> Response {
             .unwrap();
             Response::new(200, body)
         }
-        "/admin/operator-snapshot" => {
+        "/shuma/admin/operator-snapshot" => {
             if expensive_admin_read_is_limited(&store, req, &auth, provider_registry.as_ref()) {
                 return too_many_admin_read_requests_response();
             }
             handle_admin_operator_snapshot(req, &store)
         }
-        "/admin/operator-objectives" => handle_admin_operator_objectives(req, &store, site_id),
-        "/admin/oversight/reconcile" => handle_admin_oversight_reconcile(req, &store, site_id),
-        "/admin/oversight/history" => handle_admin_oversight_history(req, &store, site_id),
-        "/admin/oversight/agent/status" => {
+        "/shuma/admin/operator-objectives" => handle_admin_operator_objectives(req, &store, site_id),
+        "/shuma/admin/oversight/reconcile" => handle_admin_oversight_reconcile(req, &store, site_id),
+        "/shuma/admin/oversight/history" => handle_admin_oversight_history(req, &store, site_id),
+        "/shuma/admin/oversight/agent/status" => {
             handle_admin_oversight_agent_status(req, &store, site_id)
         }
-        "/admin/replay-promotion" => handle_admin_replay_promotion(req, &store, site_id),
-        "/admin/benchmark-suite" => handle_admin_benchmark_suite(req),
-        "/admin/benchmark-results" => {
+        "/shuma/admin/replay-promotion" => handle_admin_replay_promotion(req, &store, site_id),
+        "/shuma/admin/benchmark-suite" => handle_admin_benchmark_suite(req),
+        "/shuma/admin/benchmark-results" => {
             if expensive_admin_read_is_limited(&store, req, &auth, provider_registry.as_ref()) {
                 return too_many_admin_read_requests_response();
             }
             handle_admin_benchmark_results(req, &store)
         }
-        "/admin/monitoring" => {
+        "/shuma/admin/monitoring" => {
             if dashboard_refresh_is_limited(&store, &auth, provider_registry.as_ref())
                 || expensive_admin_read_is_limited(&store, req, &auth, provider_registry.as_ref())
             {
@@ -21159,7 +21160,7 @@ pub fn handle_admin(req: &Request) -> Response {
             }
             handle_admin_monitoring(req, &store)
         }
-        "/admin/monitoring/delta" => {
+        "/shuma/admin/monitoring/delta" => {
             if dashboard_refresh_is_limited(&store, &auth, provider_registry.as_ref())
                 || expensive_admin_read_is_limited(&store, req, &auth, provider_registry.as_ref())
             {
@@ -21167,7 +21168,7 @@ pub fn handle_admin(req: &Request) -> Response {
             }
             handle_admin_monitoring_delta(req, &store)
         }
-        "/admin/monitoring/stream" => {
+        "/shuma/admin/monitoring/stream" => {
             if dashboard_refresh_is_limited(&store, &auth, provider_registry.as_ref())
                 || expensive_admin_read_is_limited(&store, req, &auth, provider_registry.as_ref())
             {
@@ -21175,7 +21176,7 @@ pub fn handle_admin(req: &Request) -> Response {
             }
             handle_admin_monitoring_stream(req, &store)
         }
-        "/admin/ip-bans/delta" => {
+        "/shuma/admin/ip-bans/delta" => {
             if dashboard_refresh_is_limited(&store, &auth, provider_registry.as_ref())
                 || expensive_admin_read_is_limited(&store, req, &auth, provider_registry.as_ref())
             {
@@ -21183,7 +21184,7 @@ pub fn handle_admin(req: &Request) -> Response {
             }
             handle_admin_ip_bans_delta(req, &store, site_id)
         }
-        "/admin/ip-bans/stream" => {
+        "/shuma/admin/ip-bans/stream" => {
             if dashboard_refresh_is_limited(&store, &auth, provider_registry.as_ref())
                 || expensive_admin_read_is_limited(&store, req, &auth, provider_registry.as_ref())
             {
@@ -21191,7 +21192,7 @@ pub fn handle_admin(req: &Request) -> Response {
             }
             handle_admin_ip_bans_stream(req, &store, site_id)
         }
-        "/admin/ip-range/suggestions" => {
+        "/shuma/admin/ip-range/suggestions" => {
             if dashboard_refresh_is_limited(&store, &auth, provider_registry.as_ref())
                 || expensive_admin_read_is_limited(&store, req, &auth, provider_registry.as_ref())
             {
@@ -21199,7 +21200,7 @@ pub fn handle_admin(req: &Request) -> Response {
             }
             handle_admin_ip_range_suggestions(req, &store, site_id)
         }
-        "/admin/ban" => {
+        "/shuma/admin/ban" => {
             if *req.method() == spin_sdk::http::Method::Get
                 && (dashboard_refresh_is_limited(&store, &auth, provider_registry.as_ref())
                     || expensive_admin_read_is_limited(
@@ -21218,7 +21219,7 @@ pub fn handle_admin(req: &Request) -> Response {
             let provider_registry = crate::providers::registry::ProviderRegistry::from_config(&cfg);
             handle_admin_ban_route(req, &store, site_id, &cfg, &provider_registry)
         }
-        "/admin/unban" => {
+        "/shuma/admin/unban" => {
             if *req.method() != spin_sdk::http::Method::Post {
                 return Response::new(405, "Method Not Allowed");
             }
@@ -21245,7 +21246,7 @@ pub fn handle_admin(req: &Request) -> Response {
                     .unban_ip(&store, site_id, ip.as_str());
             finalize_manual_unban_result(&store, req, ip.as_str(), sync_result)
         }
-        "/admin/analytics" => {
+        "/shuma/admin/analytics" => {
             // Return analytics: ban count and shadow_mode status
             let cfg = match crate::config::load_runtime_cached(&store, site_id) {
                 Ok(cfg) => cfg,
@@ -21268,40 +21269,40 @@ pub fn handle_admin(req: &Request) -> Response {
             .unwrap();
             Response::new(200, body)
         }
-        "/admin/config" => {
+        "/shuma/admin/config" => {
             return handle_admin_config(req, &store, site_id);
         }
-        "/admin/config/bootstrap" => {
+        "/shuma/admin/config/bootstrap" => {
             return handle_admin_config_bootstrap(req, &store, site_id);
         }
-        "/admin/config/validate" => {
+        "/shuma/admin/config/validate" => {
             return handle_admin_config_validate(req, &store, site_id);
         }
-        "/admin/config/export" => {
+        "/shuma/admin/config/export" => {
             return handle_admin_config_export(req, &store, site_id);
         }
-        "/admin/adversary-sim/control" => {
+        "/shuma/admin/adversary-sim/control" => {
             return handle_admin_adversary_sim_control(req, &store, site_id, &auth);
         }
-        "/admin/adversary-sim/status" => {
+        "/shuma/admin/adversary-sim/status" => {
             return handle_admin_adversary_sim_status(req, &store, site_id, &auth);
         }
-        "/admin/adversary-sim/history/cleanup" => {
+        "/shuma/admin/adversary-sim/history/cleanup" => {
             return handle_admin_adversary_sim_history_cleanup(req, &store, site_id, &auth);
         }
-        "/admin/maze/preview" => {
+        "/shuma/admin/maze/preview" => {
             return handle_admin_maze_preview(req, &store, site_id);
         }
-        "/admin/tarpit/preview" => {
+        "/shuma/admin/tarpit/preview" => {
             return handle_admin_tarpit_preview(req, &store, site_id);
         }
-        "/admin/maze/seeds" => {
+        "/shuma/admin/maze/seeds" => {
             return handle_admin_maze_seed_sources(req, &store, site_id);
         }
-        "/admin/maze/seeds/refresh" => {
+        "/shuma/admin/maze/seeds/refresh" => {
             return handle_admin_maze_seed_refresh(req, &store, site_id);
         }
-        "/admin" => {
+        "/shuma/admin" => {
             // API help endpoint
             log_event(
                 &store,
@@ -21314,9 +21315,9 @@ pub fn handle_admin(req: &Request) -> Response {
                     admin: Some(crate::admin::auth::get_admin_id(req)),
                 },
             );
-            Response::new(200, "WASM Bot Defence Admin API. Endpoints: /admin/ban, /admin/unban?ip=IP, /admin/analytics, /admin/events, /admin/operator-snapshot, /admin/operator-objectives, /admin/oversight/reconcile, /admin/oversight/history, /admin/oversight/agent/status, /admin/replay-promotion, /admin/benchmark-suite, /admin/benchmark-results, /admin/monitoring, /admin/monitoring/delta, /admin/monitoring/stream, /admin/ip-bans/delta, /admin/ip-bans/stream, /admin/ip-range/suggestions, /admin/config, /admin/config/bootstrap, /admin/config/validate, /admin/config/export, /admin/adversary-sim/control, /admin/adversary-sim/status, /admin/adversary-sim/history/cleanup, /admin/maze (GET for maze stats), /admin/maze/preview (GET non-operational maze preview), /admin/tarpit/preview (GET non-operational progressive tarpit preview), /admin/maze/seeds (GET/POST seed source adapters), /admin/maze/seeds/refresh (POST manual seed refresh), /admin/robots (GET for robots.txt config & preview), /admin/robots/preview (POST unsaved robots preview patch), /admin/cdp (GET for CDP detection config & stats), /admin/cdp/events (GET for CDP detection and auto-ban events).")
+            Response::new(200, "WASM Bot Defence Admin API. Endpoints: /shuma/admin/ban, /shuma/admin/unban?ip=IP, /shuma/admin/analytics, /shuma/admin/events, /shuma/admin/operator-snapshot, /shuma/admin/operator-objectives, /shuma/admin/oversight/reconcile, /shuma/admin/oversight/history, /shuma/admin/oversight/agent/status, /shuma/admin/replay-promotion, /shuma/admin/benchmark-suite, /shuma/admin/benchmark-results, /shuma/admin/monitoring, /shuma/admin/monitoring/delta, /shuma/admin/monitoring/stream, /shuma/admin/ip-bans/delta, /shuma/admin/ip-bans/stream, /shuma/admin/ip-range/suggestions, /shuma/admin/config, /shuma/admin/config/bootstrap, /shuma/admin/config/validate, /shuma/admin/config/export, /shuma/admin/adversary-sim/control, /shuma/admin/adversary-sim/status, /shuma/admin/adversary-sim/history/cleanup, /shuma/admin/maze (GET for maze stats), /shuma/admin/maze/preview (GET non-operational maze preview), /shuma/admin/tarpit/preview (GET non-operational progressive tarpit preview), /shuma/admin/maze/seeds (GET/POST seed source adapters), /shuma/admin/maze/seeds/refresh (POST manual seed refresh), /shuma/admin/robots (GET for robots.txt config & preview), /shuma/admin/robots/preview (POST unsaved robots preview patch), /shuma/admin/cdp (GET for CDP detection config & stats), /shuma/admin/cdp/events (GET for CDP detection and auto-ban events).")
         }
-        "/admin/maze" => {
+        "/shuma/admin/maze" => {
             // Return maze statistics
             // - Total unique IPs that have visited maze pages
             // - Per-IP hit counts (top crawlers)
@@ -21387,7 +21388,7 @@ pub fn handle_admin(req: &Request) -> Response {
             .unwrap();
             Response::new(200, body)
         }
-        "/admin/robots/preview" => {
+        "/shuma/admin/robots/preview" => {
             if req.method() != &Method::Post {
                 return Response::new(405, "Method Not Allowed");
             }
@@ -21416,7 +21417,7 @@ pub fn handle_admin(req: &Request) -> Response {
             );
             admin_robots_response(&cfg)
         }
-        "/admin/robots" => {
+        "/shuma/admin/robots" => {
             // Return robots.txt configuration and preview
             let cfg = match crate::config::Config::load(&store, site_id) {
                 Ok(cfg) => cfg,
@@ -21437,7 +21438,7 @@ pub fn handle_admin(req: &Request) -> Response {
             );
             admin_robots_response(&cfg)
         }
-        "/admin/cdp" => {
+        "/shuma/admin/cdp" => {
             // Return CDP detection configuration and stats
             let cfg = match crate::config::Config::load(&store, site_id) {
                 Ok(cfg) => cfg,

@@ -523,7 +523,7 @@ def materialize_backend_replay_promotion(payload: Dict[str, Any]) -> Dict[str, A
         raise ValueError("missing SHUMA_BASE_URL required for replay-promotion materialization")
 
     request = urllib.request.Request(
-        url=f"{base_url}/admin/replay-promotion",
+        url=f"{base_url}/shuma/admin/replay-promotion",
         data=json.dumps(payload, separators=(",", ":")).encode("utf-8"),
         method="POST",
         headers=replay_promotion_admin_headers(),

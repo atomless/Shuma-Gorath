@@ -266,7 +266,7 @@ mod tests {
     #[test]
     fn parse_form_urlencoded_body_decodes_percent_and_plus() {
         let form = parse_form_urlencoded_body(
-            b"password=abc%2B123&next=%2Fdashboard%2Findex.html%23status&note=hello+world",
+            b"password=abc%2B123&next=%2Fshuma%2Fdashboard%2Findex.html%23status&note=hello+world",
             MAX_ADMIN_JSON_BYTES,
         )
         .unwrap();
@@ -274,7 +274,7 @@ mod tests {
         assert_eq!(form.get("password").map(String::as_str), Some("abc+123"));
         assert_eq!(
             form.get("next").map(String::as_str),
-            Some("/dashboard/index.html#status")
+            Some("/shuma/dashboard/index.html#status")
         );
         assert_eq!(form.get("note").map(String::as_str), Some("hello world"));
     }

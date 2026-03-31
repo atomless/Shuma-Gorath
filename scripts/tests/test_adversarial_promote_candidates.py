@@ -208,7 +208,7 @@ class PromotionPipelineUnitTests(unittest.TestCase):
                     sample_promotion_payload()
                 )
 
-        self.assertEqual(captured["url"], "http://127.0.0.1:3000/admin/replay-promotion")
+        self.assertEqual(captured["url"], "http://127.0.0.1:3000/shuma/admin/replay-promotion")
         self.assertEqual(captured["method"], "POST")
         self.assertEqual(captured["timeout"], 20.0)
         self.assertEqual(captured["authorization"], "Bearer test-api-key")

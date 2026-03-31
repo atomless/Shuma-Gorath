@@ -204,7 +204,7 @@ mod tests {
         let mut builder = Request::builder();
         builder
             .method(method)
-            .uri("/admin/operator-objectives")
+            .uri("/shuma/admin/operator-objectives")
             .body(serde_json::to_vec(&body).expect("body serializes"));
         builder.build()
     }

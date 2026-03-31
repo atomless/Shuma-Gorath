@@ -49,9 +49,9 @@ Options:
   --forwarded-ip IP          Value for X-Forwarded-For (default: SHUMA_SMOKE_FORWARDED_IP or 127.0.0.1)
   --admin-forwarded-ip IP    Value for admin-route X-Forwarded-For (default: SHUMA_SMOKE_ADMIN_FORWARDED_IP or first SHUMA_ADMIN_IP_ALLOWLIST entry)
   --forward-path PATH        Public path to compare against upstream origin (default: SHUMA_SMOKE_FORWARD_PATH or derived from GATEWAY_SURFACE_CATALOG_PATH)
-  --challenge-path PATH      Challenge path to sanity-check (default: auto-detect from /admin/config)
+  --challenge-path PATH      Challenge path to sanity-check (default: auto-detect from /shuma/admin/config)
   --challenge-expect REGEX   Regex expected in challenge response body (default: auto by challenge type)
-  --skip-health              Skip the /health check (use only when another loopback health check already ran)
+  --skip-health              Skip the /shuma/health check (use only when another loopback health check already ran)
   -h, --help                 Show help
 EOF
 }
@@ -242,13 +242,13 @@ fi
 info "Smoke target: ${BASE_URL}"
 
 if [[ "$(normalize_bool "${SKIP_HEALTH}")" == "true" ]]; then
-  info "Skipping /health check"
+  info "Skipping /shuma/health check"
 else
-  http_request GET "${BASE_URL}/health" "${HEALTH_HEADERS[@]}"
+  http_request GET "${BASE_URL}/shuma/health" "${HEALTH_HEADERS[@]}"
   if [[ "${HTTP_STATUS}" == "200" ]] && grep -q "OK" <<< "${HTTP_BODY}"; then
-    pass "/health returns 200 + OK"
+    pass "/shuma/health returns 200 + OK"
   else
-    fail "/health failed (status=${HTTP_STATUS})"
+    fail "/shuma/health failed (status=${HTTP_STATUS})"
   fi
 fi
 
@@ -258,34 +258,34 @@ if [[ -n "${SHUMA_FORWARDED_IP_SECRET:-}" ]]; then
 fi
 
 if [[ "$(normalize_bool "${SKIP_RESERVED_ROUTES}")" == "true" ]]; then
-  info "Skipping reserved-route smoke probes (/admin/config, /metrics)"
+  info "Skipping reserved-route smoke probes (/shuma/admin/config, /shuma/metrics)"
 else
   if [[ "$(normalize_bool "${SKIP_ADMIN_AUTH}")" == "true" ]]; then
-    info "Skipping /admin/config auth checks"
+    info "Skipping /shuma/admin/config auth checks"
   else
-    http_request GET "${BASE_URL}/admin/config" "${ADMIN_FORWARDED_HEADERS[@]}"
+    http_request GET "${BASE_URL}/shuma/admin/config" "${ADMIN_FORWARDED_HEADERS[@]}"
     if [[ "${HTTP_STATUS}" == "401" || "${HTTP_STATUS}" == "403" || "${HTTP_STATUS}" == "302" ]]; then
-      pass "/admin/config requires auth"
+      pass "/shuma/admin/config requires auth"
     else
-      fail "/admin/config should reject unauthenticated access (status=${HTTP_STATUS})"
+      fail "/shuma/admin/config should reject unauthenticated access (status=${HTTP_STATUS})"
     fi
 
-    http_request GET "${BASE_URL}/admin/config" "${ADMIN_FORWARDED_HEADERS[@]}" -H "Authorization: Bearer ${SHUMA_API_KEY}"
+    http_request GET "${BASE_URL}/shuma/admin/config" "${ADMIN_FORWARDED_HEADERS[@]}" -H "Authorization: Bearer ${SHUMA_API_KEY}"
     if [[ "${HTTP_STATUS}" == "200" ]] && grep -q '"rate_limit"' <<< "${HTTP_BODY}"; then
-      pass "/admin/config accepts authenticated access"
+      pass "/shuma/admin/config accepts authenticated access"
     else
-      fail "/admin/config auth check failed (status=${HTTP_STATUS})"
+      fail "/shuma/admin/config auth check failed (status=${HTTP_STATUS})"
     fi
     ADMIN_CONFIG_BODY="${HTTP_BODY}"
   fi
 
-  http_request GET "${BASE_URL}/metrics" "${FORWARDED_HEADERS[@]}"
+  http_request GET "${BASE_URL}/shuma/metrics" "${FORWARDED_HEADERS[@]}"
   if [[ "${HTTP_STATUS}" == "200" ]] && grep -q "bot_defence_requests_total" <<< "${HTTP_BODY}"; then
-    pass "/metrics returns Prometheus families"
+    pass "/shuma/metrics returns Prometheus families"
   else
-    fail "/metrics check failed (status=${HTTP_STATUS})"
+    fail "/shuma/metrics check failed (status=${HTTP_STATUS})"
   fi
-  pass "reserved Shuma routes remain local (/health, /metrics, /admin/config)"
+  pass "reserved Shuma routes remain local (/shuma/health, /shuma/metrics, /shuma/admin/config)"
 fi
 
 if [[ -n "${GATEWAY_UPSTREAM_ORIGIN}" ]]; then

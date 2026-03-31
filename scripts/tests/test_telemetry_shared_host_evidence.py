@@ -300,7 +300,7 @@ class TelemetrySharedHostEvidenceTests(unittest.TestCase):
                 "deploy": {
                     "spin_manifest_path": "/opt/shuma-gorath/spin.gateway.toml",
                     "surface_catalog_path": str(temp_path / "surface.json"),
-                    "smoke_path": "/health",
+                    "smoke_path": "/shuma/health",
                 },
                 "metadata": {
                     "last_deployed_commit": "abc123",
@@ -457,19 +457,19 @@ class TelemetrySharedHostEvidenceTests(unittest.TestCase):
             self.assertEqual(persisted["recent_event_sample"]["js_verification_contract_violations"], 0)
             self.assertEqual(
                 measure_json_endpoint.call_args_list[0].args[0],
-                "/admin/monitoring?hours=24&limit=10&bootstrap=1",
+                "/shuma/admin/monitoring?hours=24&limit=10&bootstrap=1",
             )
             self.assertEqual(
                 measure_json_endpoint.call_args_list[1].args[0],
-                "/admin/monitoring?hours=24&limit=10&bootstrap=1",
+                "/shuma/admin/monitoring?hours=24&limit=10&bootstrap=1",
             )
             self.assertEqual(
                 measure_json_endpoint.call_args_list[2].args[0],
-                "/admin/monitoring/delta?hours=24&limit=40",
+                "/shuma/admin/monitoring/delta?hours=24&limit=40",
             )
             self.assertEqual(
                 measure_json_endpoint.call_args_list[3].args[0],
-                "/admin/monitoring?hours=24&limit=40&bootstrap=1&forensic=1",
+                "/shuma/admin/monitoring?hours=24&limit=40&bootstrap=1&forensic=1",
             )
 
     def test_main_cli_uses_current_argument_shape(self) -> None:
@@ -506,7 +506,7 @@ class TelemetrySharedHostEvidenceTests(unittest.TestCase):
                         "deploy": {
                             "spin_manifest_path": "/opt/shuma-gorath/spin.gateway.toml",
                             "surface_catalog_path": str(temp_path / "surface.json"),
-                            "smoke_path": "/health",
+                            "smoke_path": "/shuma/health",
                             "upstream_origin": "http://127.0.0.1:8080",
                         },
                         "metadata": {

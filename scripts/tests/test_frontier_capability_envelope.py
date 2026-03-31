@@ -99,7 +99,7 @@ class FrontierCapabilityEnvelopeUnitTests(unittest.TestCase):
             envelopes,
             verify_key=verify_key,
             run_id="run-123",
-            actions=[{"action_type": "http_post", "path": "/admin/config"}],
+            actions=[{"action_type": "http_post", "path": "/shuma/admin/config"}],
             now_unix=1_700_000_010,
         )
         self.assertTrue(any("action_type_scope_mismatch" in error for error in errors))

@@ -9,7 +9,7 @@ const config = {
       strict: true
     }),
     paths: {
-      base: '/dashboard'
+      base: '/shuma/dashboard'
     },
     prerender: {
       crawl: false,

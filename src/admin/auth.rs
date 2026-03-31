@@ -509,7 +509,7 @@ mod tests {
 
     fn request_with_auth(auth_header: Option<&str>) -> Request {
         let mut builder = Request::builder();
-        builder.method(Method::Get).uri("/admin/config");
+        builder.method(Method::Get).uri("/shuma/admin/config");
         if let Some(auth) = auth_header {
             builder.header("authorization", auth);
         }
@@ -518,7 +518,7 @@ mod tests {
 
     fn request_for_admin_login() -> Request {
         let mut builder = Request::builder();
-        builder.method(Method::Post).uri("/admin/login");
+        builder.method(Method::Post).uri("/shuma/admin/login");
         builder.build()
     }
 
@@ -601,7 +601,7 @@ mod tests {
         let mut builder = Request::builder();
         builder
             .method(Method::Get)
-            .uri("/admin/config")
+            .uri("/shuma/admin/config")
             .header("authorization", "Bearer test-admin-key")
             .header("true-client-ip", "203.0.113.8");
         let req = builder.build();
@@ -625,7 +625,7 @@ mod tests {
         let mut builder = Request::builder();
         builder
             .method(Method::Post)
-            .uri("/admin/config")
+            .uri("/shuma/admin/config")
             .header(
                 "cookie",
                 format!("{}={}", admin_session_cookie_name(), session_id),

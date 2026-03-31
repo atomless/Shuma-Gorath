@@ -4,6 +4,65 @@ Moved from active TODO files on 2026-02-14.
 
 ## Additional completions (2026-03-31)
 
+### ROUTE-NS-1C Namespace Shuma-Owned Control Routes Under `/shuma/*`
+
+- [x] Completed the Shuma-owned control-route migration tranche across:
+  - [`../src/runtime/request_router.rs`](../src/runtime/request_router.rs)
+  - [`../src/runtime/request_router/tests.rs`](../src/runtime/request_router/tests.rs)
+  - [`../src/admin/api.rs`](../src/admin/api.rs)
+  - [`../src/admin/adversary_sim_api.rs`](../src/admin/adversary_sim_api.rs)
+  - [`../src/admin/adversary_sim_control.rs`](../src/admin/adversary_sim_control.rs)
+  - [`../src/admin/auth.rs`](../src/admin/auth.rs)
+  - [`../src/admin/diagnostics_api.rs`](../src/admin/diagnostics_api.rs)
+  - [`../src/admin/monitoring_api.rs`](../src/admin/monitoring_api.rs)
+  - [`../src/admin/operator_objectives_api.rs`](../src/admin/operator_objectives_api.rs)
+  - [`../src/admin/oversight_api.rs`](../src/admin/oversight_api.rs)
+  - [`../src/admin/replay_promotion_api.rs`](../src/admin/replay_promotion_api.rs)
+  - [`../src/lib.rs`](../src/lib.rs)
+  - [`../src/lib_tests/security.rs`](../src/lib_tests/security.rs)
+  - [`../src/maze/covert_decoy.rs`](../src/maze/covert_decoy.rs)
+  - [`../src/maze/mod.rs`](../src/maze/mod.rs)
+  - [`../src/maze/preview.rs`](../src/maze/preview.rs)
+  - [`../src/observability/hot_read_projection.rs`](../src/observability/hot_read_projection.rs)
+  - [`../src/observability/metrics.rs`](../src/observability/metrics.rs)
+  - [`../src/request_validation.rs`](../src/request_validation.rs)
+  - [`../src/runtime/policy_pipeline.rs`](../src/runtime/policy_pipeline.rs)
+  - [`../src/signals/geo/tests.rs`](../src/signals/geo/tests.rs)
+  - [`../src/tarpit/runtime.rs`](../src/tarpit/runtime.rs)
+  - [`../dashboard/src/lib/domain/api-client.js`](../dashboard/src/lib/domain/api-client.js)
+  - [`../dashboard/src/lib/runtime/dashboard-native-runtime.js`](../dashboard/src/lib/runtime/dashboard-native-runtime.js)
+  - [`../dashboard/src/lib/runtime/dashboard-paths.js`](../dashboard/src/lib/runtime/dashboard-paths.js)
+  - [`../dashboard/src/routes/login.html/+page.svelte`](../dashboard/src/routes/login.html/+page.svelte)
+  - [`../dashboard/svelte.config.js`](../dashboard/svelte.config.js)
+  - [`../dashboard/src/lib/components/dashboard/AdvancedTab.svelte`](../dashboard/src/lib/components/dashboard/AdvancedTab.svelte)
+  - [`../dashboard/src/lib/components/dashboard/config/ConfigMazeSection.svelte`](../dashboard/src/lib/components/dashboard/config/ConfigMazeSection.svelte)
+  - [`../dashboard/src/lib/components/dashboard/monitoring-view-model.js`](../dashboard/src/lib/components/dashboard/monitoring-view-model.js)
+  - [`../dashboard/src/lib/state/dashboard-store.js`](../dashboard/src/lib/state/dashboard-store.js)
+  - [`../e2e/dashboard.modules.unit.test.js`](../e2e/dashboard.modules.unit.test.js)
+  - [`../e2e/dashboard.smoke.spec.js`](../e2e/dashboard.smoke.spec.js)
+  - [`../e2e/seed-dashboard-data.js`](../e2e/seed-dashboard-data.js)
+  - [`../scripts/bootstrap/setup.sh`](../scripts/bootstrap/setup.sh)
+  - [`../scripts/deploy/fermyon_akamai_edge_deploy.py`](../scripts/deploy/fermyon_akamai_edge_deploy.py)
+  - [`../scripts/deploy/gateway_surface_catalog.py`](../scripts/deploy/gateway_surface_catalog.py)
+  - [`../scripts/deploy/remote_target.py`](../scripts/deploy/remote_target.py)
+  - [`../scripts/deploy_linode_one_shot.sh`](../scripts/deploy_linode_one_shot.sh)
+  - [`../scripts/run_with_adversary_sim_supervisor.sh`](../scripts/run_with_adversary_sim_supervisor.sh)
+  - [`../scripts/tests/dashboard_external_live_smoke.mjs`](../scripts/tests/dashboard_external_live_smoke.mjs)
+  - [`../scripts/tests/test_shuma_control_route_contract.py`](../scripts/tests/test_shuma_control_route_contract.py)
+  - [`../Makefile`](../Makefile)
+- [x] What landed:
+  - canonical Shuma-owned control and operational surfaces now resolve through `/shuma/admin/*`, `/shuma/dashboard/*`, `/shuma/health`, and `/shuma/metrics`,
+  - runtime early routing, admin payload helpers, dashboard base paths, login/session/logout flows, preview links, scripts, and focused deployment or smoke helpers now all point at the namespaced control-plane contract,
+  - and a focused control-route migration proof now guards both the positive `/shuma/*` paths and the absence of legacy top-level canonical control routes.
+- [x] Why:
+  - the root-hosted public site work only stays clean if Shuma-owned control surfaces are clearly namespaced away from host-root content,
+  - and the remaining `/shuma/internal/*` tranche needed the rest of the control plane settled first so later route migration does not mix public-host and control-path ownership.
+- [x] Evidence:
+  - `make test-shuma-control-route-migration`
+  - `git diff --check`
+  - `rg -n '"/admin|"/dashboard|"/health|"/metrics' src dashboard scripts e2e --glob '!docs/**' --glob '!todos/**' --glob '!**/*.md' --glob '!scripts/tests/adversarial/*.json'`
+  - remaining exact hits are intentionally fenced negative guards in [`../src/http_route_namespace.rs`](../src/http_route_namespace.rs) and [`../scripts/tests/test_shuma_control_route_contract.py`](../scripts/tests/test_shuma_control_route_contract.py)
+
 ### ROUTE-NS-1B And ROUTE-NS-1E Root-Host The Generated Public Site And Repoint Adversary Discovery
 
 - [x] Completed the rooted public-site and adversary-discovery tranche across:

@@ -352,7 +352,7 @@ class ScraplingWorkerUnitTests(unittest.TestCase):
 
         descriptor_payload = {
             "allowed_hosts": [f"127.0.0.1:{self.httpd.server_port}"],
-            "denied_path_prefixes": ["/admin"],
+            "denied_path_prefixes": ["/shuma/admin"],
             "require_https": False,
             "deny_ip_literals": False,
         }

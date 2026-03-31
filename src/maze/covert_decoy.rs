@@ -1,4 +1,6 @@
 use spin_sdk::http::{Method, Request, Response};
+
+use crate::http_route_namespace as route_namespace;
 use std::time::{SystemTime, UNIX_EPOCH};
 
 use super::token;
@@ -138,10 +140,15 @@ pub(crate) fn maybe_inject_non_maze_decoy(
         return response;
     }
     let path = req.path();
-    if super::is_maze_path(path) || path.starts_with("/admin") {
+    if super::is_maze_path(path) || route_namespace::is_shuma_admin_path(path) {
         return response;
     }
-    if matches!(path, "/health" | "/metrics" | "/robots.txt") {
+    if matches!(
+        path,
+        route_namespace::SHUMA_HEALTH_PATH
+            | route_namespace::SHUMA_METRICS_PATH
+            | route_namespace::PUBLIC_ROBOTS_TXT_PATH
+    ) {
         return response;
     }
     if is_search_engine_user_agent(cfg, user_agent) {

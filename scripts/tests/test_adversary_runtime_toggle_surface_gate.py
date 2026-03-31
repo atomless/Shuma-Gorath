@@ -49,7 +49,7 @@ class RuntimeToggleSurfaceGateTests(unittest.TestCase):
         gate.toggle(True, "on")
 
         self.assertEqual(captured["method"], "POST")
-        self.assertEqual(captured["path"], "/admin/adversary-sim/control")
+        self.assertEqual(captured["path"], "/shuma/admin/adversary-sim/control")
         self.assertEqual(captured["payload"]["enabled"], True)
         self.assertEqual(captured["payload"]["lane"], "scrapling_traffic")
         self.assertEqual(captured["payload"]["reason"], "runtime_surface_gate")
@@ -126,7 +126,7 @@ class RuntimeToggleSurfaceGateTests(unittest.TestCase):
 
         def fake_request(method, path, payload=None, extra_headers=None):
             self.assertEqual(method, "GET")
-            self.assertIn("/admin/operator-snapshot", path)
+            self.assertIn("/shuma/admin/operator-snapshot", path)
             return {"status": 200, "body": operator_snapshot_body, "raw": ""}
 
         gate.request = fake_request
@@ -172,7 +172,7 @@ class RuntimeToggleSurfaceGateTests(unittest.TestCase):
         gate.configure_runtime_surface_profile()
 
         self.assertEqual(captured["method"], "POST")
-        self.assertEqual(captured["path"], "/admin/config")
+        self.assertEqual(captured["path"], "/shuma/admin/config")
         self.assertEqual(captured["payload"]["defence_modes"]["rate"], "both")
         self.assertEqual(captured["payload"]["rate_limit"], 80)
         self.assertTrue(captured["payload"]["pow_enabled"])
@@ -206,9 +206,9 @@ class RuntimeToggleSurfaceGateTests(unittest.TestCase):
         self.assertEqual(
             seen,
             [
-                ("POST", "/admin/unban?ip=127.0.0.1"),
-                ("POST", "/admin/unban?ip=::1"),
-                ("POST", "/admin/unban?ip=unknown"),
+                ("POST", "/shuma/admin/unban?ip=127.0.0.1"),
+                ("POST", "/shuma/admin/unban?ip=::1"),
+                ("POST", "/shuma/admin/unban?ip=unknown"),
             ],
         )
 
@@ -274,8 +274,8 @@ class RuntimeToggleSurfaceGateTests(unittest.TestCase):
         self.assertEqual(
             seen,
             [
-                ("POST", "/admin/unban?ip=198.51.1.1"),
-                ("POST", "/admin/unban?ip=198.51.250.18"),
+                ("POST", "/shuma/admin/unban?ip=198.51.1.1"),
+                ("POST", "/shuma/admin/unban?ip=198.51.250.18"),
             ],
         )
 
@@ -379,7 +379,7 @@ class RuntimeToggleSurfaceGateTests(unittest.TestCase):
 
         def fake_request(method, path, payload=None, extra_headers=None):
             self.assertEqual(method, "GET")
-            self.assertIn("/admin/operator-snapshot", path)
+            self.assertIn("/shuma/admin/operator-snapshot", path)
             return next(responses)
 
         gate.request = fake_request
@@ -502,7 +502,7 @@ class RuntimeToggleSurfaceGateTests(unittest.TestCase):
 
         def fake_request(method, path, payload=None, extra_headers=None):
             self.assertEqual(method, "GET")
-            self.assertIn("/admin/operator-snapshot", path)
+            self.assertIn("/shuma/admin/operator-snapshot", path)
             return next(responses)
 
         gate.request = fake_request
@@ -626,7 +626,7 @@ class RuntimeToggleSurfaceGateTests(unittest.TestCase):
 
         def fake_request(method, path, payload=None, extra_headers=None):
             self.assertEqual(method, "GET")
-            self.assertIn("/admin/operator-snapshot", path)
+            self.assertIn("/shuma/admin/operator-snapshot", path)
             return next(responses)
 
         gate.request = fake_request
@@ -681,7 +681,7 @@ class RuntimeToggleSurfaceGateTests(unittest.TestCase):
 
         def fake_request(method, path, payload=None, extra_headers=None):
             self.assertEqual(method, "GET")
-            self.assertEqual(path, "/admin/oversight/agent/status")
+            self.assertEqual(path, "/shuma/admin/oversight/agent/status")
             return next(responses)
 
         gate.request = fake_request
@@ -822,7 +822,7 @@ class RuntimeToggleSurfaceGateTests(unittest.TestCase):
 
         def fake_request(method, path, payload=None, extra_headers=None):
             self.assertEqual(method, "GET")
-            self.assertIn("/admin/monitoring", path)
+            self.assertIn("/shuma/admin/monitoring", path)
             return next(responses)
 
         gate.request = fake_request

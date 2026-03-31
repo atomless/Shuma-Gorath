@@ -19,9 +19,9 @@ REQUIRED_DESCRIPTOR_FIELDS = (
 DEFAULT_REQUIRE_HTTPS = True
 DEFAULT_DENY_IP_LITERALS = True
 BASELINE_DENIED_PATH_PREFIXES = (
-    "/admin",
+    "/shuma/admin",
     "/internal",
-    "/dashboard",
+    "/shuma/dashboard",
     "/session",
     "/auth",
     "/login",

@@ -37,7 +37,7 @@ class AdversarialContainerWorkerUnitTests(unittest.TestCase):
             action={
                 "action_index": 2,
                 "action_type": "http_get",
-                "path": "/admin/config",
+                "path": "/shuma/admin/config",
             },
         )
         self.assertEqual(len(events), 1)
@@ -47,7 +47,7 @@ class AdversarialContainerWorkerUnitTests(unittest.TestCase):
         self.assertEqual(event["code"], "egress_disallowed")
         self.assertEqual(event["action_index"], 2)
         self.assertEqual(event["action_type"], "http_get")
-        self.assertEqual(event["path"], "/admin/config")
+        self.assertEqual(event["path"], "/shuma/admin/config")
         self.assertIn("ts_unix", event)
 
     def test_enforce_allowlist_rejects_origin_not_in_allowlist(self):

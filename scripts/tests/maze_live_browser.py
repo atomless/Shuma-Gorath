@@ -114,7 +114,7 @@ class MazeLiveBrowserGate(MazeLiveTraversalGate):
     def discover_public_entry(self, *, forwarded_ip: str) -> dict[str, str]:
         preview = self._request(
             "GET",
-            "/admin/maze/preview",
+            "/shuma/admin/maze/preview",
             include_auth=True,
             forwarded_ip=self.local_admin_ip,
         )

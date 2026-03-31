@@ -43,7 +43,7 @@
       "x-shuma-js-secret"
     ],
     "forbidden_path_prefixes": [
-      "/admin/"
+      "/shuma/admin/"
     ]
   },
   "dsl": {

@@ -36,7 +36,7 @@ supervisor_attention_required() {
   fi
 
   local payload
-  if ! payload="$(curl -fsS --max-time 2 "${headers[@]}" "${BASE_URL}/admin/adversary-sim/status" 2>/dev/null)"; then
+  if ! payload="$(curl -fsS --max-time 2 "${headers[@]}" "${BASE_URL}/shuma/admin/adversary-sim/status" 2>/dev/null)"; then
     return 1
   fi
 
@@ -91,7 +91,7 @@ APP_PID=$!
 if [[ "${SIM_AVAILABLE}" == "true" || "${SIM_AVAILABLE}" == "1" || "${SIM_AVAILABLE}" == "yes" || "${SIM_AVAILABLE}" == "on" ]]; then
   if [[ "${SUPERVISOR_ENABLED}" == "1" || "${SUPERVISOR_ENABLED}" == "true" || "${SUPERVISOR_ENABLED}" == "yes" || "${SUPERVISOR_ENABLED}" == "on" ]]; then
     if [[ -z "${ADMIN_API_KEY}" ]]; then
-      echo "[adversary-sim-supervisor-manager] disabled: SHUMA_API_KEY is empty; cannot poll /admin/adversary-sim/status" >&2
+      echo "[adversary-sim-supervisor-manager] disabled: SHUMA_API_KEY is empty; cannot poll /shuma/admin/adversary-sim/status" >&2
     else
       run_supervisor_manager &
       SUPERVISOR_MANAGER_PID=$!

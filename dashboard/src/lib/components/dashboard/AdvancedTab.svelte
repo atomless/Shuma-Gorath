@@ -25,7 +25,7 @@
   export let configSnapshot = null;
   export let configRuntimeSnapshot = null;
   export let configVersion = 0;
-  export let dashboardBasePath = '/dashboard';
+  export let dashboardBasePath = '/shuma/dashboard';
   export let onSaveConfig = null;
   export let onValidateConfig = null;
   export let noticeText = '';

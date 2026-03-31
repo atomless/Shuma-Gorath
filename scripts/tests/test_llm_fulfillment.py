@@ -158,7 +158,7 @@ class LlmFulfillmentUnitTests(unittest.TestCase):
         result = llm_fulfillment.generate_llm_frontier_actions(
             fulfillment_plan=plan,
             host_root_entrypoint="https://example.com/",
-            public_hint_paths=["/robots.txt", "/admin/config"],
+            public_hint_paths=["/robots.txt", "/shuma/admin/config"],
             env_reader=lambda key: env.get(key, ""),
             provider_executor=fake_provider_executor,
         )

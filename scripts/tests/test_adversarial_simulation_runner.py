@@ -363,13 +363,13 @@ class AdversarialRunnerUnitTests(unittest.TestCase):
 
         sim_runner.opener = _Opener()  # type: ignore[assignment]
 
-        result = sim_runner.admin_request("GET", "/admin/config")
+        result = sim_runner.admin_request("GET", "/shuma/admin/config")
 
         self.assertEqual(result.status, 200)
         self.assertEqual(sim_runner.control_plane_request_timeout_seconds, 30.0)
         self.assertGreater(sim_runner.control_plane_request_timeout_seconds, sim_runner.request_timeout_seconds)
         self.assertEqual(captured["timeout"], sim_runner.control_plane_request_timeout_seconds)
-        self.assertEqual(captured["url"], "http://127.0.0.1:3000/admin/config")
+        self.assertEqual(captured["url"], "http://127.0.0.1:3000/shuma/admin/config")
 
     def test_admin_read_request_retries_transient_timeout_failures(self):
         manifest = minimal_manifest(schema_version="sim-manifest.v2")
@@ -398,7 +398,7 @@ class AdversarialRunnerUnitTests(unittest.TestCase):
             calls["count"] += 1
             if calls["count"] == 1:
                 raise runner.SimulationError(
-                    "HTTP request failed for GET http://127.0.0.1:3000/admin/monitoring/delta?hours=24&limit=40: "
+                    "HTTP request failed for GET http://127.0.0.1:3000/shuma/admin/monitoring/delta?hours=24&limit=40: "
                     "<urlopen error timed out>"
                 )
             return runner.HttpResult(status=200, body="{}", headers={}, latency_ms=1)
@@ -407,7 +407,7 @@ class AdversarialRunnerUnitTests(unittest.TestCase):
 
         result = sim_runner.admin_read_request(
             "GET",
-            "/admin/monitoring/delta?hours=24&limit=40",
+            "/shuma/admin/monitoring/delta?hours=24&limit=40",
             timeout_seconds=60.0,
             max_attempts=3,
         )
@@ -459,7 +459,7 @@ class AdversarialRunnerUnitTests(unittest.TestCase):
         self.assertEqual(
             captured["path"],
             (
-                f"/admin/monitoring/delta?hours={sim_runner.monitoring_hot_read_window_hours}"
+                f"/shuma/admin/monitoring/delta?hours={sim_runner.monitoring_hot_read_window_hours}"
                 f"&limit={sim_runner.monitoring_delta_limit}"
             ),
         )
@@ -563,7 +563,7 @@ class AdversarialRunnerUnitTests(unittest.TestCase):
         self.assertEqual(
             captured["path"],
             (
-                f"/admin/monitoring?hours={sim_runner.monitoring_hot_read_window_hours}"
+                f"/shuma/admin/monitoring?hours={sim_runner.monitoring_hot_read_window_hours}"
                 f"&limit={sim_runner.monitoring_bootstrap_limit}&bootstrap=1"
             ),
         )
@@ -598,7 +598,7 @@ class AdversarialRunnerUnitTests(unittest.TestCase):
             captured["timeout_seconds"] = timeout_seconds
             if calls["count"] == 1:
                 raise runner.SimulationError(
-                    "HTTP request failed for POST http://127.0.0.1:3000/admin/unban?ip=unknown: "
+                    "HTTP request failed for POST http://127.0.0.1:3000/shuma/admin/unban?ip=unknown: "
                     "<urlopen error timed out>"
                 )
             return runner.HttpResult(status=200, body="{}", headers={}, latency_ms=1)
@@ -651,7 +651,7 @@ class AdversarialRunnerUnitTests(unittest.TestCase):
         sim_runner.admin_patch({"shadow_mode": False})
 
         self.assertEqual(captured["method"], "POST")
-        self.assertEqual(captured["path"], "/admin/config")
+        self.assertEqual(captured["path"], "/shuma/admin/config")
         self.assertEqual(captured["timeout_seconds"], sim_runner.control_plane_write_timeout_seconds)
 
     def test_execution_phase_transitions_record_suite_contract(self):
@@ -2361,7 +2361,7 @@ class AdversarialRunnerUnitTests(unittest.TestCase):
         )
 
         with patch("scripts.tests.adversarial_simulation_runner.time.sleep", return_value=None) as sleep_mock:
-            result = sim_runner.admin_read_request("GET", "/admin/events")
+            result = sim_runner.admin_read_request("GET", "/shuma/admin/events")
         self.assertEqual(result.status, 200)
         sleep_mock.assert_called_once()
 
@@ -2395,7 +2395,7 @@ class AdversarialRunnerUnitTests(unittest.TestCase):
         )
 
         with patch("scripts.tests.adversarial_simulation_runner.time.sleep", return_value=None):
-            result = sim_runner.admin_read_request("GET", "/admin/events", max_attempts=2)
+            result = sim_runner.admin_read_request("GET", "/shuma/admin/events", max_attempts=2)
         self.assertEqual(result.status, 429)
 
     def test_replay_promotion_snapshot_reads_machine_first_contract(self):
@@ -2685,7 +2685,7 @@ class AdversarialRunnerUnitTests(unittest.TestCase):
 
     def test_enforce_attacker_request_contract_rejects_admin_paths(self):
         with self.assertRaises(runner.SimulationError):
-            runner.enforce_attacker_request_contract("/admin/config", {})
+            runner.enforce_attacker_request_contract("/shuma/admin/config", {})
 
     def test_enforce_attacker_request_contract_rejects_privileged_headers(self):
         with self.assertRaises(runner.SimulationError):

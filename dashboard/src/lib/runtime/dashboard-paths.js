@@ -1,4 +1,4 @@
-const DEFAULT_DASHBOARD_BASE_PATH = '/dashboard';
+const DEFAULT_DASHBOARD_BASE_PATH = '/shuma/dashboard';
 
 export function normalizeDashboardBasePath(value = DEFAULT_DASHBOARD_BASE_PATH) {
   const raw = String(value || '').trim();
@@ -12,7 +12,7 @@ export function resolveDashboardBasePathFromLocation(locationLike, fallback = DE
   const pathname = String(locationLike && locationLike.pathname ? locationLike.pathname : '').trim();
   if (!pathname) return safeFallback;
 
-  const marker = '/dashboard';
+  const marker = '/shuma/dashboard';
   const markerIndex = pathname.indexOf(marker);
   if (markerIndex === -1) return safeFallback;
 

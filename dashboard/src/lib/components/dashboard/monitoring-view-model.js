@@ -1223,7 +1223,7 @@ export const derivePrometheusHelperViewModel = (prometheusData = {}, origin = ''
     }
   };
   const endpoint =
-    typeof prometheusData.endpoint === 'string' ? prometheusData.endpoint : '/metrics';
+    typeof prometheusData.endpoint === 'string' ? prometheusData.endpoint : '/shuma/metrics';
   const docs =
     prometheusData && typeof prometheusData.docs === 'object' ? prometheusData.docs : {};
   const notes = Array.isArray(prometheusData?.notes)

@@ -806,7 +806,12 @@ pub(crate) fn tarpit_bytes_bucket(bytes: usize) -> &'static str {
 }
 
 pub(crate) fn crawler_safety_bypass(path: &str, user_agent: &str) -> bool {
-    let sensitive_path = matches!(path, "/robots.txt" | "/sitemap.xml" | "/health");
+    let sensitive_path = matches!(
+        path,
+        crate::http_route_namespace::PUBLIC_ROBOTS_TXT_PATH
+            | crate::http_route_namespace::PUBLIC_SITEMAP_XML_PATH
+            | crate::http_route_namespace::SHUMA_HEALTH_PATH
+    );
     if sensitive_path {
         return true;
     }

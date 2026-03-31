@@ -149,7 +149,7 @@ def read_log_tail(log_path: Path, max_lines: int = 80) -> str:
 def wait_for_ready(base_url: str, headers: Dict[str, str], startup_timeout_seconds: float) -> None:
     deadline = time.time() + startup_timeout_seconds
     while time.time() < deadline:
-        probe = http_probe(f"{base_url}/health", headers=headers, timeout=0.8)
+        probe = http_probe(f"{base_url}/shuma/health", headers=headers, timeout=0.8)
         if probe.status_code is not None:
             return
         time.sleep(0.15)
@@ -207,7 +207,7 @@ def spin_instance(
             while time.time() < deadline:
                 if process.poll() is not None:
                     break
-                probe = http_probe(f"{base_url}/health", headers=health_headers, timeout=0.5)
+                probe = http_probe(f"{base_url}/shuma/health", headers=health_headers, timeout=0.5)
                 if probe.status_code is not None:
                     break
                 time.sleep(0.15)

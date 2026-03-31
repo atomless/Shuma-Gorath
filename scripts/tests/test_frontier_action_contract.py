@@ -28,7 +28,7 @@ class FrontierActionContractUnitTests(unittest.TestCase):
         self.assertTrue(all(action["action_type"] == "http_get" for action in actions))
 
     def test_resolve_frontier_actions_rejects_forbidden_admin_prefix(self):
-        raw_actions = '[{"action_type":"http_get","path":"/admin/config"}]'
+        raw_actions = '[{"action_type":"http_get","path":"/shuma/admin/config"}]'
         with self.assertRaises(frontier_contract.FrontierActionValidationError):
             frontier_contract.resolve_frontier_actions(
                 raw_actions,

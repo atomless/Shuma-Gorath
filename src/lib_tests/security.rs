@@ -12,7 +12,7 @@ fn forwarded_headers_are_not_trusted_without_secret() {
     std::env::remove_var("SHUMA_FORWARDED_IP_SECRET");
 
     let req =
-        crate::test_support::request_with_headers("/health", &[("x-forwarded-for", "127.0.0.1")]);
+        crate::test_support::request_with_headers("/shuma/health", &[("x-forwarded-for", "127.0.0.1")]);
     assert!(!forwarded_ip_trusted(&req));
 }
 
@@ -93,7 +93,7 @@ fn health_secret_not_required_when_unset() {
     let _lock = crate::test_support::lock_env();
     std::env::remove_var("SHUMA_HEALTH_SECRET");
     let req =
-        crate::test_support::request_with_headers("/health", &[("x-forwarded-for", "127.0.0.1")]);
+        crate::test_support::request_with_headers("/shuma/health", &[("x-forwarded-for", "127.0.0.1")]);
     assert!(health_secret_authorized(&req));
 }
 
@@ -103,11 +103,11 @@ fn health_secret_required_when_configured() {
     std::env::set_var("SHUMA_HEALTH_SECRET", "health-secret-value");
 
     let missing =
-        crate::test_support::request_with_headers("/health", &[("x-forwarded-for", "127.0.0.1")]);
+        crate::test_support::request_with_headers("/shuma/health", &[("x-forwarded-for", "127.0.0.1")]);
     assert!(!health_secret_authorized(&missing));
 
     let wrong = crate::test_support::request_with_headers(
-        "/health",
+        "/shuma/health",
         &[
             ("x-forwarded-for", "127.0.0.1"),
             ("x-shuma-health-secret", "wrong-value"),
@@ -116,7 +116,7 @@ fn health_secret_required_when_configured() {
     assert!(!health_secret_authorized(&wrong));
 
     let correct = crate::test_support::request_with_headers(
-        "/health",
+        "/shuma/health",
         &[
             ("x-forwarded-for", "127.0.0.1"),
             ("x-shuma-health-secret", "health-secret-value"),
@@ -134,7 +134,7 @@ fn health_endpoint_rejects_when_health_secret_missing() {
     std::env::set_var("SHUMA_FORWARDED_IP_SECRET", "test-forwarded-secret");
     std::env::set_var("SHUMA_HEALTH_SECRET", "health-secret-value");
     let req = crate::test_support::request_with_headers(
-        "/health",
+        "/shuma/health",
         &[
             ("x-forwarded-for", "127.0.0.1"),
             ("x-shuma-forwarded-secret", "test-forwarded-secret"),
@@ -156,7 +156,7 @@ fn https_enforcement_blocks_insecure_admin_requests() {
     std::env::remove_var("SHUMA_FORWARDED_IP_SECRET");
 
     let req =
-        crate::test_support::request_with_method_and_headers(Method::Get, "/admin/config", &[]);
+        crate::test_support::request_with_method_and_headers(Method::Get, "/shuma/admin/config", &[]);
     let resp = crate::handle_bot_defence_impl(&req);
 
     assert_eq!(*resp.status(), 403u16);
@@ -178,7 +178,7 @@ fn https_enforcement_allows_trusted_forwarded_https_to_reach_admin_auth() {
 
     let req = crate::test_support::request_with_method_and_headers(
         Method::Get,
-        "/admin/config",
+        "/shuma/admin/config",
         &[
             ("x-shuma-forwarded-secret", "test-forwarded-secret"),
             ("x-forwarded-proto", "https"),
@@ -199,7 +199,7 @@ fn admin_options_preflight_is_rejected_without_cors_headers() {
     let _lock = crate::test_support::lock_env();
     let req = crate::test_support::request_with_method_and_headers(
         Method::Options,
-        "/admin/config",
+        "/shuma/admin/config",
         &[
             ("origin", "https://example.com"),
             ("access-control-request-method", "POST"),
@@ -232,7 +232,7 @@ fn forwarded_headers_are_trusted_with_matching_secret() {
     let _lock = crate::test_support::lock_env();
     std::env::set_var("SHUMA_FORWARDED_IP_SECRET", "test-forwarded-secret");
     let req = crate::test_support::request_with_headers(
-        "/health",
+        "/shuma/health",
         &[
             ("x-forwarded-for", "127.0.0.1"),
             ("x-shuma-forwarded-secret", "test-forwarded-secret"),
@@ -247,7 +247,7 @@ fn edge_fermyon_uses_true_client_ip_for_client_ip_extraction() {
     std::env::set_var("SHUMA_GATEWAY_DEPLOYMENT_PROFILE", "edge-fermyon");
 
     let req = crate::test_support::request_with_headers(
-        "/admin/config",
+        "/shuma/admin/config",
         &[("true-client-ip", "203.0.113.8")],
     );
 
@@ -261,8 +261,8 @@ fn edge_fermyon_treats_spin_full_url_https_as_https() {
     std::env::set_var("SHUMA_GATEWAY_DEPLOYMENT_PROFILE", "edge-fermyon");
 
     let req = crate::test_support::request_with_headers(
-        "/dashboard/login.html",
-        &[("spin-full-url", "https://example.edge/dashboard/login.html")],
+        "/shuma/dashboard/login.html",
+        &[("spin-full-url", "https://example.edge/shuma/dashboard/login.html")],
     );
 
     assert!(request_is_https(&req));
@@ -274,7 +274,7 @@ fn health_ip_extraction_rejects_multi_hop_forwarded_for() {
     let _lock = crate::test_support::lock_env();
     std::env::set_var("SHUMA_FORWARDED_IP_SECRET", "test-forwarded-secret");
     let req = crate::test_support::request_with_headers(
-        "/health",
+        "/shuma/health",
         &[
             ("x-forwarded-for", "127.0.0.1, 203.0.113.10"),
             ("x-shuma-forwarded-secret", "test-forwarded-secret"),
@@ -289,7 +289,7 @@ fn health_ip_extraction_rejects_multi_hop_forwarded_for() {
 fn geo_headers_are_ignored_when_forwarding_not_trusted() {
     let _lock = crate::test_support::lock_env();
     std::env::remove_var("SHUMA_FORWARDED_IP_SECRET");
-    let req = crate::test_support::request_with_headers("/health", &[("x-geo-country", "US")]);
+    let req = crate::test_support::request_with_headers("/shuma/health", &[("x-geo-country", "US")]);
 
     let cfg = crate::config::defaults().clone();
     let assessment = crate::assess_geo_request(&req, &cfg);
@@ -303,7 +303,7 @@ fn geo_headers_are_used_when_forwarding_is_trusted() {
     let _lock = crate::test_support::lock_env();
     std::env::set_var("SHUMA_FORWARDED_IP_SECRET", "test-forwarded-secret");
     let req = crate::test_support::request_with_headers(
-        "/health",
+        "/shuma/health",
         &[
             ("x-geo-country", " us "),
             ("x-shuma-forwarded-secret", "test-forwarded-secret"),
@@ -326,7 +326,7 @@ fn geo_headers_are_ignored_for_active_simulation_context_without_forwarded_secre
     std::env::remove_var("SHUMA_FORWARDED_IP_SECRET");
     std::env::set_var("SHUMA_RUNTIME_ENV", "runtime-dev");
     std::env::set_var("SHUMA_ADVERSARY_SIM_AVAILABLE", "true");
-    let req = crate::test_support::request_with_headers("/health", &[("x-geo-country", "US")]);
+    let req = crate::test_support::request_with_headers("/shuma/health", &[("x-geo-country", "US")]);
 
     let mut cfg = crate::config::defaults().clone();
     cfg.geo_risk = vec!["US".to_string()];
@@ -355,7 +355,7 @@ fn geo_headers_trust_parity_holds_for_simulation_and_external_requests() {
     std::env::set_var("SHUMA_RUNTIME_ENV", "runtime-dev");
     std::env::set_var("SHUMA_ADVERSARY_SIM_AVAILABLE", "true");
     let req = crate::test_support::request_with_headers(
-        "/health",
+        "/shuma/health",
         &[
             ("x-geo-country", "US"),
             ("x-shuma-forwarded-secret", "test-forwarded-secret"),
@@ -401,7 +401,7 @@ fn invalid_bool_env_returns_500_without_panicking() {
     std::env::set_var("SHUMA_ENFORCE_HTTPS", "not-a-bool");
     std::env::set_var("SHUMA_DEBUG_HEADERS", "false");
 
-    let req = crate::test_support::request_with_method_and_headers(Method::Get, "/health", &[]);
+    let req = crate::test_support::request_with_method_and_headers(Method::Get, "/shuma/health", &[]);
     let result = std::panic::catch_unwind(|| crate::handle_bot_defence_impl(&req));
     assert!(result.is_ok(), "handler panicked on invalid bool env");
 
@@ -446,10 +446,10 @@ fn static_bypass_detects_obvious_asset_paths_for_get_and_head() {
 #[test]
 fn static_bypass_excludes_admin_and_non_get_requests() {
     let admin_like =
-        crate::test_support::request_with_method_and_headers(Method::Get, "/admin/app.js", &[]);
+        crate::test_support::request_with_method_and_headers(Method::Get, "/shuma/admin/app.js", &[]);
     assert!(!should_bypass_expensive_bot_checks_for_static(
         &admin_like,
-        "/admin/app.js"
+        "/shuma/admin/app.js"
     ));
 
     let post_static = crate::test_support::request_with_method_and_headers(

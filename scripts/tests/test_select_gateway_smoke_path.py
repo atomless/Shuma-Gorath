@@ -24,7 +24,7 @@ def run_selector(catalog_text: str) -> subprocess.CompletedProcess:
 class SelectGatewaySmokePathTests(unittest.TestCase):
     def test_prefers_non_reserved_text_like_path(self) -> None:
         result = run_selector(
-            '{"inventory":[{"path":"/health"},{"path":"/"},{"path":"/assets/app.js"},{"path":"/public/page"}]}\n'
+            '{"inventory":[{"path":"/shuma/health"},{"path":"/"},{"path":"/assets/app.js"},{"path":"/public/page"}]}\n'
         )
         self.assertEqual(result.returncode, 0, msg=result.stderr or result.stdout)
         self.assertEqual(result.stdout.strip(), "/assets/app.js")
@@ -37,7 +37,7 @@ class SelectGatewaySmokePathTests(unittest.TestCase):
         self.assertEqual(result.stdout.strip(), "/css/style.css")
 
     def test_fails_when_catalog_only_contains_reserved_paths(self) -> None:
-        result = run_selector('{"inventory":[{"path":"/health"},{"path":"/metrics"}]}\n')
+        result = run_selector('{"inventory":[{"path":"/shuma/health"},{"path":"/shuma/metrics"}]}\n')
         self.assertNotEqual(result.returncode, 0)
         self.assertIn("non-reserved public path", result.stderr)
 

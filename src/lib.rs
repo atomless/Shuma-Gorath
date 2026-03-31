@@ -249,7 +249,7 @@ pub(crate) fn extract_client_ip(req: &Request) -> String {
     "unknown".to_string()
 }
 
-/// Extract client IP for `/health` checks.
+/// Extract client IP for `/shuma/health` checks.
 ///
 /// Security posture:
 /// - Only trust forwarded headers when `forwarded_ip_trusted` is true.

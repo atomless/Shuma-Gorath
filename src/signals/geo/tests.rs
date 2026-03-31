@@ -3,7 +3,9 @@ use spin_sdk::http::{Method, Request};
 
 fn build_request(headers: &[(&str, &str)]) -> Request {
     let mut builder = Request::builder();
-    builder.method(Method::Get).uri("/health");
+    builder
+        .method(Method::Get)
+        .uri(crate::http_route_namespace::SHUMA_HEALTH_PATH);
     for (name, value) in headers {
         builder.header(*name, *value);
     }

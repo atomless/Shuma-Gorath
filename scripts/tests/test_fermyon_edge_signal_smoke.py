@@ -101,14 +101,14 @@ class FermyonEdgeSignalSmokeTests(unittest.TestCase):
 
             def do_GET(self):
                 parsed = urlparse(self.path)
-                if parsed.path == "/admin/config":
+                if parsed.path == "/shuma/admin/config":
                     if not self._require_auth():
                         self._send_text("Unauthorized", 401)
                         return
                     self._send_json(state.config)
                     return
 
-                if parsed.path == "/admin/ban":
+                if parsed.path == "/shuma/admin/ban":
                     if not self._require_auth():
                         self._send_text("Unauthorized", 401)
                         return
@@ -153,7 +153,7 @@ class FermyonEdgeSignalSmokeTests(unittest.TestCase):
 
             def do_POST(self):
                 parsed = urlparse(self.path)
-                if parsed.path == "/admin/config":
+                if parsed.path == "/shuma/admin/config":
                     if not self._require_auth():
                         self._send_text("Unauthorized", 401)
                         return
@@ -168,7 +168,7 @@ class FermyonEdgeSignalSmokeTests(unittest.TestCase):
                     self._send_json(response)
                     return
 
-                if parsed.path == "/admin/unban":
+                if parsed.path == "/shuma/admin/unban":
                     if not self._require_auth():
                         self._send_text("Unauthorized", 401)
                         return

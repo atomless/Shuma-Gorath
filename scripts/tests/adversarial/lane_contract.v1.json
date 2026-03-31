@@ -3,7 +3,7 @@
   "execution_lane": "black_box",
   "attacker": {
     "forbidden_path_prefixes": [
-      "/admin/"
+      "/shuma/admin/"
     ],
     "forbidden_headers": [
       "authorization",

@@ -1199,7 +1199,7 @@ export const create = (options = {}) => {
     const context = getAdminContext(options.messageTarget || null);
     if (!context) {
       throw new DashboardApiError(
-        'Login required. Go to /dashboard/login.html.',
+        'Login required. Go to /shuma/dashboard/login.html.',
         0,
         path,
         options.method || 'GET'
@@ -1403,7 +1403,7 @@ export const create = (options = {}) => {
     }
     const context = getAdminContext(null);
     if (!context || typeof context.endpoint !== 'string' || !context.endpoint.trim()) {
-      throw new DashboardApiError('Login required. Go to /dashboard/login.html.', 0, path, 'GET');
+      throw new DashboardApiError('Login required. Go to /shuma/dashboard/login.html.', 0, path, 'GET');
     }
     return `${context.endpoint}${buildCursorPath(path, options)}`;
   };
@@ -1412,29 +1412,29 @@ export const create = (options = {}) => {
    * @param {RequestOptions} [requestOptions]
    */
   const getAnalytics = async (requestOptions = {}) =>
-    adaptAnalytics(await request('/admin/analytics', requestOptions));
+    adaptAnalytics(await request('/shuma/admin/analytics', requestOptions));
 
   /**
    * @param {number} hours
    * @param {RequestOptions} [requestOptions]
    */
   const getEvents = async (hours = 24, requestOptions = {}) =>
-    adaptEvents(await request(`/admin/events?hours=${encodeURIComponent(String(hours))}`, requestOptions));
+    adaptEvents(await request(`/shuma/admin/events?hours=${encodeURIComponent(String(hours))}`, requestOptions));
 
   /**
    * @param {RequestOptions} [requestOptions]
    */
-  const getBans = async (requestOptions = {}) => adaptBans(await request('/admin/ban', requestOptions));
+  const getBans = async (requestOptions = {}) => adaptBans(await request('/shuma/admin/ban', requestOptions));
 
   /**
    * @param {RequestOptions} [requestOptions]
    */
-  const getMaze = async (requestOptions = {}) => adaptMaze(await request('/admin/maze', requestOptions));
+  const getMaze = async (requestOptions = {}) => adaptMaze(await request('/shuma/admin/maze', requestOptions));
 
   /**
    * @param {RequestOptions} [requestOptions]
    */
-  const getCdp = async (requestOptions = {}) => adaptCdp(await request('/admin/cdp', requestOptions));
+  const getCdp = async (requestOptions = {}) => adaptCdp(await request('/shuma/admin/cdp', requestOptions));
 
   /**
    * @param {{hours?: number, limit?: number}} [options]
@@ -1445,7 +1445,7 @@ export const create = (options = {}) => {
     const limit = Number.isFinite(options.limit) ? Number(options.limit) : 500;
     return adaptCdpEvents(
       await request(
-        `/admin/cdp/events?hours=${encodeURIComponent(String(hours))}&limit=${encodeURIComponent(String(limit))}`,
+        `/shuma/admin/cdp/events?hours=${encodeURIComponent(String(hours))}&limit=${encodeURIComponent(String(limit))}`,
         requestOptions
       )
     );
@@ -1455,7 +1455,7 @@ export const create = (options = {}) => {
    * @param {RequestOptions} [requestOptions]
    */
   const getConfig = async (requestOptions = {}) =>
-    adaptConfigEnvelope(await request('/admin/config', {
+    adaptConfigEnvelope(await request('/shuma/admin/config', {
       ...requestOptions,
       cache: 'no-store'
     }));
@@ -1464,7 +1464,7 @@ export const create = (options = {}) => {
    * @param {RequestOptions} [requestOptions]
    */
   const getOperatorSnapshot = async (requestOptions = {}) =>
-    adaptOperatorSnapshot(await request('/admin/operator-snapshot', {
+    adaptOperatorSnapshot(await request('/shuma/admin/operator-snapshot', {
       ...requestOptions,
       cache: 'no-store'
     }));
@@ -1473,7 +1473,7 @@ export const create = (options = {}) => {
    * @param {RequestOptions} [requestOptions]
    */
   const getOversightHistory = async (requestOptions = {}) =>
-    adaptOversightHistory(await request('/admin/oversight/history', {
+    adaptOversightHistory(await request('/shuma/admin/oversight/history', {
       ...requestOptions,
       cache: 'no-store'
     }));
@@ -1482,7 +1482,7 @@ export const create = (options = {}) => {
    * @param {RequestOptions} [requestOptions]
    */
   const getOversightAgentStatus = async (requestOptions = {}) =>
-    adaptOversightAgentStatus(await request('/admin/oversight/agent/status', {
+    adaptOversightAgentStatus(await request('/shuma/admin/oversight/agent/status', {
       ...requestOptions,
       cache: 'no-store'
     }));
@@ -1491,7 +1491,7 @@ export const create = (options = {}) => {
    * @param {RequestOptions} [requestOptions]
    */
   const getAdversarySimStatus = async (requestOptions = {}) =>
-    adaptAdversarySimStatus(await request('/admin/adversary-sim/status', {
+    adaptAdversarySimStatus(await request('/shuma/admin/adversary-sim/status', {
       ...requestOptions,
       cache: 'no-store'
     }));
@@ -1505,7 +1505,7 @@ export const create = (options = {}) => {
     const limit = Number.isFinite(options.limit) ? Number(options.limit) : 10;
     return adaptMonitoring(
       await request(
-        `/admin/monitoring?hours=${encodeURIComponent(String(hours))}&limit=${encodeURIComponent(String(limit))}`,
+        `/shuma/admin/monitoring?hours=${encodeURIComponent(String(hours))}&limit=${encodeURIComponent(String(limit))}`,
         requestOptions
       )
     );
@@ -1520,7 +1520,7 @@ export const create = (options = {}) => {
     const limit = Number.isFinite(options.limit) ? Number(options.limit) : 10;
     return adaptMonitoring(
       await request(
-        `/admin/monitoring?hours=${encodeURIComponent(String(hours))}&limit=${encodeURIComponent(String(limit))}&bootstrap=1`,
+        `/shuma/admin/monitoring?hours=${encodeURIComponent(String(hours))}&limit=${encodeURIComponent(String(limit))}&bootstrap=1`,
         requestOptions
       )
     );
@@ -1533,7 +1533,7 @@ export const create = (options = {}) => {
   const getMonitoringDelta = async (options = {}, requestOptions = {}) =>
     adaptCursorDelta(
       await request(
-        buildCursorPath('/admin/monitoring/delta', options),
+        buildCursorPath('/shuma/admin/monitoring/delta', options),
         requestOptions
       )
     );
@@ -1545,7 +1545,7 @@ export const create = (options = {}) => {
   const getIpBansDelta = async (options = {}, requestOptions = {}) =>
     adaptCursorDelta(
       await request(
-        buildCursorPath('/admin/ip-bans/delta', options),
+        buildCursorPath('/shuma/admin/ip-bans/delta', options),
         requestOptions
       )
     );
@@ -1554,13 +1554,13 @@ export const create = (options = {}) => {
    * @param {{hours?: number, limit?: number, after_cursor?: string}} [options]
    */
   const getMonitoringStreamUrl = (options = {}) =>
-    buildEventStreamUrl('/admin/monitoring/stream', options);
+    buildEventStreamUrl('/shuma/admin/monitoring/stream', options);
 
   /**
    * @param {{hours?: number, limit?: number, after_cursor?: string}} [options]
    */
   const getIpBansStreamUrl = (options = {}) =>
-    buildEventStreamUrl('/admin/ip-bans/stream', options);
+    buildEventStreamUrl('/shuma/admin/ip-bans/stream', options);
 
   /**
    * @param {{hours?: number, limit?: number}} [options]
@@ -1571,7 +1571,7 @@ export const create = (options = {}) => {
     const limit = Number.isFinite(options.limit) ? Number(options.limit) : 20;
     return adaptIpRangeSuggestions(
       await request(
-        `/admin/ip-range/suggestions?hours=${encodeURIComponent(String(hours))}&limit=${encodeURIComponent(String(limit))}`,
+        `/shuma/admin/ip-range/suggestions?hours=${encodeURIComponent(String(hours))}&limit=${encodeURIComponent(String(limit))}`,
         requestOptions
       )
     );
@@ -1584,14 +1584,14 @@ export const create = (options = {}) => {
   const getRobotsPreview = async (previewPatch = null, requestOptions = {}) => {
     if (previewPatch && typeof previewPatch === 'object' && !Array.isArray(previewPatch)) {
       return adaptRobots(
-        await request('/admin/robots/preview', {
+        await request('/shuma/admin/robots/preview', {
           ...requestOptions,
           method: 'POST',
           json: previewPatch
         })
       );
     }
-    return adaptRobots(await request('/admin/robots', requestOptions));
+    return adaptRobots(await request('/shuma/admin/robots', requestOptions));
   };
 
   /**
@@ -1600,7 +1600,7 @@ export const create = (options = {}) => {
    */
   const updateConfig = async (configPatch, requestOptions = {}) => {
     const payload = asRecord(
-      await request('/admin/config', {
+      await request('/shuma/admin/config', {
         ...requestOptions,
         method: 'POST',
         json: configPatch
@@ -1620,7 +1620,7 @@ export const create = (options = {}) => {
    */
   const validateConfigPatch = async (configPatch, requestOptions = {}) =>
     adaptConfigValidation(
-      await request('/admin/config/validate', {
+      await request('/shuma/admin/config/validate', {
         ...requestOptions,
         method: 'POST',
         json: configPatch
@@ -1645,7 +1645,7 @@ export const create = (options = {}) => {
       };
     const idempotencyKey = newIdempotencyKey();
     const payload = asRecord(
-      await request('/admin/adversary-sim/control', {
+      await request('/shuma/admin/adversary-sim/control', {
         ...requestOptions,
         method: 'POST',
         headers: {
@@ -1673,7 +1673,7 @@ export const create = (options = {}) => {
    * @param {RequestOptions} [requestOptions]
    */
   const banIp = async (ip, duration, reason = 'manual_ban', requestOptions = {}) =>
-    request('/admin/ban', {
+    request('/shuma/admin/ban', {
       ...requestOptions,
       method: 'POST',
       json: {
@@ -1688,7 +1688,7 @@ export const create = (options = {}) => {
    * @param {RequestOptions} [requestOptions]
    */
   const unbanIp = async (ip, requestOptions = {}) =>
-    request(`/admin/unban?ip=${encodeURIComponent(String(ip || ''))}`, {
+    request(`/shuma/admin/unban?ip=${encodeURIComponent(String(ip || ''))}`, {
       ...requestOptions,
       method: 'POST'
     });
