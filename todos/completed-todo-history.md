@@ -4,6 +4,25 @@ Moved from active TODO files on 2026-02-14.
 
 ## Additional completions (2026-03-31)
 
+### Adversary Realism Reprioritisation Ahead Of Game Loop And Tuning
+
+- [x] Completed the backlog and roadmap reprioritisation slice across:
+  - [`../todos/todo.md`](../todos/todo.md)
+  - [`../todos/blocked-todo.md`](../todos/blocked-todo.md)
+  - [`../docs/plans/2026-03-20-mature-adversary-sim-evolution-roadmap.md`](../docs/plans/2026-03-20-mature-adversary-sim-evolution-roadmap.md)
+  - [`../docs/plans/2026-03-16-pre-launch-roadmap-gap-capture-and-sequencing.md`](../docs/plans/2026-03-16-pre-launch-roadmap-gap-capture-and-sequencing.md)
+- [x] What landed:
+  - the active backlog now makes the remaining realism chain `SIM-REALISM-2F..2J` the hard prerequisite ahead of later Game Loop or Tuning execution,
+  - later Game Loop work (`RSI-GAME-HO-2A3`, `RSI-GAME-ARCH-1E`, and `RSI-GAME-BOARD-1`) now lives in the blocked backlog with explicit realism blockers instead of sitting in the execution-ready queue,
+  - the fresh Tuning realignment chain (`TUNE-SURFACE-2`, `TUNE-SURFACE-2A`, `TUNE-SURFACE-2B`, `TUNE-BAN-1`, and `TUNE-BAN-2`) is now likewise blocked until the attacker model becomes representative enough for loop tuning to be meaningful,
+  - and the sequencing docs now state plainly that no further Game Loop or Tuning work should proceed while the realism chain still falls short on exploration depth, frontier truth, richer root-host public terrain, and trusted-ingress identity realism.
+- [x] Why:
+  - the active backlog was still implying that later Game Loop and Tuning work were execution-ready even though the user had concluded, correctly, that the attacker model is still underpowered for those later controller and tuning tranches,
+  - and the roadmap needed to stop sending mixed signals about what is actually safe to advance next.
+- [x] Evidence:
+  - docs-only hygiene proof via `git diff --check`
+  - tests intentionally skipped because this slice changes roadmap and backlog truth only
+
 ### Local Contributor Root Access Guardrails For Focused Browser Flows
 
 - [x] Completed the local contributor root-access hardening slice across:

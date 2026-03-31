@@ -1,21 +1,21 @@
 # Blocked TODO Roadmap
 
-Last updated: 2026-03-30
+Last updated: 2026-03-31
 
 This file holds gated, contingent, or explicitly deferred work that is not execution-ready.
 Move an item back into `todos/todo.md` only when its blocking condition is cleared.
 Completed work lives in `todos/completed-todo-history.md`.
 Security finding validity and closure status live in `todos/security-review.md`.
 
-## P0 Blocked by Shared-Host Discovery and Runtime-Safety Gates
+## P0 Blocked by Remaining Adversary Realism and Mixed-Attacker Readiness
 
 - [ ] RSI-GAME-HO-2 Re-run the strict `human_only_private` Game Loop under combined Scrapling plus LLM attacker pressure.
   Blocker: `SIM-LLM-1C3` is now landed, so missing LLM runtime visibility is no longer the blocker. Keep this tranche blocked until the combined-attacker architecture frozen in [`../docs/research/2026-03-28-rsi-game-ho-2-combined-attacker-architecture-gap-review.md`](../docs/research/2026-03-28-rsi-game-ho-2-combined-attacker-architecture-gap-review.md) and [`../docs/plans/2026-03-28-rsi-game-ho-2-combined-attacker-orchestration-plan.md`](../docs/plans/2026-03-28-rsi-game-ho-2-combined-attacker-orchestration-plan.md) is approved and landed. The real blocker is now:
   - controller-grade restriction scoring is still mostly Scrapling-native,
   - LLM runtime receipts are visible but not yet board-locus or restriction-grade breach receipts,
-  - mixed-attacker pressure is not yet representative while the lane-realism chains remain open, because `bot_red_team` browser-mode still does not emit real sessions, the current lanes still need profile-driven cadence and burst work, and the later field-grounded chain still needs to land pressure-envelope, identity, transport, background-browser, and recurrence realism,
+  - mixed-attacker pressure is not yet representative while the remaining lane-realism chains remain open, because the current lanes still need per-persona exploration depth, traversal-frontier truth, richer public-terrain discoverability, trusted-ingress IP realism, and explicit degraded-identity labeling in `SIM-REALISM-2F..2J`,
   - mixed-attacker judged-episode truth still needs to be projected through operator/admin and Game Loop surfaces instead of inferred from recent-run coincidence.
-  This second strict-baseline tranche must prove repeated retained config-change improvement toward the strict target with both Scrapling and LLM attacker runs included in the loop before any later relaxed verified-identity sweep opens.
+  This second strict-baseline tranche must prove repeated retained config-change improvement toward the strict target with both Scrapling and LLM attacker runs included in the loop before any later relaxed verified-identity sweep opens. Do not resume later Game Loop or Tuning implementation while `SIM-REALISM-2F..2J` remain open.
   - Closure gate:
     - representativeness: both lanes must emit receipt-backed representative pressure rather than merely appear in recent runs
     - runtime/config: both Scrapling and the later LLM attacker contribute pressure under `human_only_private`, recommendations become bounded config changes, later mixed-attacker runs occur against changed config, and repeated retained changes show positive movement toward the strict target
@@ -24,13 +24,59 @@ Security finding validity and closure status live in `todos/security-review.md`.
     - proof: focused `make` paths must pass for mixed-attacker repeated-cycle proof
     - insufficient: one mixed handoff, both lanes merely appearing in recent runs, non-executing agentic browser mode, or lack of repeated retained improvement under the strict stance
 
+- [ ] RSI-GAME-HO-2A3 Project mixed-attacker judged-episode truth through operator/admin and Game Loop surfaces.
+  Blocker: keep blocked until `SIM-REALISM-2F..2J` are landed and `RSI-GAME-HO-2` is ready to prove mixed-attacker pressure against representative lanes rather than recent-run coincidence. This projection work should not move ahead while attacker pressure still falls short on burst rate, traversal depth or frontier truth, and trusted-ingress identity realism.
+  - Reference context:
+    - [`../docs/research/2026-03-28-rsi-game-ho-2-combined-attacker-architecture-gap-review.md`](../docs/research/2026-03-28-rsi-game-ho-2-combined-attacker-architecture-gap-review.md)
+    - [`../docs/research/2026-03-28-rsi-game-ho-2a2-mixed-attacker-restriction-score-spine-post-implementation-review.md`](../docs/research/2026-03-28-rsi-game-ho-2a2-mixed-attacker-restriction-score-spine-post-implementation-review.md)
+    - [`../docs/plans/2026-03-28-rsi-game-ho-2-combined-attacker-orchestration-plan.md`](../docs/plans/2026-03-28-rsi-game-ho-2-combined-attacker-orchestration-plan.md)
+
+- [ ] RSI-GAME-ARCH-1E Retire replaced category-first Game Loop surfaces only after full-path replacement proof.
+  Blocker: keep blocked until the remaining adversary-realism chain and mixed-attacker judged-episode truth are landed. Retiring or simplifying Game Loop surfaces before representative attacker pressure exists would lock in the wrong observer contract and encourage false closure on replacement proof.
+  - Reference context:
+    - [`../docs/research/2026-03-27-game-loop-architecture-alignment-gap-review.md`](../docs/research/2026-03-27-game-loop-architecture-alignment-gap-review.md)
+    - [`../docs/plans/2026-03-27-game-loop-architecture-alignment-and-retirement-plan.md`](../docs/plans/2026-03-27-game-loop-architecture-alignment-and-retirement-plan.md)
+
+- [ ] RSI-GAME-BOARD-1 Refactor Game Loop around board-state doctrine and shared-path sim truth.
+  Blocker: keep blocked until `SIM-REALISM-2F..2J` are landed and mixed-attacker judged-episode projection exists. The board-state doctrine should not be finalized against underpowered traversal, incomplete frontier truth, or degraded IP realism.
+  - Reference context:
+    - [`../docs/research/2026-03-27-game-loop-board-state-and-shared-path-truth-review.md`](../docs/research/2026-03-27-game-loop-board-state-and-shared-path-truth-review.md)
+    - [`../docs/plans/2026-03-27-game-loop-board-state-refactor-plan.md`](../docs/plans/2026-03-27-game-loop-board-state-refactor-plan.md)
+
 - [ ] RSI-GAME-HV-1 Run the later `humans_plus_verified_only` sweep.
   Blocker: keep blocked until `RSI-GAME-HO-2` proves repeated retained improvement under the strict `human_only_private` baseline with both Scrapling and LLM attacker pressure. The strict Scrapling-only prerequisites are now satisfied, and the LLM runtime is now visible, but do not open this looser stance merely because one bounded Scrapling loop works, because both lanes merely appear in recent runs, or because verified identity exists.
 
 - [ ] SIM-SCR-CHALLENGE-2C Follow on only if later evidence shows the adopted browser or stealth Scrapling runtime is still insufficient for a Scrapling-owned surface.
   Blocker: do not use this item to defer attacker-relevant Scrapling browser or stealth power that materially increases attacks on Shuma's current owned surfaces; that work belongs in active `SIM-SCR-FULL-1A` and `SIM-SCR-FULL-1B`. Reopen this item only for residual post-matrix follow-on work once the active full-spectrum Scrapling tranche has already ratified and implemented the capabilities that materially strengthen current attacks. Keep it bounded to Scrapling-owned surfaces and require runtime, receipt, and deploy proof rather than upstream capability claims alone.
 
-## P1 Blocked by Roadmap Reprioritisation After Deployment Baseline
+## P1 Blocked by Adversary Realism Or Roadmap Reprioritisation After Deployment Baseline
+
+- [ ] TUNE-SURFACE-2 Write a fresh Tuning-tab research and implementation plan around editable cost-shaping controls only.
+  Blocker: keep blocked until `SIM-REALISM-2F..2J` are landed and the strict mixed-attacker Game Loop proof resumes, because `Tuning` must be planned against representative adversary pressure rather than underpowered traversal, incomplete frontier truth, or degraded identity realism.
+  - Reference context:
+    - [`../docs/dashboard-tabs/tuning.md`](../docs/dashboard-tabs/tuning.md)
+    - [`../docs/research/2026-03-24-controller-tunable-config-surface-and-hard-boundaries-review.md`](../docs/research/2026-03-24-controller-tunable-config-surface-and-hard-boundaries-review.md)
+
+- [ ] TUNE-SURFACE-2A Expand `Tuning` to the full currently ratified editable controller-tunable ring.
+  Blocker: keep blocked until the remaining realism chain closes and the Game Loop can truthfully optimize against representative attacker evidence. Do not widen loop-editable controls while the attacker model still falls short on burst rate, traversal depth, and realistic IP posture.
+  - Reference context:
+    - [`../docs/dashboard-tabs/tuning.md`](../docs/dashboard-tabs/tuning.md)
+    - [`../docs/research/2026-03-24-controller-tunable-config-surface-and-hard-boundaries-review.md`](../docs/research/2026-03-24-controller-tunable-config-surface-and-hard-boundaries-review.md)
+
+- [ ] TUNE-SURFACE-2B Move editable fingerprint sensitivity controls into `Tuning` and narrow `Fingerprinting` to source or provider posture only.
+  Blocker: keep blocked with `TUNE-SURFACE-2A`; the tab split should not be finalized until the bounded tuning ring is reopened on top of representative adversary pressure.
+  - Reference context:
+    - [`../docs/dashboard-tabs/fingerprinting.md`](../docs/dashboard-tabs/fingerprinting.md)
+    - [`../docs/research/2026-03-24-controller-tunable-config-surface-and-hard-boundaries-review.md`](../docs/research/2026-03-24-controller-tunable-config-surface-and-hard-boundaries-review.md)
+
+- [ ] TUNE-BAN-1 Design bounded ban-behavior tuning primitives for recurrence, re-entry, and longer-window cost shaping.
+  Blocker: keep blocked until the remaining realism chain closes, because ban-behavior tuning should be designed against representative recurrence, re-entry, traversal, and trusted-ingress identity evidence rather than today’s still-degraded attacker model.
+  - Reference context:
+    - [`../docs/research/2026-03-16-agentic-era-ban-jitter-recidive-and-central-intelligence-research-synthesis.md`](../docs/research/2026-03-16-agentic-era-ban-jitter-recidive-and-central-intelligence-research-synthesis.md)
+    - [`../docs/research/2026-03-24-controller-tunable-config-surface-and-hard-boundaries-review.md`](../docs/research/2026-03-24-controller-tunable-config-surface-and-hard-boundaries-review.md)
+
+- [ ] TUNE-BAN-2 If bounded ban-behavior tuning is ratified, surface those controls in `Tuning` with explicit horizon and mutability labeling.
+  Blocker: keep blocked with `TUNE-BAN-1`; no later ban-behavior tuning surface should ship until the loop is optimizing against representative adversary pressure and the ratified bounded primitives exist.
 
 - [ ] SIM-BREACH-REPLAY-1 External breach to replayable attack pipeline.
   Blocker: defer until the first emergent lanes are producing stable exploit findings, then re-assess replay capture, promotion, retention, and governance against the adopted mature-sim roadmap.

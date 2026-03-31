@@ -222,7 +222,7 @@ Only later, if important non-human traffic persistently falls outside the existi
 
 The next realism gap is no longer whether the lanes own the right categories. It is whether they emit behavior that is characteristic of those categories.
 
-The immediate next execution priority on this roadmap is therefore:
+The adopted execution order on this roadmap is therefore:
 
 1. `SIM-REALISM-1A` profile contract,
 2. `SIM-REALISM-1B` Scrapling pacing realism,
@@ -233,7 +233,14 @@ The immediate next execution priority on this roadmap is therefore:
 7. `SIM-REALISM-2B` identity-envelope realism,
 8. `SIM-REALISM-2C` header and transport-envelope realism,
 9. `SIM-REALISM-2D` browser secondary-traffic realism,
-10. `SIM-REALISM-2E` long-horizon dormancy and recurrence realism.
+10. `SIM-REALISM-2E` long-horizon dormancy and recurrence realism,
+11. `SIM-REALISM-2F` per-persona exploration-envelope realism,
+12. `SIM-REALISM-2G` traversal-frontier receipts and observer truth,
+13. `SIM-REALISM-2H` richer root-host public discoverability without choreography,
+14. `SIM-REALISM-2I` trusted-ingress client-IP realism,
+15. `SIM-REALISM-2J` explicit degraded-identity wording and receipts.
+
+At the current point in that order, the live next step is `SIM-REALISM-2F`. No further Game Loop or Tuning execution should proceed until `SIM-REALISM-2F..2J` are complete, because later loop and tuning work would otherwise optimize against attacker traffic that still falls short on exploration depth, frontier truth, public-terrain richness, and trusted-ingress identity realism.
 
 Before Shuma should describe Scrapling or Agentic Traffic as representative tuning evidence, it should:
 
@@ -244,7 +251,10 @@ Before Shuma should describe Scrapling or Agentic Traffic as representative tuni
 5. unclip the current pressure envelope so request-native lanes can actually reach field-grounded burst shapes,
 6. add truthful identity, geo, and session realism instead of synthetic local session churn,
 7. add coherent header and transport envelopes,
-8. and model background browser traffic plus longer-horizon recurrence.
+8. model background browser traffic plus longer-horizon recurrence,
+9. replace flat discovery caps with per-persona exploration envelopes and traversal-frontier receipts,
+10. make the protected host root substantially richer and more publicly discoverable without hidden route hints,
+11. and restore realistic client-IP posture through trusted ingress rather than local process churn or privileged worker headers.
 
 ## Acceptance Standard For This Roadmap
 

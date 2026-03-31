@@ -108,8 +108,8 @@ Reference context:
 
 Current note:
 - The generated contributor-site chain `SIM-PUBSITE-1A` through `SIM-PUBSITE-1D` is now landed.
-- The next corrective architecture priority is now `ROUTE-NS-1A..1F`: the landed contributor-generated site and current control-plane routes still assume `/sim/public/*` and top-level `/admin|/dashboard|/health|/metrics`, but the corrected architecture is root-hosted public content plus `/shuma/*` for Shuma-owned control and operational surfaces.
-- Do not start new mixed-attacker proof or later tuning-quality work ahead of that resequenced chain unless a higher-severity regression forces an interruption.
+- `ROUTE-NS-1A..1F` is now landed: the generated public-content site is root-hosted, while Shuma-owned dashboard, admin, health, metrics, and internal routes now live under `/shuma/*`.
+- Do not start new mixed-attacker proof or later tuning-quality work ahead of the remaining realism chain unless a higher-severity regression forces an interruption.
 - `SIM-SCR-CHALLENGE-2A`, `SIM-SCR-CHALLENGE-2B`, and `SIM-SCR-CHALLENGE-2D` are landed.
 - `RSI-GAME-1A`, `RSI-GAME-1B`, `RSI-SCORE-1`, and `RSI-GAME-1C` are landed.
 - `RSI-GAME-MAINLINE-1A` and `RSI-GAME-MAINLINE-1B` are landed.
@@ -125,7 +125,7 @@ Current note:
 - The current full-spectrum Scrapling baseline and first working Game Loop proof are now treated as baseline capability, not the unlock condition for later stance relaxation or LLM runtime work.
 - `SIM-SCR-FULL-1` is now landed: full-spectrum Scrapling capability, receipt-backed category and defense-surface truth, controller-grade surface-contract scoring, and the operator truth audit are complete, so the next mainline moves to `RSI-SCORE-2`.
 - `RSI-SCORE-2` is now landed: the judge, diagnoser, move selector, and Game Loop projection now preserve exploit progress, evidence quality, urgency, named breach loci, and config-exhaustion or code-referral truth as separate planes.
-- `RSI-GAME-HO-1` is now landed: the strict `human_only_private` loop is proven on the local `/sim/public/*` surface with live strict-stance runtime checks, post-sim oversight lineage, and repeated retained movement toward zero suspicious leakage.
+- `RSI-GAME-HO-1` is now landed: the strict `human_only_private` loop is proven on the local protected public surface, with live strict-stance runtime checks, post-sim oversight lineage, and repeated retained movement toward zero suspicious leakage.
 - A March 27 accountability slice is now landed: Game Loop category posture rows render honestly as `Unscored` when exact shared-path evidence is missing, exploit loci now carry host-cost channels plus repair-family hints, localized high-confidence exploit progress can now drive bounded config tuning, and the Game Loop page now projects origin leakage, board-state breach progress, and loop actionability as separate planes.
 - The later March 27 architecture clarification now tightens the Game Loop shape further: restriction scoring is the main quest, recognition quality is a separate evaluation quest, simulator-known category labels remain forbidden in runtime and tuning, and abuse-driven confidence escalation is required as the backstop when explicit hostile identity signals stay weak.
 - The remaining immediate Game Loop gaps are therefore no longer just "exact category inference later". They are: vague `Loop Actionability` blocker output, vague `Named Breach Loci`, and a deeper architecture problem where snapshot, benchmark, controller, and dashboard layers still re-entangle recognition evaluation, restriction scoring, and board-state truth through the older family-first model.
@@ -154,9 +154,10 @@ Current note:
 - `SIM-REALISM-2C` is now landed: the shared realism contract now carries a bounded `transport_envelope`, Scrapling and Agentic request-mode emit coherent persona and geo-aligned Accept-Language or user-agent posture instead of pinning everything to one local default, Agentic browser-mode now carries explicit locale and browser-client posture into the Playwright session, and both worker receipt paths preserve the applied transport or locale envelope as observer-only truth.
 - `SIM-REALISM-2D` is now landed: Scrapling browser personas now preserve compact XHR-backed secondary-traffic counts, Agentic browser-mode now preserves compact same-origin request-event secondary-traffic counts, and recent-run plus operator-snapshot read models now distinguish top-level action truth from background or subresource browser activity without bloating hot reads into raw traces. The next active execution priority is now `SIM-REALISM-2E`.
 - `SIM-REALISM-2E` is now landed: adversary lanes now carry bounded recurrence envelopes, planner and worker receipts preserve explicit dormancy and re-entry truth, supervisor dispatch honors recurrence dormancy without misreporting healthy idle windows as stalled generation, and the next active execution priority is now `SIM-REALISM-2F`.
-- `ROUTE-NS-1` is now the immediate corrective architecture chain ahead of the remaining realism work: the generated public-content site must move from `/sim/public/*` to the protected host root, while Shuma-owned control and operational routes move under `/shuma/*`, with no pre-launch compatibility aliases unless explicitly requested.
+- `ROUTE-NS-1` is now landed: the generated public-content site moved from `/sim/public/*` to the protected host root, and Shuma-owned control and operational routes moved under `/shuma/*` with no pre-launch compatibility aliases.
 - `SIM-REALISM-2` is now the explicit follow-on chain after `SIM-REALISM-1D`: the lanes still fall short on trusted-ingress client-IP realism, per-persona exploration depth and frontier realism, compact traversal receipts, richer public discoverability of the dummy surface, explicit degraded identity labeling, and long-horizon recurrence even after the pressure, identity-envelope, transport-envelope, and browser-secondary-traffic tranches landed.
 - Do not treat mere lane execution or recent-run visibility as characteristic attacker pressure while the lanes still lack trusted-ingress identity realism, deeper exploration/frontier truth, root-host public-terrain correctness, and long-horizon recurrence behavior even after browser-mode session execution is real.
+- Remaining adversary realism is now the hard prerequisite for later Game Loop and Tuning work. Until `SIM-REALISM-2F..2J` are landed, keep the later Game Loop refactor or mixed-attacker proof chain and the later Tuning realignment chain blocked rather than execution-ready.
 - Do not open `humans_plus_verified_only` until a later second strict-baseline proof has shown retained config-change improvement under both Scrapling and LLM attacker pressure.
 - `DIAG-CLEANUP-1`, `MON-OVERHAUL-1C`, and `SIM-LLM-1C3` are now all landed, so the later combined-attacker strict-baseline proof is no longer blocked by missing LLM runtime visibility.
 - The real `RSI-GAME-HO-2` blocker is now architectural and explicit:
@@ -233,51 +234,6 @@ Current note:
     - wording truth: UI and docs must describe hashed or bucketed identity values as buckets, not as source IPs
     - proof: add and pass `make test-adversary-sim-identity-observer-truth`, and keep relevant dashboard accountability and machine-contract targets green if rendered wording changes
     - insufficient: continuing to show `unknown` or `h*` values without provenance labeling, or UI copy that implies realistic network identity when only degraded local identity exists
-
-- [ ] RSI-GAME-HO-2A3 Project mixed-attacker judged-episode truth through operator/admin and Game Loop surfaces.
-  - Reference context:
-    - [`docs/research/2026-03-28-rsi-game-ho-2-combined-attacker-architecture-gap-review.md`](../docs/research/2026-03-28-rsi-game-ho-2-combined-attacker-architecture-gap-review.md)
-    - [`docs/research/2026-03-28-rsi-game-ho-2a2-mixed-attacker-restriction-score-spine-post-implementation-review.md`](../docs/research/2026-03-28-rsi-game-ho-2a2-mixed-attacker-restriction-score-spine-post-implementation-review.md)
-    - [`docs/plans/2026-03-28-rsi-game-ho-2-combined-attacker-orchestration-plan.md`](../docs/plans/2026-03-28-rsi-game-ho-2-combined-attacker-orchestration-plan.md)
-  - Closure gate:
-    - snapshot/admin truth: operator snapshot, oversight history, and `/admin/oversight/agent/status` must preserve which lanes contributed to the judged mixed-attacker episode
-    - UI truth: `Red Team` and `Game Loop` must distinguish controller-grade mixed judgment from mere recent lane visibility
-    - wording discipline: rendered copy must not overstate maturity from lane presence or ordered follow-on sequencing alone
-    - proof: focused API or route tests, `make test-dashboard-red-team-truth-basis`, and `make test-dashboard-game-loop-accountability`
-    - insufficient: dashboard visibility of both lanes without judged mixed-episode lineage, or status payloads that still require operators to infer mixed proof from coincidence
-
-- [ ] RSI-GAME-ARCH-1E Retire replaced category-first Game Loop surfaces only after full-path replacement proof.
-  - Reference context:
-    - [`docs/research/2026-03-27-game-loop-architecture-alignment-gap-review.md`](../docs/research/2026-03-27-game-loop-architecture-alignment-gap-review.md)
-    - [`docs/plans/2026-03-27-game-loop-architecture-alignment-and-retirement-plan.md`](../docs/plans/2026-03-27-game-loop-architecture-alignment-and-retirement-plan.md)
-  - Closure gate:
-    - retirement discipline: any now-replaced objective, benchmark family, API field, adapter path, UI section, or doc contract from the old category-first model must be removed or explicitly demoted only after end-to-end replacement proof exists
-    - doc truth: docs, tests, and dashboard copy must stop advertising the retired architecture once the replacement path is live
-    - proof: `make test-benchmark-results-contract`, `make test-dashboard-game-loop-accountability`, `make test`, plus cited full-path evidence for each retired surface
-    - insufficient: calling legacy category-first paths defunct without full-path verification, or leaving replaced architecture active and operator-visible after the new restriction-first rails are shipped
-
-- [ ] RSI-GAME-BOARD-1 Refactor Game Loop around board-state doctrine and shared-path sim truth.
-  - Reference context:
-    - [`docs/research/2026-03-27-game-loop-board-state-and-shared-path-truth-review.md`](../docs/research/2026-03-27-game-loop-board-state-and-shared-path-truth-review.md)
-    - [`docs/research/2026-03-27-game-loop-restriction-recognition-and-abuse-confidence-review.md`](../docs/research/2026-03-27-game-loop-restriction-recognition-and-abuse-confidence-review.md)
-    - [`docs/research/2026-03-27-game-loop-shared-path-locality-and-actionability-post-implementation-review.md`](../docs/research/2026-03-27-game-loop-shared-path-locality-and-actionability-post-implementation-review.md)
-    - [`docs/plans/2026-03-27-game-loop-board-state-refactor-plan.md`](../docs/plans/2026-03-27-game-loop-board-state-refactor-plan.md)
-    - [`docs/plans/2026-03-27-game-loop-restriction-recognition-and-abuse-confidence-plan.md`](../docs/plans/2026-03-27-game-loop-restriction-recognition-and-abuse-confidence-plan.md)
-    - [`docs/plans/2026-03-27-game-loop-scrapling-proof-and-rigor-repair-plan.md`](../docs/plans/2026-03-27-game-loop-scrapling-proof-and-rigor-repair-plan.md)
-    - [`docs/research/2026-03-26-game-loop-terrain-locality-and-breach-diagnosis-review.md`](../docs/research/2026-03-26-game-loop-terrain-locality-and-breach-diagnosis-review.md)
-    - [`docs/research/2026-03-26-strict-human-only-loop-and-human-traversal-calibration-review.md`](../docs/research/2026-03-26-strict-human-only-loop-and-human-traversal-calibration-review.md)
-    - [`docs/plans/2026-03-24-llm-player-role-decomposition-plan.md`](../docs/plans/2026-03-24-llm-player-role-decomposition-plan.md)
-    - [`docs/plans/2026-03-27-ovr-code-1-frontier-llm-code-evolution-ring-plan.md`](../docs/plans/2026-03-27-ovr-code-1-frontier-llm-code-evolution-ring-plan.md)
-    - [`docs/plans/2026-03-27-human-friction-calibration-ring-plan.md`](../docs/plans/2026-03-27-human-friction-calibration-ring-plan.md)
-  - Closure gate:
-    - doctrine: Game Loop docs, scoring, and controller semantics must explicitly treat the host site as the board, Shuma defenses as the movable pieces, and adversary-sim traffic as traffic that shares the same judge path as real traffic
-    - truth path: sim metadata may support harness control or audit only and must not become category truth, exploit truth, or tuning truth
-    - scoring: the loop must preserve distinct planes for origin leakage and human-cost guardrails, terrain breach progress and host cost, surface-contract or tuning-readiness state, and the split between restriction scoring and recognition evaluation
-    - confidence: the loop must treat Shuma confidence as something that accumulates through defense layers and can also rise through short-window abuse pressure when explicit identity signals remain weak
-    - config loop: the controller must preserve failed bounded moves, rollback lineage, and anti-repeat memory tied to named breach loci
-    - later rings: the planning chain for frontier-LLM code suggestions and real-human friction calibration must be explicit and bounded rather than implied
-    - proof: follow the named substep proofs in `docs/plans/2026-03-27-game-loop-board-state-refactor-plan.md`; documentation alignment is sufficient for the planning-only substeps, while runtime or dashboard substeps must name focused `make` proofs
-    - insufficient: aggregate-only pressure readouts with no named breach locus, simulator-side convenience labels in scoring, category posture still acting as the main undeclared-traffic restriction score, repeated near-equivalent failed config moves with no explicit memory, or vague later references to code evolution or human friction with no bounded contract
 
 ## P1 Verified Bot Identity And Web Bot Auth Foundation
 
@@ -445,78 +401,6 @@ Current stance:
     - snapshot truth: operator snapshot and later benchmark/readiness surfaces must show the richer confidence basis without overstating exact inference
     - proof: add and pass `make test-category-labeling-signals`, `make test-traffic-classification-contract`, and `make test-benchmark-results-contract`
     - insufficient: silent heuristic drift, simulator-only confidence boosts, or exact category rows that cannot be explained through receipt evidence families
-
-## P1 Tuning Surface Realignment
-
-Reference context:
-- [`docs/dashboard-tabs/tuning.md`](../docs/dashboard-tabs/tuning.md)
-- [`docs/dashboard-tabs/fingerprinting.md`](../docs/dashboard-tabs/fingerprinting.md)
-- [`docs/research/2026-03-24-controller-tunable-config-surface-and-hard-boundaries-review.md`](../docs/research/2026-03-24-controller-tunable-config-surface-and-hard-boundaries-review.md)
-- [`docs/research/2026-03-16-agentic-era-ban-jitter-recidive-and-central-intelligence-research-synthesis.md`](../docs/research/2026-03-16-agentic-era-ban-jitter-recidive-and-central-intelligence-research-synthesis.md)
-- [`docs/research/2026-02-16-fingerprinting-research-synthesis.md`](../docs/research/2026-02-16-fingerprinting-research-synthesis.md)
-
-Current stance:
-- Keep this chain behind the current `SIM-REALISM-1A..1D` execution priority unless the user explicitly reprioritizes it or a higher-severity regression interrupts that work.
-- `Tuning` should surface editable cost-shaping controls only; do not turn it into a mixed read-only diagnostics or explanation tab.
-- `Tuning` should distinguish bounded loop-tunable controls from any future manual-only cost-shaping controls, but it must not present hard-`never` trust-boundary or provider-topology settings as if they are tuning knobs.
-- Future ban-behavior tuning should begin with bounded jitter, repeat-offender, decay, and promotion controls rather than blindly exposing raw `ban_durations.*` as first-class loop moves.
-
-- [ ] TUNE-SURFACE-2 Write a fresh Tuning-tab research and implementation plan around editable cost-shaping controls only.
-  - Reference context:
-    - [`docs/research/2026-03-24-controller-tunable-config-surface-and-hard-boundaries-review.md`](../docs/research/2026-03-24-controller-tunable-config-surface-and-hard-boundaries-review.md)
-    - [`docs/research/2026-03-16-agentic-era-ban-jitter-recidive-and-central-intelligence-research-synthesis.md`](../docs/research/2026-03-16-agentic-era-ban-jitter-recidive-and-central-intelligence-research-synthesis.md)
-    - [`docs/research/2026-02-16-fingerprinting-research-synthesis.md`](../docs/research/2026-02-16-fingerprinting-research-synthesis.md)
-  - Closure gate:
-    - contract truth: the new research and plan must define `Tuning` as an editable cost-shaping surface, not a read-only explanation surface
-    - ownership truth: the plan must explicitly separate `controller_tunable`, future `manual_only` cost-shaping, and hard-`never` trust-topology or authorization policy
-    - horizon truth: the plan must distinguish short-window loop tuning from slower re-entry and recurrence tuning over longer evidence windows
-    - proof: add new research and plan docs, update any affected roadmap or dashboard-tab docs, and keep `git diff --check` clean
-    - insufficient: reviving the retired March 23-24 chain verbatim, or treating raw sanction-policy values as tuning without fresh mutability justification
-
-- [ ] TUNE-SURFACE-2A Expand `Tuning` to the full currently ratified editable controller-tunable ring.
-  - Reference context:
-    - [`docs/research/2026-03-24-controller-tunable-config-surface-and-hard-boundaries-review.md`](../docs/research/2026-03-24-controller-tunable-config-surface-and-hard-boundaries-review.md)
-    - [`docs/dashboard-tabs/tuning.md`](../docs/dashboard-tabs/tuning.md)
-  - Closure gate:
-    - surface truth: `Tuning` must expose editable controls for the current bounded tuning ring rather than only the narrow botness-threshold subset
-    - scope truth: the surfaced controls must cover the ratified tuning families that materially shape hostile cost or human friction, including `js_required`, `proof_of_work`, `challenge`, `not_a_bot`, `maze` rollout, `cdp_detection`, current botness thresholds and weights, and the in-bounds fingerprint sensitivity controls
-    - UI truth: the tab must remain editable-only and must not embed read-only signal inventories or runtime-definition furniture inside the main tuning surface
-    - proof: add and pass focused dashboard coverage through `make test-dashboard-policy-pane-ownership`, keep `make test-dashboard-config-surface-contract`, `make test-controller-mutability-policy`, and `make test-controller-action-surface` green, and update `docs/dashboard-tabs/tuning.md`
-    - insufficient: moving labels without wiring save semantics, or expanding the tab with controls that are still outside the ratified bounded ring
-
-- [ ] TUNE-SURFACE-2B Move editable fingerprint sensitivity controls into `Tuning` and narrow `Fingerprinting` to source or provider posture only.
-  - Reference context:
-    - [`docs/dashboard-tabs/fingerprinting.md`](../docs/dashboard-tabs/fingerprinting.md)
-    - [`docs/research/2026-03-24-controller-tunable-config-surface-and-hard-boundaries-review.md`](../docs/research/2026-03-24-controller-tunable-config-surface-and-hard-boundaries-review.md)
-    - [`docs/research/2026-02-16-fingerprinting-research-synthesis.md`](../docs/research/2026-02-16-fingerprinting-research-synthesis.md)
-  - Closure gate:
-    - ownership truth: editable fingerprint sensitivity knobs must live with the other bounded cost-shaping controls in `Tuning`
-    - boundary truth: provider-topology and edge-trust controls such as `provider_backends.fingerprint_signal` and `edge_integration_mode` must stay out of `Tuning`
-    - UI truth: `Fingerprinting` must stop presenting a misleading read-only ownership boundary for knobs that are actually editable elsewhere
-    - proof: add and pass focused dashboard coverage through `make test-dashboard-policy-pane-ownership`, keep `make test-dashboard-config-surface-contract` and `make test-controller-hard-boundaries` green, and update `docs/dashboard-tabs/tuning.md` plus `docs/dashboard-tabs/fingerprinting.md`
-    - insufficient: duplicating the same fingerprint knobs across tabs, or moving trust-topology controls into `Tuning`
-
-- [ ] TUNE-BAN-1 Design bounded ban-behavior tuning primitives for recurrence, re-entry, and longer-window cost shaping.
-  - Reference context:
-    - [`docs/research/2026-03-16-agentic-era-ban-jitter-recidive-and-central-intelligence-research-synthesis.md`](../docs/research/2026-03-16-agentic-era-ban-jitter-recidive-and-central-intelligence-research-synthesis.md)
-    - [`docs/research/2026-03-24-controller-tunable-config-surface-and-hard-boundaries-review.md`](../docs/research/2026-03-24-controller-tunable-config-surface-and-hard-boundaries-review.md)
-  - Closure gate:
-    - design truth: the research and plan must evaluate bounded jitter bands, repeat-offender ladders, decay windows, and promotion thresholds as candidate tuning primitives for recurring non-human traffic
-    - boundary truth: the design must explicitly justify whether any part of ban behavior should move from hard-`never` to `manual_only` or `controller_tunable`, and it must not assume raw `ban_durations.*` become loop knobs by default
-    - horizon truth: the work must define which ban-behavior knobs require longer evidence windows than the current short loop runs and how those windows remain observable and rollback-safe
-    - proof: add new research and plan docs, update roadmap or TODO sequencing if the execution order changes, and keep `git diff --check` clean
-    - insufficient: equating "ban durations matter" with "all ban durations should move into `Tuning`", or leaving recurrence tuning undefined beyond vague longer-window language
-
-- [ ] TUNE-BAN-2 If bounded ban-behavior tuning is ratified, surface those controls in `Tuning` with explicit horizon and mutability labeling.
-  - Reference context:
-    - [`docs/research/2026-03-16-agentic-era-ban-jitter-recidive-and-central-intelligence-research-synthesis.md`](../docs/research/2026-03-16-agentic-era-ban-jitter-recidive-and-central-intelligence-research-synthesis.md)
-    - the future plan produced by `TUNE-BAN-1`
-  - Closure gate:
-    - surface truth: only the ratified bounded ban-behavior knobs, such as jitter width, repeat-offender multipliers, decay windows, or promotion thresholds, may appear in `Tuning`
-    - labeling truth: the UI must clearly distinguish short-window loop-tunable controls from longer-window or manual-review controls so operators do not mistake time-horizon semantics
-    - safety truth: any new ban-behavior controls must preserve auditability, rollback explainability, and explicit protection against synchronized expiry or punitive overreach
-    - proof: add and pass focused dashboard coverage through `make test-dashboard-policy-pane-ownership`, keep `make test-controller-mutability-policy`, `make test-controller-action-surface`, and the focused ban-behavior verification target added by the tranche green, and update the relevant dashboard-tab docs
-    - insufficient: exposing raw family base durations as the first shipped loop knobs, or shipping longer-window controls without proof of observability and rollback semantics
 
 ## P2 Hardening and Coverage
 
