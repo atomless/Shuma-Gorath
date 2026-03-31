@@ -4,6 +4,26 @@ Moved from active TODO files on 2026-02-14.
 
 ## Additional completions (2026-03-31)
 
+### Local Contributor Root Access Cleanup After Full Suite
+
+- [x] Completed the local contributor post-suite cleanup fix across:
+  - [`../Makefile`](../Makefile)
+  - [`../scripts/tests/integration.sh`](../scripts/tests/integration.sh)
+  - [`../scripts/tests/test_integration_cleanup.py`](../scripts/tests/test_integration_cleanup.py)
+  - [`../docs/testing.md`](../docs/testing.md)
+  - [`../docs/quick-reference.md`](../docs/quick-reference.md)
+- [x] What landed:
+  - `make test` now clears loopback-style bans for `127.0.0.1`, `::1`, and `unknown` before the final dashboard reseed,
+  - the integration harness cleanup also clears `unknown`, so local direct-browser identity does not survive test flows as a stale ban target,
+  - and the cleanup contract now has focused proof for both the full-suite ordering and the exact local identity triplet covered by the cleanup target.
+- [x] Why:
+  - the route-namespace/root-site migration had been declared complete without proving the contributor handoff after `make test`,
+  - and the suite could leave a stale `unknown` ban behind, which caused ordinary local browser visits to `/` to hit `Access Blocked` even though the root-hosted site itself was not broken.
+- [x] Evidence:
+  - `make test-integration-cleanup-contract`
+  - `make test`
+  - live post-suite check: `curl -i http://127.0.0.1:3000/` returned the normal verification interstitial instead of the honeypot block page, and `/shuma/admin/ban?active=true` returned no active bans
+
 ### SIM-REALISM-2E Add Long-Horizon Dormancy, Recurrence, And Re-Entry Realism
 
 - [x] Completed the bounded recurrence realism tranche across:

@@ -4,6 +4,7 @@ import unittest
 
 REPO_ROOT = pathlib.Path(__file__).resolve().parents[2]
 INTEGRATION_SCRIPT = REPO_ROOT / "scripts" / "tests" / "integration.sh"
+MAKEFILE = REPO_ROOT / "Makefile"
 
 
 class IntegrationCleanupContractTests(unittest.TestCase):
@@ -32,6 +33,32 @@ class IntegrationCleanupContractTests(unittest.TestCase):
         self.assertIn('"${TARPIT_BURST_IPS[@]}"', source)
         self.assertIn('info "Clearing tarpit integration test IPs..."', source)
         self.assertIn('for ip in "${TEST_TARPIT_IP}" "${TEST_TARPIT_TAMPER_IP}" "${TARPIT_BURST_IPS[@]}"; do', source)
+
+    def test_cleanup_contract_clears_unknown_loopback_identity(self):
+        source = INTEGRATION_SCRIPT.read_text(encoding="utf-8")
+        cleanup_start = source.index("TEST_CLEANUP_IPS=(")
+        cleanup_end = source.index(")", cleanup_start)
+        cleanup_block = source[cleanup_start:cleanup_end]
+        self.assertIn("unknown", cleanup_block)
+
+    def test_full_suite_clears_loopback_bans_before_final_seed_snapshot(self):
+        source = MAKEFILE.read_text(encoding="utf-8")
+        test_target_start = source.index("test: ## Run the canonical local/CI pre-merge suite")
+        test_target_end = source.index("\ntest-unit:", test_target_start)
+        test_target_body = source[test_target_start:test_target_end]
+        self.assertIn("clear-dev-loopback-bans", test_target_body)
+        self.assertLess(
+            test_target_body.index("clear-dev-loopback-bans"),
+            test_target_body.index("seed-dashboard-data"),
+        )
+
+    def test_loopback_cleanup_target_covers_local_identity_triplet(self):
+        source = MAKEFILE.read_text(encoding="utf-8")
+        target_start = source.index("clear-dev-loopback-bans:")
+        target_end = source.index("\nseed-dashboard-data:", target_start)
+        target_body = source[target_start:target_end]
+        self.assertIn("for ip in 127.0.0.1 ::1 unknown; do", target_body)
+        self.assertIn('/shuma/admin/unban?ip=$$ip', target_body)
 
 
 if __name__ == "__main__":

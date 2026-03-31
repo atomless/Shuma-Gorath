@@ -311,6 +311,7 @@ curl -H "X-Forwarded-For: 1.2.3.4" \
 ### 🐙 Tests Failing
 - Use Makefile targets (`make test`, `make test-unit`, `make test-dashboard-unit`, `make test-integration`, `make test-dashboard-e2e`)
 - `make test` waits for existing Spin readiness (`/shuma/health`) and requires the running server to report `runtime-dev`
+- `make test` now clears local loopback-style bans (`127.0.0.1`, `::1`, `unknown`) before the final dashboard reseed so a contributor browser is not left on a stale local block after the suite
 - `make dev-prod` is for prod-like localhost observation; stop it and restart with `make dev` before `make test`
 - If startup is slow, increase wait timeout: `make test SPIN_READY_TIMEOUT_SECONDS=180`
 - Check logs with `make logs`

@@ -4,6 +4,7 @@
 
 ```bash
 make test             # Full umbrella suite: unit + canonical maze verification gate + Spin integration + adversary runtime-surface gate + mandatory fast adversarial matrix + SIM2 advisory gates + dashboard e2e
+make clear-dev-loopback-bans # Clear local loopback-style bans (127.0.0.1, ::1, unknown) from a running dev server
 make test-unit        # Unit tests only (native Rust)
 make unit-test        # alias for make test-unit
 make test-native-build-warning-hygiene # Focused native Rust compile gate with warnings treated as errors

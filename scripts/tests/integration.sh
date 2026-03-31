@@ -96,6 +96,7 @@ is_generated_public_site_response() {
 
 BASE_URL="http://127.0.0.1:3000"
 TEST_CLEANUP_IPS=(
+  unknown
   127.0.0.1
   "${TEST_HONEYPOT_IP}"
   10.0.0.99
