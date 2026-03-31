@@ -108,7 +108,7 @@ Reference context:
 
 Current note:
 - The generated contributor-site chain `SIM-PUBSITE-1A` through `SIM-PUBSITE-1D` is now landed.
-- The immediate next execution priority is now the remaining realism chain with `SIM-REALISM-1D`.
+- The next corrective architecture priority is now `ROUTE-NS-1A..1F`: the landed contributor-generated site and current control-plane routes still assume `/sim/public/*` and top-level `/admin|/dashboard|/health|/metrics`, but the corrected architecture is root-hosted public content plus `/shuma/*` for Shuma-owned control and operational surfaces.
 - Do not start new mixed-attacker proof or later tuning-quality work ahead of that resequenced chain unless a higher-severity regression forces an interruption.
 - `SIM-SCR-CHALLENGE-2A`, `SIM-SCR-CHALLENGE-2B`, and `SIM-SCR-CHALLENGE-2D` are landed.
 - `RSI-GAME-1A`, `RSI-GAME-1B`, `RSI-SCORE-1`, and `RSI-GAME-1C` are landed.
@@ -153,8 +153,9 @@ Current note:
 - `SIM-REALISM-2B` is now landed: Scrapling and Agentic Traffic now carry a bounded identity-envelope contract, planners can emit pool-backed request or browser identities, and observer-only realism receipts now distinguish `pool_backed`, `fixed_proxy`, and `degraded_local` identity posture without leaking simulator provenance into Shuma defence truth.
 - `SIM-REALISM-2C` is now landed: the shared realism contract now carries a bounded `transport_envelope`, Scrapling and Agentic request-mode emit coherent persona and geo-aligned Accept-Language or user-agent posture instead of pinning everything to one local default, Agentic browser-mode now carries explicit locale and browser-client posture into the Playwright session, and both worker receipt paths preserve the applied transport or locale envelope as observer-only truth.
 - `SIM-REALISM-2D` is now landed: Scrapling browser personas now preserve compact XHR-backed secondary-traffic counts, Agentic browser-mode now preserves compact same-origin request-event secondary-traffic counts, and recent-run plus operator-snapshot read models now distinguish top-level action truth from background or subresource browser activity without bloating hot reads into raw traces. The next active execution priority is now `SIM-REALISM-2E`.
+- `ROUTE-NS-1` is now the immediate corrective architecture chain ahead of the remaining realism work: the generated public-content site must move from `/sim/public/*` to the protected host root, while Shuma-owned control and operational routes move under `/shuma/*`, with no pre-launch compatibility aliases unless explicitly requested.
 - `SIM-REALISM-2` is now the explicit follow-on chain after `SIM-REALISM-1D`: the lanes still fall short on trusted-ingress client-IP realism, per-persona exploration depth and frontier realism, compact traversal receipts, richer public discoverability of the dummy surface, explicit degraded identity labeling, and long-horizon recurrence even after the pressure, identity-envelope, transport-envelope, and browser-secondary-traffic tranches landed.
-- Do not treat mere lane execution or recent-run visibility as characteristic attacker pressure while the lanes still lack trusted-ingress identity realism, deeper exploration/frontier truth, richer public terrain, and long-horizon recurrence behavior even after browser-mode session execution is real.
+- Do not treat mere lane execution or recent-run visibility as characteristic attacker pressure while the lanes still lack trusted-ingress identity realism, deeper exploration/frontier truth, root-host public-terrain correctness, and long-horizon recurrence behavior even after browser-mode session execution is real.
 - Do not open `humans_plus_verified_only` until a later second strict-baseline proof has shown retained config-change improvement under both Scrapling and LLM attacker pressure.
 - `DIAG-CLEANUP-1`, `MON-OVERHAUL-1C`, and `SIM-LLM-1C3` are now all landed, so the later combined-attacker strict-baseline proof is no longer blocked by missing LLM runtime visibility.
 - The real `RSI-GAME-HO-2` blocker is now architectural and explicit:
@@ -162,6 +163,69 @@ Current note:
   - `bot_red_team` runtime receipts now contribute restriction-grade board loci,
   - and the next remaining blocker is projection truth: operator/admin and dashboard surfaces still need to distinguish judged mixed-attacker episodes from mere lane visibility.
 - Do not claim mixed-attacker strict-baseline proof from the new score spine alone; mixed-attacker proof projection and repeated retained improvement under mixed pressure still remain required.
+
+- [ ] ROUTE-NS-1A Freeze the canonical Shuma route-namespace contract.
+  - Reference context:
+    - [`docs/research/2026-03-31-route-namespace-and-root-hosted-public-site-review.md`](../docs/research/2026-03-31-route-namespace-and-root-hosted-public-site-review.md)
+    - [`docs/plans/2026-03-31-route-namespace-and-root-hosted-public-site-plan.md`](../docs/plans/2026-03-31-route-namespace-and-root-hosted-public-site-plan.md)
+  - Closure gate:
+    - namespace truth: one canonical route-namespace module must own Shuma control-plane prefixes and public metadata paths instead of route literals being scattered across runtime code
+    - boundary truth: the contract must explicitly distinguish root-hosted public content from `/shuma/*` control and operational surfaces
+    - proof: add and pass `make test-shuma-route-namespace-contract`
+    - insufficient: ad hoc route renames with no central ownership contract or dual canonical path families left active
+
+- [ ] ROUTE-NS-1B Move the generated contributor public-content site from `/sim/public/*` to root-hosted public paths.
+  - Reference context:
+    - [`docs/research/2026-03-31-route-namespace-and-root-hosted-public-site-review.md`](../docs/research/2026-03-31-route-namespace-and-root-hosted-public-site-review.md)
+    - [`docs/plans/2026-03-31-route-namespace-and-root-hosted-public-site-plan.md`](../docs/plans/2026-03-31-route-namespace-and-root-hosted-public-site-plan.md)
+    - [`docs/plans/2026-03-30-contributor-generated-public-content-sim-site-plan.md`](../docs/plans/2026-03-30-contributor-generated-public-content-sim-site-plan.md)
+  - Closure gate:
+    - public-site truth: the generated contributor site must be served from `/` and ordinary public page paths, with root `robots.txt`, root `sitemap.xml`, and root `atom.xml`
+    - contributor truth: contributors running `make dev` must be able to browse the root-hosted generated site even when adversary sim is disabled or idle
+    - cleanup truth: `/sim/public/*` must not remain as the canonical generated-site path family
+    - proof: add and pass `make test-shuma-root-public-site-serving`
+    - insufficient: serving the same site in parallel at both `/sim/public/*` and `/*`, or tying local browsing to adversary-sim activity
+
+- [ ] ROUTE-NS-1C Move Shuma-owned control-plane, dashboard, health, and metrics routes under `/shuma/*`.
+  - Reference context:
+    - [`docs/research/2026-03-31-route-namespace-and-root-hosted-public-site-review.md`](../docs/research/2026-03-31-route-namespace-and-root-hosted-public-site-review.md)
+    - [`docs/plans/2026-03-31-route-namespace-and-root-hosted-public-site-plan.md`](../docs/plans/2026-03-31-route-namespace-and-root-hosted-public-site-plan.md)
+  - Closure gate:
+    - control-plane truth: `/admin/* -> /shuma/admin/*`, `/dashboard/* -> /shuma/dashboard/*`, `/health -> /shuma/health`, and `/metrics -> /shuma/metrics` must become the only canonical Shuma-owned control or operational paths
+    - auth truth: dashboard login, session, logout, and admin redirects must all work through the new `/shuma/*` namespace
+    - proof: add and pass `make test-shuma-control-route-migration`
+    - insufficient: leaving top-level legacy control routes active as canonical surfaces or relying on compatibility aliases by default
+
+- [ ] ROUTE-NS-1D Move internal Shuma supervisor and loop-control routes under `/shuma/internal/*`.
+  - Reference context:
+    - [`docs/research/2026-03-31-route-namespace-and-root-hosted-public-site-review.md`](../docs/research/2026-03-31-route-namespace-and-root-hosted-public-site-review.md)
+    - [`docs/plans/2026-03-31-route-namespace-and-root-hosted-public-site-plan.md`](../docs/plans/2026-03-31-route-namespace-and-root-hosted-public-site-plan.md)
+  - Closure gate:
+    - internal truth: supervisor, oversight, and lifecycle helpers must no longer call top-level `/internal/*`
+    - control truth: internal command routes must remain namespaced and clearly distinct from host-root public content
+    - proof: keep focused runtime or script contract targets green and extend them where needed under `make test-shuma-control-route-migration`
+    - insufficient: leaving mixed top-level and `/shuma/internal/*` command surfaces alive without explicit justification
+
+- [ ] ROUTE-NS-1E Migrate adversary corpus, realism path hints, and root-discovery assumptions to the corrected host-root model.
+  - Reference context:
+    - [`docs/research/2026-03-31-route-namespace-and-root-hosted-public-site-review.md`](../docs/research/2026-03-31-route-namespace-and-root-hosted-public-site-review.md)
+    - [`docs/plans/2026-03-31-route-namespace-and-root-hosted-public-site-plan.md`](../docs/plans/2026-03-31-route-namespace-and-root-hosted-public-site-plan.md)
+    - [`docs/plans/2026-03-20-shared-host-seed-contract.md`](../docs/plans/2026-03-20-shared-host-seed-contract.md)
+  - Closure gate:
+    - discovery truth: deterministic and adaptive adversary path hints must begin from `/` and root-level public hints such as `robots.txt` and sitemap references rather than `/sim/public/*`
+    - observer truth: benchmark or sample-path fixtures must stop implying `/sim/public/*` is the host site's public root
+    - proof: add and pass `make test-shuma-rooted-adversary-path-contract`
+    - insufficient: root-hosted generated content with adversary corpora and realism contracts still pointing at the old simulation-only prefix
+
+- [ ] ROUTE-NS-1F Remove legacy route-family assumptions from docs, tests, and operator guidance after full-path proof.
+  - Reference context:
+    - [`docs/research/2026-03-31-route-namespace-and-root-hosted-public-site-review.md`](../docs/research/2026-03-31-route-namespace-and-root-hosted-public-site-review.md)
+    - [`docs/plans/2026-03-31-route-namespace-and-root-hosted-public-site-plan.md`](../docs/plans/2026-03-31-route-namespace-and-root-hosted-public-site-plan.md)
+  - Closure gate:
+    - doc truth: API, dashboard, testing, deployment, and quick-reference docs must stop advertising `/sim/public/*` and top-level `/admin|/dashboard|/health|/metrics` as canonical
+    - audit truth: tranche completion must include exact route-audit evidence showing remaining references are either removed or explicitly historical
+    - proof: use exact `rg` route-audit evidence in completion notes and keep the focused route-contract targets green
+    - insufficient: shipping the corrected runtime while leaving the old route families normalized in docs or support scripts
 
 - [ ] SIM-REALISM-2E Add long-horizon dormancy, recurrence, and re-entry realism.
   - Reference context:
@@ -207,7 +271,7 @@ Current note:
     - [`docs/plans/2026-03-29-observed-telemetry-truth-and-scrapling-discoverability-plan.md`](../docs/plans/2026-03-29-observed-telemetry-truth-and-scrapling-discoverability-plan.md)
   - Closure gate:
     - surface truth: broader dummy-site surfaces must become reachable through root links, realistic navigation, `robots.txt` sitemap entries, and sitemap documents rather than ad hoc worker hints
-    - implementation vehicle: the richer surface should land as a generated contributor content site under `/sim/public/*`, not as a runtime repo walker or a slightly expanded hard-coded fake blog
+    - implementation vehicle: the richer surface should land as a generated contributor content site on the protected host root, not as a runtime repo walker or a slightly expanded hard-coded fake blog
     - contributor truth: contributors running `make dev` must be able to browse the site even when adversary sim is idle or disabled, and that local surface must be usable for human-friction assessment against the active config while runtime-only flows must not silently generate or expose the contributor site
     - cleanup truth: the old five-page hard-coded dummy site must be removed once the generated site path lands
     - discipline: keep hidden or internal route catalogs out of the workers and out of the seed contract

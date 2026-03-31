@@ -2,6 +2,27 @@
 
 Moved from active TODO files on 2026-02-14.
 
+## Additional completions (2026-03-31)
+
+### Route Namespace And Root-Hosted Public Site Planning Chain
+
+- [x] Captured the route-namespace correction research and implementation plan in:
+  - [`../docs/research/2026-03-31-route-namespace-and-root-hosted-public-site-review.md`](../docs/research/2026-03-31-route-namespace-and-root-hosted-public-site-review.md)
+  - [`../docs/plans/2026-03-31-route-namespace-and-root-hosted-public-site-plan.md`](../docs/plans/2026-03-31-route-namespace-and-root-hosted-public-site-plan.md)
+  - [`../todos/todo.md`](../todos/todo.md)
+  - [`../docs/research/README.md`](../docs/research/README.md)
+  - [`../docs/plans/README.md`](../docs/plans/README.md)
+  - [`../docs/plans/2026-03-16-pre-launch-roadmap-gap-capture-and-sequencing.md`](../docs/plans/2026-03-16-pre-launch-roadmap-gap-capture-and-sequencing.md)
+  - [`../docs/plans/2026-03-20-mature-adversary-sim-evolution-roadmap.md`](../docs/plans/2026-03-20-mature-adversary-sim-evolution-roadmap.md)
+- [x] What changed:
+  - the active architecture now explicitly treats `/sim/public/*` as a superseded bootstrap model rather than the intended long-term public-surface contract,
+  - the corrected target is now frozen as a root-hosted protected public site plus `/shuma/*` for Shuma-owned dashboard, admin, health, metrics, and internal routes,
+  - and the execution order now puts the route-namespace correction chain ahead of the remaining realism work so later adversary realism lands against the correct public terrain.
+- [x] Why:
+  - without correcting route ownership first, the generated contributor site and the remaining realism work would keep deepening the wrong host model and would continue mixing Shuma-owned control paths into the same origin root that adversaries are meant to explore.
+- [x] Evidence:
+  - `git diff --check`
+
 ## Additional completions (2026-03-30)
 
 ### Contributor Sim Public Site Local-Availability Requirement Refinement

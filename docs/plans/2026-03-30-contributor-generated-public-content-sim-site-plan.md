@@ -1,10 +1,11 @@
 # Contributor-Generated Public-Content Sim Site Implementation Plan
 
 Date: 2026-03-30
-Status: Active implementation plan
+Status: Partially superseded on 2026-03-31 by the route-namespace correction plan
 
 Related context:
 
+- [`2026-03-31-route-namespace-and-root-hosted-public-site-plan.md`](./2026-03-31-route-namespace-and-root-hosted-public-site-plan.md)
 - [`../research/2026-03-30-contributor-generated-public-content-sim-site-review.md`](../research/2026-03-30-contributor-generated-public-content-sim-site-review.md)
 - [`../research/2026-03-30-generated-public-content-site-standards-and-generator-pattern-review.md`](../research/2026-03-30-generated-public-content-site-standards-and-generator-pattern-review.md)
 - [`2026-03-30-adversary-lane-wild-traffic-gap-plan.md`](./2026-03-30-adversary-lane-wild-traffic-gap-plan.md)
@@ -12,6 +13,8 @@ Related context:
 - [`2026-03-20-shared-host-seed-contract.md`](./2026-03-20-shared-host-seed-contract.md)
 
 > **For Claude:** REQUIRED SUB-SKILL: Use superpowers:executing-plans to implement this plan task-by-task.
+
+> **Correction note (2026-03-31):** this plan remains relevant for the generated-site build discipline, contributor-local artifact model, and minimal semantic rendering requirements, but its assumption that the generated site should remain under `/sim/public/*` is now superseded by [`2026-03-31-route-namespace-and-root-hosted-public-site-plan.md`](./2026-03-31-route-namespace-and-root-hosted-public-site-plan.md). Future implementation should follow the newer root-hosted public-site plus `/shuma/*` control-plane namespace contract.
 
 **Goal:** Replace the current hard-coded `/sim/public/*` dummy site with a build-time generated contributor content site that is richer, publicly discoverable, viewable on local dev even when sim is idle, and still faithful to the no-hidden-catalog discoverability doctrine.
 

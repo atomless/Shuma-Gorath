@@ -226,7 +226,7 @@ The immediate next execution priority on this roadmap is therefore:
 
 1. `SIM-REALISM-1A` profile contract,
 2. `SIM-REALISM-1B` Scrapling pacing realism,
-3. `SIM-PUBSITE-1A..1D` contributor-generated public-content site,
+3. `ROUTE-NS-1A..1F` route-namespace correction and root-hosted generated public-content site,
 4. `SIM-REALISM-1C` Agentic request-mode realism,
 5. `SIM-REALISM-1D` real Agentic browser-mode execution,
 6. `SIM-REALISM-2A` pressure-envelope realism,

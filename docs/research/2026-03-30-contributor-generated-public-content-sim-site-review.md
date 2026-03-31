@@ -1,10 +1,11 @@
 # Contributor-Generated Public-Content Sim Site Review
 
 Date: 2026-03-30
-Status: Active research driver
+Status: Partially superseded on 2026-03-31 by the route-namespace correction review
 
 Related context:
 
+- [`2026-03-31-route-namespace-and-root-hosted-public-site-review.md`](./2026-03-31-route-namespace-and-root-hosted-public-site-review.md)
 - [`2026-03-30-adversary-lane-wild-traffic-gap-review.md`](./2026-03-30-adversary-lane-wild-traffic-gap-review.md)
 - [`../plans/2026-03-30-adversary-lane-wild-traffic-gap-plan.md`](../plans/2026-03-30-adversary-lane-wild-traffic-gap-plan.md)
 - [`../plans/2026-03-29-observed-telemetry-truth-and-scrapling-discoverability-plan.md`](../plans/2026-03-29-observed-telemetry-truth-and-scrapling-discoverability-plan.md)
@@ -14,6 +15,8 @@ Related context:
 - [`../../Cargo.toml`](../../Cargo.toml)
 
 ## Purpose
+
+> **Correction note (2026-03-31):** this review remains useful for the contributor-generated site model, corpus scope, minimal rendering approach, and local-availability requirement, but its recommendation to preserve `/sim/public/*` as the serving prefix is now superseded by [`2026-03-31-route-namespace-and-root-hosted-public-site-review.md`](./2026-03-31-route-namespace-and-root-hosted-public-site-review.md). Future implementation should assume root-hosted public content with `/shuma/*` reserved for Shuma-owned control and operational routes.
 
 Decide how to replace the current thin `/sim/public/*` dummy surface with a richer site that is:
 
