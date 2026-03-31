@@ -238,9 +238,14 @@ The adopted execution order on this roadmap is therefore:
 12. `SIM-REALISM-2G` traversal-frontier receipts and observer truth,
 13. `SIM-REALISM-2H` richer root-host public discoverability without choreography,
 14. `SIM-REALISM-2I` trusted-ingress client-IP realism,
-15. `SIM-REALISM-2J` explicit degraded-identity wording and receipts.
+15. `SIM-REALISM-2J` explicit degraded-identity wording and receipts,
+16. `SIM-REALISM-3A` overlapping multi-lane concurrency realism and explicit Scrapling plus Agentic parallel-mode control,
+17. `SIM-REALISM-3B` richer agentic action capability and degraded-fallback realism,
+18. `SIM-REALISM-3C` true long-window dormancy and return realism,
+19. `SIM-REALISM-3D` deeper transport and network fingerprint realism,
+20. `SIM-REALISM-3E` explicit representativeness infrastructure gating.
 
-At the current point in that order, the live next step is `SIM-REALISM-2F`. No further Game Loop or Tuning execution should proceed until `SIM-REALISM-2F..2J` are complete, because later loop and tuning work would otherwise optimize against attacker traffic that still falls short on exploration depth, frontier truth, public-terrain richness, and trusted-ingress identity realism.
+At the current point in that order, the live next step is `SIM-REALISM-2F`. No further Game Loop or Tuning execution should proceed until `SIM-REALISM-2F..2J` and `SIM-REALISM-3A..3E` are complete, because later loop and tuning work would otherwise optimize against attacker traffic that still falls short on exploration depth, frontier truth, public-terrain richness, trusted-ingress identity realism, overlapping mixed-lane pressure, richer agentic capability, and explicit representativeness gating.
 
 Before Shuma should describe Scrapling or Agentic Traffic as representative tuning evidence, it should:
 
@@ -254,7 +259,12 @@ Before Shuma should describe Scrapling or Agentic Traffic as representative tuni
 8. model background browser traffic plus longer-horizon recurrence,
 9. replace flat discovery caps with per-persona exploration envelopes and traversal-frontier receipts,
 10. make the protected host root substantially richer and more publicly discoverable without hidden route hints,
-11. and restore realistic client-IP posture through trusted ingress rather than local process churn or privileged worker headers.
+11. restore realistic client-IP posture through trusted ingress rather than local process churn or privileged worker headers,
+12. prove bounded overlapping Scrapling plus Agentic pressure instead of only serialized one-lane execution,
+13. expand the agentic lane beyond polite GET-only or trivial click-through degraded behavior,
+14. model hours-to-days dormancy or return behavior rather than only short-gap re-entry,
+15. deepen transport realism or explicitly fail closed to degraded claims where the stack cannot support it,
+16. and make representativeness itself an explicit infrastructure gate rather than a hand-waved assumption.
 
 ## Acceptance Standard For This Roadmap
 

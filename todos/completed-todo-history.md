@@ -4,6 +4,29 @@ Moved from active TODO files on 2026-02-14.
 
 ## Additional completions (2026-03-31)
 
+### Post-2J Adversary Realism Sufficiency Review And Backlog Extension
+
+- [x] Completed the post-`SIM-REALISM-2J` realism sufficiency planning slice across:
+  - [`../docs/research/2026-03-31-post-2j-adversary-realism-sufficiency-review.md`](../docs/research/2026-03-31-post-2j-adversary-realism-sufficiency-review.md)
+  - [`../docs/plans/2026-03-31-post-2j-adversary-realism-sufficiency-plan.md`](../docs/plans/2026-03-31-post-2j-adversary-realism-sufficiency-plan.md)
+  - [`../todos/todo.md`](../todos/todo.md)
+  - [`../todos/blocked-todo.md`](../todos/blocked-todo.md)
+  - [`../docs/plans/2026-03-20-mature-adversary-sim-evolution-roadmap.md`](../docs/plans/2026-03-20-mature-adversary-sim-evolution-roadmap.md)
+  - [`../docs/plans/2026-03-16-pre-launch-roadmap-gap-capture-and-sequencing.md`](../docs/plans/2026-03-16-pre-launch-roadmap-gap-capture-and-sequencing.md)
+  - [`../docs/research/README.md`](../docs/research/README.md)
+  - [`../docs/plans/README.md`](../docs/plans/README.md)
+- [x] What landed:
+  - the new sufficiency review now makes it explicit that `SIM-REALISM-2F..2J` are necessary but not sufficient for representative attacker traffic,
+  - the active backlog now carries a new `SIM-REALISM-3A..3E` chain for overlapping mixed-lane concurrency, stronger agentic action realism, true long-window dormancy, deeper transport fidelity, and explicit representativeness gating,
+  - `SIM-REALISM-3A` explicitly requires a Red Team lane-selector option for Scrapling plus Agentic parallel execution rather than forcing operators to infer mixed pressure from separate runs,
+  - and later Game Loop and Tuning work is now blocked behind both the remaining `SIM-REALISM-2F..2J` chain and the new post-`2J` sufficiency chain.
+- [x] Why:
+  - the realism review showed that the current remaining schedule would improve traversal and identity truth but still stop short of wild-style mixed attacker pressure,
+  - and the backlog needed to say that plainly before Game Loop or Tuning work could be resumed.
+- [x] Evidence:
+  - docs-only hygiene proof via `git diff --check`
+  - tests intentionally skipped because this slice changes research, plans, roadmap, and backlog truth only
+
 ### Adversary Realism Reprioritisation Ahead Of Game Loop And Tuning
 
 - [x] Completed the backlog and roadmap reprioritisation slice across:
