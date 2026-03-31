@@ -213,7 +213,7 @@
 - Later proof targets: focused discoverability tests, shared-host seed-contract proof, `Makefile`
 
 **Work:**
-1. Replace the current thin hard-coded dummy site with a contributor-generated public-content site under the same `/sim/public/*` prefix.
+1. Replace the current thin hard-coded dummy site with a contributor-generated public-content site on the protected host root rather than a nested sim-only prefix.
 2. Expose broader site reachability through realistic public mechanisms:
    - root links,
    - realistic navigation,

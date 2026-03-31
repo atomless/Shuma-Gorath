@@ -39,6 +39,10 @@
           "max_activities": 14,
           "max_time_budget_ms": 12000
         },
+        "exploration_envelope": {
+          "max_depth": 4,
+          "max_bytes": 393216
+        },
         "recurrence_envelope": {
           "strategy": "bounded_single_tick_reentry",
           "reentry_scope": "within_run",
@@ -67,6 +71,12 @@
             "reentry_count",
             "max_reentries_per_run",
             "planned_dormant_gap_seconds",
+            "visited_url_count",
+            "discovered_url_count",
+            "deepest_depth_reached",
+            "sitemap_documents_seen",
+            "frontier_remaining_count",
+            "canonical_public_pages_reached",
             "stop_reason"
           ]
         }
@@ -108,6 +118,10 @@
           "max_activities": 45,
           "max_time_budget_ms": 30000
         },
+        "exploration_envelope": {
+          "max_depth": 6,
+          "max_bytes": 786432
+        },
         "recurrence_envelope": {
           "strategy": "bounded_single_tick_reentry",
           "reentry_scope": "within_run",
@@ -136,6 +150,12 @@
             "reentry_count",
             "max_reentries_per_run",
             "planned_dormant_gap_seconds",
+            "visited_url_count",
+            "discovered_url_count",
+            "deepest_depth_reached",
+            "sitemap_documents_seen",
+            "frontier_remaining_count",
+            "canonical_public_pages_reached",
             "stop_reason"
           ]
         }
@@ -176,6 +196,10 @@
         "pressure_envelope": {
           "max_activities": 9,
           "max_time_budget_ms": 20000
+        },
+        "exploration_envelope": {
+          "max_depth": 3,
+          "max_bytes": 393216
         },
         "recurrence_envelope": {
           "strategy": "bounded_single_tick_reentry",
@@ -250,6 +274,10 @@
           "max_activities": 6,
           "max_time_budget_ms": 24000
         },
+        "exploration_envelope": {
+          "max_depth": 3,
+          "max_bytes": 393216
+        },
         "recurrence_envelope": {
           "strategy": "bounded_single_tick_reentry",
           "reentry_scope": "within_run",
@@ -323,6 +351,10 @@
           "max_activities": 24,
           "max_time_budget_ms": 18000
         },
+        "exploration_envelope": {
+          "max_depth": 4,
+          "max_bytes": 524288
+        },
         "recurrence_envelope": {
           "strategy": "bounded_single_tick_reentry",
           "reentry_scope": "within_run",
@@ -393,6 +425,10 @@
         "pressure_envelope": {
           "max_activities": 8,
           "max_time_budget_ms": 90000
+        },
+        "exploration_envelope": {
+          "max_depth": 3,
+          "max_bytes": 393216
         },
         "recurrence_envelope": {
           "strategy": "bounded_single_tick_reentry",
@@ -466,6 +502,10 @@
         "pressure_envelope": {
           "max_activities": 24,
           "max_time_budget_ms": 120000
+        },
+        "exploration_envelope": {
+          "max_depth": 4,
+          "max_bytes": 524288
         },
         "recurrence_envelope": {
           "strategy": "bounded_single_tick_reentry",

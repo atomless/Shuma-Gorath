@@ -56,6 +56,13 @@ pub(crate) struct LaneRealismPressureEnvelope {
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 #[serde(deny_unknown_fields)]
+pub(crate) struct LaneRealismExplorationEnvelope {
+    pub max_depth: u64,
+    pub max_bytes: u64,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(deny_unknown_fields)]
 pub(crate) struct LaneRealismRecurrenceEnvelope {
     pub strategy: String,
     pub reentry_scope: String,
@@ -81,6 +88,7 @@ pub(crate) struct LaneRealismProfile {
     pub javascript_execution: String,
     pub retry_ceiling: u64,
     pub pressure_envelope: LaneRealismPressureEnvelope,
+    pub exploration_envelope: LaneRealismExplorationEnvelope,
     pub recurrence_envelope: LaneRealismRecurrenceEnvelope,
     pub receipt_contract: LaneRealismReceiptContract,
 }
@@ -119,6 +127,13 @@ fn pressure_envelope(max_activities: u64, max_time_budget_ms: u64) -> LaneRealis
     LaneRealismPressureEnvelope {
         max_activities,
         max_time_budget_ms,
+    }
+}
+
+fn exploration_envelope(max_depth: u64, max_bytes: u64) -> LaneRealismExplorationEnvelope {
+    LaneRealismExplorationEnvelope {
+        max_depth,
+        max_bytes,
     }
 }
 
@@ -197,6 +212,44 @@ fn request_native_receipt_contract() -> LaneRealismReceiptContract {
     ])
 }
 
+fn exploration_receipt_fields() -> [&'static str; 6] {
+    [
+        "visited_url_count",
+        "discovered_url_count",
+        "deepest_depth_reached",
+        "sitemap_documents_seen",
+        "frontier_remaining_count",
+        "canonical_public_pages_reached",
+    ]
+}
+
+fn request_native_exploration_receipt_contract() -> LaneRealismReceiptContract {
+    let mut required_fields = vec![
+        "activity_count",
+        "burst_count",
+        "burst_sizes",
+        "inter_activity_gaps_ms",
+        "transport_profile",
+        "observed_user_agent_families",
+        "observed_accept_languages",
+        "identity_realism_status",
+        "identity_envelope_classes",
+        "geo_affinity_mode",
+        "session_stickiness",
+        "observed_country_codes",
+        "identity_handles",
+        "identity_rotation_count",
+        "recurrence_strategy",
+        "session_index",
+        "reentry_count",
+        "max_reentries_per_run",
+        "planned_dormant_gap_seconds",
+    ];
+    required_fields.extend(exploration_receipt_fields());
+    required_fields.push("stop_reason");
+    receipt_contract(&required_fields)
+}
+
 fn browser_receipt_contract() -> LaneRealismReceiptContract {
     receipt_contract(&[
         "activity_count",
@@ -262,6 +315,7 @@ pub(crate) fn scrapling_realism_profile_for_mode(fulfillment_mode: &str) -> Lane
             javascript_execution: "disabled".to_string(),
             retry_ceiling: 2,
             pressure_envelope: pressure_envelope(14, 12_000),
+            exploration_envelope: exploration_envelope(4, 393_216),
             recurrence_envelope: recurrence_envelope(
                 "bounded_single_tick_reentry",
                 "within_run",
@@ -269,7 +323,7 @@ pub(crate) fn scrapling_realism_profile_for_mode(fulfillment_mode: &str) -> Lane
                 8,
                 2,
             ),
-            receipt_contract: request_native_receipt_contract(),
+            receipt_contract: request_native_exploration_receipt_contract(),
         },
         "bulk_scraper" => LaneRealismProfile {
             schema_version: LANE_REALISM_PROFILE_SCHEMA_VERSION.to_string(),
@@ -305,6 +359,7 @@ pub(crate) fn scrapling_realism_profile_for_mode(fulfillment_mode: &str) -> Lane
             javascript_execution: "disabled".to_string(),
             retry_ceiling: 2,
             pressure_envelope: pressure_envelope(45, 30_000),
+            exploration_envelope: exploration_envelope(6, 786_432),
             recurrence_envelope: recurrence_envelope(
                 "bounded_single_tick_reentry",
                 "within_run",
@@ -312,7 +367,7 @@ pub(crate) fn scrapling_realism_profile_for_mode(fulfillment_mode: &str) -> Lane
                 6,
                 3,
             ),
-            receipt_contract: request_native_receipt_contract(),
+            receipt_contract: request_native_exploration_receipt_contract(),
         },
         "browser_automation" => LaneRealismProfile {
             schema_version: LANE_REALISM_PROFILE_SCHEMA_VERSION.to_string(),
@@ -342,6 +397,7 @@ pub(crate) fn scrapling_realism_profile_for_mode(fulfillment_mode: &str) -> Lane
             javascript_execution: "required".to_string(),
             retry_ceiling: 1,
             pressure_envelope: pressure_envelope(9, 20_000),
+            exploration_envelope: exploration_envelope(3, 393_216),
             recurrence_envelope: recurrence_envelope(
                 "bounded_single_tick_reentry",
                 "within_run",
@@ -379,6 +435,7 @@ pub(crate) fn scrapling_realism_profile_for_mode(fulfillment_mode: &str) -> Lane
             javascript_execution: "required".to_string(),
             retry_ceiling: 1,
             pressure_envelope: pressure_envelope(6, 24_000),
+            exploration_envelope: exploration_envelope(3, 393_216),
             recurrence_envelope: recurrence_envelope(
                 "bounded_single_tick_reentry",
                 "within_run",
@@ -422,6 +479,7 @@ pub(crate) fn scrapling_realism_profile_for_mode(fulfillment_mode: &str) -> Lane
             javascript_execution: "disabled".to_string(),
             retry_ceiling: 2,
             pressure_envelope: pressure_envelope(24, 18_000),
+            exploration_envelope: exploration_envelope(4, 524_288),
             recurrence_envelope: recurrence_envelope(
                 "bounded_single_tick_reentry",
                 "within_run",
@@ -464,6 +522,7 @@ pub(crate) fn llm_realism_profile_for_mode(fulfillment_mode: &str) -> LaneRealis
             javascript_execution: "required".to_string(),
             retry_ceiling: 1,
             pressure_envelope: pressure_envelope(8, 90_000),
+            exploration_envelope: exploration_envelope(3, 393_216),
             recurrence_envelope: recurrence_envelope(
                 "bounded_single_tick_reentry",
                 "within_run",
@@ -501,6 +560,7 @@ pub(crate) fn llm_realism_profile_for_mode(fulfillment_mode: &str) -> LaneRealis
             javascript_execution: "disabled".to_string(),
             retry_ceiling: 2,
             pressure_envelope: pressure_envelope(24, 120_000),
+            exploration_envelope: exploration_envelope(4, 524_288),
             recurrence_envelope: recurrence_envelope(
                 "bounded_single_tick_reentry",
                 "within_run",

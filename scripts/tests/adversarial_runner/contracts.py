@@ -120,6 +120,15 @@ def normalize_lane_realism_profile(
         raise RuntimeError(
             f"{field_name}.pressure_envelope.max_time_budget_ms must be integer >= 1"
         )
+    exploration_envelope = payload.get("exploration_envelope")
+    if not isinstance(exploration_envelope, dict):
+        raise RuntimeError(f"{field_name}.exploration_envelope must be an object")
+    max_depth = exploration_envelope.get("max_depth")
+    max_bytes = exploration_envelope.get("max_bytes")
+    if not _is_non_negative_int(max_depth) or int(max_depth) < 1:
+        raise RuntimeError(f"{field_name}.exploration_envelope.max_depth must be integer >= 1")
+    if not _is_non_negative_int(max_bytes) or int(max_bytes) < 1:
+        raise RuntimeError(f"{field_name}.exploration_envelope.max_bytes must be integer >= 1")
     recurrence_envelope = payload.get("recurrence_envelope")
     if not isinstance(recurrence_envelope, dict):
         raise RuntimeError(f"{field_name}.recurrence_envelope must be an object")
@@ -277,6 +286,10 @@ def normalize_lane_realism_profile(
         "pressure_envelope": {
             "max_activities": int(max_activities),
             "max_time_budget_ms": int(max_time_budget_ms),
+        },
+        "exploration_envelope": {
+            "max_depth": int(max_depth),
+            "max_bytes": int(max_bytes),
         },
         "recurrence_envelope": {
             "strategy": recurrence_strategy,

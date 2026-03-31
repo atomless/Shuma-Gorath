@@ -90,6 +90,18 @@ pub struct ScraplingRealismReceipt {
     pub max_reentries_per_run: Option<u64>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub planned_dormant_gap_seconds: Option<u64>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub visited_url_count: Option<u64>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub discovered_url_count: Option<u64>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub deepest_depth_reached: Option<u64>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub sitemap_documents_seen: Option<u64>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub frontier_remaining_count: Option<u64>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub canonical_public_pages_reached: Option<u64>,
     pub stop_reason: String,
 }
 

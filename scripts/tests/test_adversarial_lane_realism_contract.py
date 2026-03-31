@@ -144,6 +144,43 @@ class AdversarialLaneRealismContractUnitTests(unittest.TestCase):
             profile["receipt_contract"]["required_fields"],
         )
 
+    def test_profiles_surface_mode_specific_exploration_envelopes(self):
+        crawler_profile = contracts.resolve_lane_realism_profile(
+            "scrapling_traffic",
+            "crawler",
+        )
+        bulk_profile = contracts.resolve_lane_realism_profile(
+            "scrapling_traffic",
+            "bulk_scraper",
+        )
+
+        self.assertIn("exploration_envelope", crawler_profile)
+        self.assertIn("exploration_envelope", bulk_profile)
+        self.assertGreaterEqual(
+            crawler_profile["exploration_envelope"]["max_depth"],
+            1,
+        )
+        self.assertGreater(
+            bulk_profile["exploration_envelope"]["max_depth"],
+            crawler_profile["exploration_envelope"]["max_depth"],
+        )
+        self.assertGreater(
+            bulk_profile["exploration_envelope"]["max_bytes"],
+            crawler_profile["exploration_envelope"]["max_bytes"],
+        )
+        for field in (
+            "visited_url_count",
+            "discovered_url_count",
+            "deepest_depth_reached",
+            "sitemap_documents_seen",
+            "frontier_remaining_count",
+            "canonical_public_pages_reached",
+        ):
+            self.assertIn(
+                field,
+                crawler_profile["receipt_contract"]["required_fields"],
+            )
+
     def test_scrapling_browser_profile_requires_secondary_traffic_receipt_fields(self):
         profile = contracts.resolve_lane_realism_profile("scrapling_traffic", "browser_automation")
 

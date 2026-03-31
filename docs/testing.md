@@ -52,6 +52,8 @@ make test-adversarial-llm-browser-runtime # Focused Agentic browser-mode live se
 make test-adversarial-llm-fit # Focused bounded LLM fulfillment-plan contract gate
 make test-adversarial-llm-runtime-dispatch # Focused bounded LLM runtime dispatch + typed ingest gate
 make test-adversarial-identity-envelope-contract # Focused proxy-pool and identity-envelope realism contract gate
+make test-adversary-sim-exploration-envelope-realism # Focused Scrapling exploration-envelope contract and planner gate
+make test-adversary-sim-exploration-receipts # Focused Scrapling traversal-frontier receipt realism gate
 make test-adversary-sim-header-transport-realism # Focused header, locale, and transport-envelope realism gate
 make test-adversary-sim-browser-secondary-traffic-realism # Focused browser secondary-traffic and compact projection realism gate
 make test-adversary-sim-recurrence-realism # Focused bounded dormancy, re-entry, and recurrence receipt/dispatch gate

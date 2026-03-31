@@ -156,6 +156,11 @@ class _ScraplingRealismTracker:
         self.background_request_count = 0
         self.subresource_request_count = 0
         self.identity_rotation_count = 0
+        self.visited_targets: set[str] = set()
+        self.discovered_targets: set[str] = set()
+        self.sitemap_documents: set[str] = set()
+        self.canonical_public_pages: set[str] = set()
+        self.deepest_depth_reached = 0
         self._last_identity_handle: str | None = None
         self._last_session_handle: str | None = None
         self._activities_since_rotation = 0
@@ -242,6 +247,31 @@ class _ScraplingRealismTracker:
         normalized_locale = str(browser_locale or "").strip()
         if normalized_locale and normalized_locale not in self.observed_browser_locales:
             self.observed_browser_locales.append(normalized_locale)
+
+    def observe_discovered_target(self, target: str) -> None:
+        normalized = str(target or "").strip()
+        if normalized:
+            self.discovered_targets.add(normalized)
+
+    def observe_exploration_visit(
+        self,
+        *,
+        target: str,
+        depth: int,
+        content_type: str = "",
+    ) -> None:
+        normalized = str(target or "").strip()
+        if not normalized:
+            return
+        self.visited_targets.add(normalized)
+        self.deepest_depth_reached = max(self.deepest_depth_reached, max(0, int(depth)))
+        if _looks_canonical_public_page(normalized, content_type):
+            self.canonical_public_pages.add(normalized)
+
+    def observe_sitemap_document(self, target: str) -> None:
+        normalized = str(target or "").strip()
+        if normalized:
+            self.sitemap_documents.add(normalized)
 
     def _finalize_burst(self) -> None:
         if self.current_burst_size > 0:
@@ -416,6 +446,15 @@ class _ScraplingRealismTracker:
             "planned_dormant_gap_seconds": int(
                 self.recurrence_context.get("planned_dormant_gap_seconds") or 0
             ),
+            "visited_url_count": len(self.visited_targets),
+            "discovered_url_count": len(self.discovered_targets),
+            "deepest_depth_reached": self.deepest_depth_reached,
+            "sitemap_documents_seen": len(self.sitemap_documents),
+            "frontier_remaining_count": max(
+                0,
+                len(self.discovered_targets.difference(self.visited_targets)),
+            ),
+            "canonical_public_pages_reached": len(self.canonical_public_pages),
             "stop_reason": self.stop_reason(
                 bytes_observed=bytes_observed,
                 deadline_reached=deadline_reached,
@@ -746,6 +785,52 @@ def _request_path_value(raw_target: str) -> str:
     if parsed.query:
         return f"{path}?{parsed.query}"
     return path
+
+
+def _response_content_type(response: Any) -> str:
+    headers = getattr(response, "headers", None)
+    if headers is None:
+        return ""
+    return str(headers.get("content-type") or headers.get("Content-Type") or "").strip().lower()
+
+
+def _looks_static_asset_path(path: str) -> bool:
+    normalized = str(path or "").strip().lower()
+    return normalized.endswith(
+        (
+            ".css",
+            ".js",
+            ".png",
+            ".jpg",
+            ".jpeg",
+            ".gif",
+            ".svg",
+            ".ico",
+            ".webp",
+            ".woff",
+            ".woff2",
+            ".ttf",
+            ".map",
+            ".xml",
+        )
+    )
+
+
+def _looks_canonical_public_page(target: str, content_type: str) -> bool:
+    normalized_target = str(target or "").strip()
+    if not normalized_target:
+        return False
+    request_path = _request_path_value(normalized_target)
+    if _looks_static_asset_path(request_path):
+        return False
+    normalized_content_type = str(content_type or "").strip().lower()
+    if normalized_content_type.startswith("text/html"):
+        return True
+    if normalized_content_type.startswith("application/xhtml+xml"):
+        return True
+    if normalized_content_type.startswith("application/json"):
+        return True
+    return not normalized_content_type
 
 
 def _ordered_unique(values: list[str]) -> list[str]:
@@ -1173,6 +1258,7 @@ def _build_spider_class(fetcher_session_cls: Any, request_cls: Any, spider_base:
 
         async def start_requests(self) -> AsyncGenerator[Any, None]:
             for url in self.start_urls:
+                self.realism_tracker.observe_discovered_target(url)
                 yield request_cls(
                     url,
                     sid="default",
@@ -1183,6 +1269,12 @@ def _build_spider_class(fetcher_session_cls: Any, request_cls: Any, spider_base:
                 )
 
         async def parse(self, response) -> AsyncGenerator[Any, None]:
+            depth = int((response.meta or {}).get("depth") or 0)
+            self.realism_tracker.observe_exploration_visit(
+                target=str(getattr(response, "url", "") or ""),
+                depth=depth,
+                content_type=_response_content_type(response),
+            )
             self.realism_tracker.crawler_observe_activity(
                 (
                     f"crawl-session-{str(self.request_identity_pool[0].get('label') or '').strip()}"
@@ -1220,7 +1312,6 @@ def _build_spider_class(fetcher_session_cls: Any, request_cls: Any, spider_base:
                 self.pause()
                 return
 
-            depth = int((response.meta or {}).get("depth") or 0)
             next_depth = depth + 1
 
             if 300 <= int(response.status) < 400:
@@ -1232,6 +1323,7 @@ def _build_spider_class(fetcher_session_cls: Any, request_cls: Any, spider_base:
                         is_redirect=True,
                     )
                     if allowed and normalized_url:
+                        self.realism_tracker.observe_discovered_target(normalized_url)
                         yield response.follow(
                             normalized_url,
                             meta={"depth": next_depth},
@@ -1247,6 +1339,9 @@ def _build_spider_class(fetcher_session_cls: Any, request_cls: Any, spider_base:
 
             sitemap_targets = [value.strip() for value in response.css("loc::text").getall()]
             if sitemap_targets:
+                self.realism_tracker.observe_sitemap_document(
+                    str(getattr(response, "url", "") or "")
+                )
                 for raw_target in sitemap_targets:
                     if not raw_target or next_depth > self.max_depth:
                         continue
@@ -1256,6 +1351,7 @@ def _build_spider_class(fetcher_session_cls: Any, request_cls: Any, spider_base:
                         is_redirect=False,
                     )
                     if allowed and normalized_url:
+                        self.realism_tracker.observe_discovered_target(normalized_url)
                         yield response.follow(
                             normalized_url,
                             meta={"depth": next_depth},
@@ -1286,6 +1382,7 @@ def _build_spider_class(fetcher_session_cls: Any, request_cls: Any, spider_base:
                     is_redirect=False,
                 )
                 if allowed and normalized_url:
+                    self.realism_tracker.observe_discovered_target(normalized_url)
                     yield response.follow(
                         normalized_url,
                         meta={"depth": next_depth},
@@ -1379,6 +1476,7 @@ class _DirectPersonaTracker:
         raw_target: str,
         *,
         is_redirect: bool,
+        record_rejection: bool = True,
     ) -> tuple[bool, str | None]:
         if is_redirect:
             decision = shared_host_scope.evaluate_redirect_target(
@@ -1387,7 +1485,8 @@ class _DirectPersonaTracker:
         else:
             decision = shared_host_scope.evaluate_url_candidate(raw_target, self.descriptor)
         if not decision.allowed or not decision.normalized_url:
-            self.record_rejection(decision.rejection_reason)
+            if record_rejection:
+                self.record_rejection(decision.rejection_reason)
             return False, None
         return True, decision.normalized_url
 
@@ -1625,31 +1724,48 @@ def _execute_bulk_scraper_persona(
         raise WorkerConfigError("seed inventory must contain at least one accepted start or hint URL")
     base_url = start_urls[0]
     visited: set[str] = set()
-    public_candidates: list[str] = []
+    public_candidates: list[tuple[str, int]] = []
     challenge_page: str | None = None
 
-    def note_discovery(response: Any) -> None:
+    def note_discovery(response: Any, *, current_depth: int) -> None:
         nonlocal challenge_page, public_candidates
-        discovered_targets = _response_anchor_targets(response)
+        current_url = str(getattr(response, "url", "") or "").strip()
+        tracker.realism_tracker.observe_exploration_visit(
+            target=current_url,
+            depth=current_depth,
+            content_type=_response_content_type(response),
+        )
+        discovered_targets: list[str] = []
+        for candidate in _response_anchor_targets(response):
+            allowed, normalized_url = tracker.allowed_request(
+                current_url,
+                candidate,
+                is_redirect=False,
+                record_rejection=False,
+            )
+            if not allowed or not normalized_url:
+                continue
+            tracker.realism_tracker.observe_discovered_target(normalized_url)
+            discovered_targets.append(normalized_url)
         if challenge_page is None:
             challenge_page = _first_matching_target(
                 discovered_targets,
                 lambda candidate: _path_contains(candidate, "not-a-bot"),
             )
-        public_candidates.extend(
-            [
-                candidate
-                for candidate in discovered_targets
-                if _looks_bulk_scraper_public_target(candidate)
-            ]
-        )
+        next_depth = current_depth + 1
+        for candidate in discovered_targets:
+            if _looks_bulk_scraper_public_target(candidate):
+                public_candidates.append((candidate, next_depth))
+        unique_candidates: list[tuple[str, int]] = []
+        seen_targets: set[str] = set()
+        for candidate, depth in public_candidates:
+            if candidate in visited or candidate in seen_targets:
+                continue
+            seen_targets.add(candidate)
+            unique_candidates.append((candidate, depth))
         public_candidates = sorted(
-            [
-                candidate
-                for candidate in _ordered_unique(public_candidates)
-                if candidate not in visited
-            ],
-            key=_bulk_scraper_priority,
+            unique_candidates,
+            key=lambda item: _bulk_scraper_priority(item[0]),
         )
 
     with _PacedRequestNativeSession(
@@ -1663,6 +1779,7 @@ def _execute_bulk_scraper_persona(
         ),
         identity_pool=request_identity_pool,
     ) as session:
+        tracker.realism_tracker.observe_discovered_target(base_url)
         root_surface_ids = ["public_path_traversal", *_public_discovery_surface_ids(surface_targets)]
         root_response = _perform_request(
             session,
@@ -1676,10 +1793,10 @@ def _execute_bulk_scraper_persona(
         )
         if root_response is not None:
             visited.add(str(getattr(root_response, "url", base_url)))
-            note_discovery(root_response)
+            note_discovery(root_response, current_depth=0)
 
         while public_candidates and not tracker.should_stop():
-            candidate = public_candidates.pop(0)
+            candidate, candidate_depth = public_candidates.pop(0)
             if candidate in visited:
                 continue
             response = _perform_request(
@@ -1695,7 +1812,7 @@ def _execute_bulk_scraper_persona(
             if response is None:
                 continue
             visited.add(str(getattr(response, "url", candidate)))
-            note_discovery(response)
+            note_discovery(response, current_depth=candidate_depth)
 
         if not tracker.should_stop() and challenge_page:
             challenge_response = _perform_request(

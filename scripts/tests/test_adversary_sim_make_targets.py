@@ -193,6 +193,36 @@ class AdversarySimMakeTargetTests(unittest.TestCase):
         self.assertIn("scripts/tests/test_llm_runtime_worker.py", body)
         self.assertIn("scripts/tests/test_adversarial_container_worker.py", body)
 
+    def test_exploration_envelope_realism_target_uses_profile_and_worker_selectors(self) -> None:
+        source = MAKEFILE.read_text(encoding="utf-8")
+        match = re.search(
+            r"^test-adversary-sim-exploration-envelope-realism:.*?(?=^[A-Za-z0-9_.-]+:|\Z)",
+            source,
+            re.MULTILINE | re.DOTALL,
+        )
+        self.assertIsNotNone(match)
+        body = match.group(0)
+        self.assertIn(
+            "scrapling_worker_plan_uses_mode_specific_exploration_envelopes",
+            body,
+        )
+        self.assertIn("scripts/tests/test_adversarial_lane_realism_contract.py", body)
+
+    def test_exploration_receipts_realism_target_uses_crawler_receipt_selectors(self) -> None:
+        source = MAKEFILE.read_text(encoding="utf-8")
+        match = re.search(
+            r"^test-adversary-sim-exploration-receipts:.*?(?=^[A-Za-z0-9_.-]+:|\Z)",
+            source,
+            re.MULTILINE | re.DOTALL,
+        )
+        self.assertIsNotNone(match)
+        body = match.group(0)
+        self.assertIn(
+            "test_execute_worker_plan_crawler_emits_exploration_receipt_fields",
+            body,
+        )
+        self.assertIn("scripts/tests/test_adversarial_lane_realism_contract.py", body)
+
     def test_identity_envelope_realism_target_uses_contract_and_worker_selectors(self) -> None:
         source = MAKEFILE.read_text(encoding="utf-8")
         match = re.search(

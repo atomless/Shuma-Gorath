@@ -1836,6 +1836,22 @@ test-adversary-sim-pressure-envelope-realism: ## Focused adversary-sim pressure-
 	@cargo test admin::api::tests::recent_sim_run_history_projects_llm_runtime_receipts_and_categories -- --exact --nocapture
 	@cargo test observability::operator_snapshot::tests::snapshot_payload_projects_recent_run_llm_runtime_summary -- --exact --nocapture
 
+test-adversary-sim-exploration-envelope-realism: ## Focused adversary-sim exploration-envelope gate (mode-specific traversal depth/byte ceilings and shared realism contract)
+	@echo "$(CYAN)🧪 Running adversary-sim exploration-envelope realism gate...$(NC)"
+	@./scripts/set_crate_type.sh rlib
+	@cargo test admin::adversary_sim_lane_runtime::tests::scrapling_worker_plan_uses_mode_specific_exploration_envelopes -- --exact --nocapture
+	@python3 -m unittest scripts/tests/test_adversarial_lane_realism_contract.py
+
+test-adversary-sim-exploration-receipts: ## Focused adversary-sim exploration-receipt gate (crawler frontier truth and traversal receipt shape)
+	@echo "$(CYAN)🧪 Running adversary-sim exploration-receipt realism gate...$(NC)"
+	@python3 -m unittest scripts/tests/test_adversarial_lane_realism_contract.py
+	@if [ ! -x "$(SCRAPLING_VENV_PYTHON)" ]; then \
+		echo "$(RED)❌ Error: $(SCRAPLING_VENV_PYTHON) not found.$(NC)"; \
+		echo "$(YELLOW)   Run make setup or make setup-runtime to provision the repo-owned Scrapling worker runtime.$(NC)"; \
+		exit 1; \
+	fi
+	@$(SCRAPLING_VENV_PYTHON) -m unittest scripts.tests.test_scrapling_worker.ScraplingWorkerUnitTests.test_execute_worker_plan_crawler_emits_exploration_receipt_fields
+
 test-adversarial-identity-envelope-contract: ## Focused adversary-sim identity-envelope gate (contract shape, degraded honesty, and plan emission)
 	@echo "$(CYAN)🧪 Running adversary-sim identity-envelope contract gate...$(NC)"
 	@./scripts/set_crate_type.sh rlib

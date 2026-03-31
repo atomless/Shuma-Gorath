@@ -4,6 +4,41 @@ Moved from active TODO files on 2026-02-14.
 
 ## Additional completions (2026-03-31)
 
+### Adversary Realism Exploration Envelopes, Frontier Receipts, And Discoverability Backlog Cleanup
+
+- [x] Completed the `SIM-REALISM-2F` and `SIM-REALISM-2G` execution slice across:
+  - [`../src/admin/adversary_sim_realism_profile.rs`](../src/admin/adversary_sim_realism_profile.rs)
+  - [`../src/admin/adversary_sim_lane_runtime.rs`](../src/admin/adversary_sim_lane_runtime.rs)
+  - [`../src/admin/adversary_sim_worker_plan.rs`](../src/admin/adversary_sim_worker_plan.rs)
+  - [`../src/admin/adversary_sim.rs`](../src/admin/adversary_sim.rs)
+  - [`../src/admin/api.rs`](../src/admin/api.rs)
+  - [`../scripts/supervisor/scrapling_worker.py`](../scripts/supervisor/scrapling_worker.py)
+  - [`../scripts/tests/adversarial_runner/contracts.py`](../scripts/tests/adversarial_runner/contracts.py)
+  - [`../scripts/tests/adversarial/lane_realism_contract.v1.json`](../scripts/tests/adversarial/lane_realism_contract.v1.json)
+  - [`../scripts/tests/test_adversarial_lane_realism_contract.py`](../scripts/tests/test_adversarial_lane_realism_contract.py)
+  - [`../scripts/tests/test_scrapling_worker.py`](../scripts/tests/test_scrapling_worker.py)
+  - [`../scripts/tests/test_adversary_sim_make_targets.py`](../scripts/tests/test_adversary_sim_make_targets.py)
+  - [`../Makefile`](../Makefile)
+  - [`../docs/plans/2026-03-30-adversary-lane-wild-traffic-gap-plan.md`](../docs/plans/2026-03-30-adversary-lane-wild-traffic-gap-plan.md)
+  - [`../docs/testing.md`](../docs/testing.md)
+  - [`../todos/todo.md`](../todos/todo.md)
+- [x] What landed:
+  - Scrapling realism profiles now carry a separate `exploration_envelope`, so planner-emitted worker plans no longer inherit one flat legacy depth/byte cap.
+  - Scrapling crawler and bulk-scraper receipts now persist compact traversal truth: `visited_url_count`, `discovered_url_count`, `deepest_depth_reached`, `sitemap_documents_seen`, `frontier_remaining_count`, and `canonical_public_pages_reached`.
+  - Focused proof targets now exist for both exploration envelopes and exploration receipts: `make test-adversary-sim-exploration-envelope-realism` and `make test-adversary-sim-exploration-receipts`.
+  - The stale active `SIM-REALISM-2H` backlog item was retired from the active queue after verifying the richer root-hosted generated contributor site had already shipped earlier and already passes the dedicated discoverability gates.
+- [x] Why:
+  - the active realism chain still had one flat exploration budget in runtime plans and no trustworthy frontier receipts, which meant operators could not tell whether shallow traversal reflected a weak attacker model or a genuinely exhausted public frontier,
+  - and the backlog was still inaccurately presenting the generated public-site work as unshipped even though that contributor terrain had already landed and was already gating realism.
+- [x] Evidence:
+  - `make test-adversary-sim-exploration-envelope-realism`
+  - `make test-adversary-sim-exploration-receipts`
+  - `make test-adversarial-lane-realism-contract`
+  - `make test-adversary-sim-pressure-envelope-realism`
+  - `make test-adversary-sim-scrapling-realism`
+  - `make test-adversary-sim-make-target-contract`
+  - previously landed discoverability proof rechecked earlier in the review pass: `make test-sim-public-build-flow-contract` and `make test-sim-public-discoverability-contract`
+
 ### Post-2J Adversary Realism Sufficiency Review And Backlog Extension
 
 - [x] Completed the post-`SIM-REALISM-2J` realism sufficiency planning slice across:

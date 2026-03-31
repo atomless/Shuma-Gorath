@@ -75,6 +75,7 @@ class _RecordingHandler(http.server.BaseHTTPRequestHandler):
                 '<script src="/static/app.js"></script>'
                 '<img src="/static/pixel.png" alt="pixel"/>'
                 '<a href="/page">page</a>'
+                '<a href="/timeline">timeline</a>'
                 '<a href="/catalog?page=1">catalog</a>'
                 '<a href="/challenge/not-a-bot-checkbox">checkpoint</a>'
                 '<a href="/pow">pow</a>'
@@ -126,6 +127,59 @@ class _RecordingHandler(http.server.BaseHTTPRequestHandler):
             body = b"<html><body>page<a href=\"/detail/1\">detail</a></body></html>"
             self.send_response(200)
             self.send_header("Content-Type", "text/html; charset=utf-8")
+            self.send_header("Content-Length", str(len(body)))
+            self.end_headers()
+            self.wfile.write(body)
+            return
+        if self.path == "/timeline":
+            body = (
+                "<html><body>"
+                '<a href="/timeline/2026/03">march-2026</a>'
+                '<a href="/catalog?page=1">catalog</a>'
+                "</body></html>"
+            ).encode("utf-8")
+            self.send_response(200)
+            self.send_header("Content-Type", "text/html; charset=utf-8")
+            self.send_header("Content-Length", str(len(body)))
+            self.end_headers()
+            self.wfile.write(body)
+            return
+        if self.path == "/timeline/2026/03":
+            body = (
+                "<html><body>"
+                '<a href="/timeline/2026/03/entry-1">entry-1</a>'
+                '<a href="/timeline/2026/03/entry-2">entry-2</a>'
+                "</body></html>"
+            ).encode("utf-8")
+            self.send_response(200)
+            self.send_header("Content-Type", "text/html; charset=utf-8")
+            self.send_header("Content-Length", str(len(body)))
+            self.end_headers()
+            self.wfile.write(body)
+            return
+        if self.path in {"/timeline/2026/03/entry-1", "/timeline/2026/03/entry-2"}:
+            body = (
+                f"<html><body>{self.path}"
+                '<a href="/detail/2">detail-2</a>'
+                "</body></html>"
+            ).encode("utf-8")
+            self.send_response(200)
+            self.send_header("Content-Type", "text/html; charset=utf-8")
+            self.send_header("Content-Length", str(len(body)))
+            self.end_headers()
+            self.wfile.write(body)
+            return
+        if self.path == "/sitemaps/pages.xml":
+            base_url = f"http://127.0.0.1:{self.server.server_port}"
+            body = (
+                '<?xml version="1.0" encoding="UTF-8"?>'
+                '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">'
+                f"<url><loc>{base_url}/timeline</loc></url>"
+                f"<url><loc>{base_url}/timeline/2026/03</loc></url>"
+                "</urlset>"
+            ).encode("utf-8")
+            self.send_response(200)
+            self.send_header("Content-Type", "application/xml; charset=utf-8")
             self.send_header("Content-Length", str(len(body)))
             self.end_headers()
             self.wfile.write(body)
@@ -455,7 +509,14 @@ class ScraplingWorkerUnitTests(unittest.TestCase):
         category_targets: list[str],
         *,
         max_requests: int = 5,
+        max_depth: int = 2,
+        max_bytes: int = 65536,
+        max_ms: int = 4000,
     ) -> dict[str, Any]:
+        realism_profile = resolve_lane_realism_profile(
+            "scrapling_traffic",
+            fulfillment_mode,
+        )
         mode_surface_targets = {
             "crawler": [
                 "public_path_traversal",
@@ -505,16 +566,24 @@ class ScraplingWorkerUnitTests(unittest.TestCase):
                 "category_targets": category_targets,
                 "surface_targets": mode_surface_targets[fulfillment_mode],
                 "tick_started_at": int(time.time()),
-                "realism_profile": resolve_lane_realism_profile(
-                    "scrapling_traffic",
-                    fulfillment_mode,
-                ),
+                "realism_profile": realism_profile,
+                "recurrence_context": {
+                    "strategy": realism_profile["recurrence_envelope"]["strategy"],
+                    "session_index": 1,
+                    "reentry_count": 0,
+                    "max_reentries_per_run": realism_profile["recurrence_envelope"][
+                        "max_reentries_per_run"
+                    ],
+                    "planned_dormant_gap_seconds": realism_profile["recurrence_envelope"][
+                        "dormant_gap_seconds"
+                    ]["min"],
+                },
                 "request_identity_pool": [],
                 "browser_identity_pool": [],
                 "max_requests": max_requests,
-                "max_depth": 2,
-                "max_bytes": 65536,
-                "max_ms": 4000,
+                "max_depth": max_depth,
+                "max_bytes": max_bytes,
+                "max_ms": max_ms,
             },
         }
 
@@ -1038,6 +1107,50 @@ class ScraplingWorkerUnitTests(unittest.TestCase):
                 "time_budget_exhausted",
                 "byte_budget_exhausted",
             },
+        )
+
+    def test_execute_worker_plan_crawler_emits_exploration_receipt_fields(self) -> None:
+        self.assertIsNotNone(scrapling_worker, "worker module missing")
+        sitemap_url = urljoin(self.base_url, "/sitemaps/pages.xml")
+        inventory = shared_host_seed_inventory.build_seed_inventory(
+            self.descriptor,
+            primary_start_url=urljoin(self.base_url, "/timeline"),
+            robots_text=f"User-agent: *\nAllow: /\nSitemap: {sitemap_url}\n",
+        )
+        inventory_path = self.temp_dir / "seed_inventory_with_sitemap.json"
+        inventory_path.write_text(json.dumps(inventory), encoding="utf-8")
+        beat_payload = self._make_beat_payload(
+            "crawler",
+            ["indexing_bot"],
+            max_requests=20,
+            max_depth=4,
+            max_bytes=262_144,
+            max_ms=12_000,
+        )
+
+        result = scrapling_worker.execute_worker_plan(
+            beat_payload,
+            scope_descriptor_path=self.descriptor_path,
+            seed_inventory_path=inventory_path,
+            crawldir=self.crawldir,
+            sim_telemetry_secret=SIM_SECRET,
+        )
+
+        receipt = self._realism_receipt(result)
+        self.assertGreaterEqual(receipt["visited_url_count"], 4)
+        self.assertGreaterEqual(
+            receipt["discovered_url_count"],
+            receipt["visited_url_count"],
+        )
+        self.assertGreaterEqual(receipt["deepest_depth_reached"], 2)
+        self.assertGreaterEqual(receipt["sitemap_documents_seen"], 1)
+        self.assertGreaterEqual(receipt["canonical_public_pages_reached"], 3)
+        self.assertGreaterEqual(receipt["frontier_remaining_count"], 0)
+        paths = [entry["path"] for entry in self.httpd.requests_seen]
+        self.assertIn("/sitemaps/pages.xml", paths)
+        self.assertTrue(
+            any(path.startswith("/timeline") for path in paths),
+            msg=json.dumps(result, indent=2),
         )
 
     def test_execute_worker_plan_browser_automation_emits_browser_realism_receipt(self) -> None:

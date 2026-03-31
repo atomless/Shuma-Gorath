@@ -16,9 +16,8 @@ use crate::challenge::KeyValueStore;
 
 use super::adversary_sim::{
     next_llm_fulfillment_plan, AutonomousHeartbeatTickSummary, ControlPhase, ControlState,
-    GenerationTickResult, LlmRuntimeResult, RuntimeLane, ScraplingWorkerPlan,
-    ScraplingWorkerResult, WorkerFailureClass, SCRAPLING_MAX_BYTES_PER_TICK,
-    SCRAPLING_MAX_DEPTH_PER_TICK, SCRAPLING_SIM_PROFILE, SCRAPLING_WORKER_PLAN_SCHEMA_VERSION,
+    GenerationTickResult, LlmRuntimeResult, RuntimeLane, ScraplingWorkerPlan, ScraplingWorkerResult,
+    WorkerFailureClass, SCRAPLING_SIM_PROFILE, SCRAPLING_WORKER_PLAN_SCHEMA_VERSION,
 };
 use super::adversary_sim_corpus::deterministic_runtime_profile;
 use super::adversary_sim_identity_pool::load_identity_pool_from_env;
@@ -647,8 +646,8 @@ fn next_scrapling_worker_plan(now: u64, state: &mut ControlState) -> ScraplingWo
         tick_started_at: now,
         recurrence_context,
         max_requests: realism_profile.pressure_envelope.max_activities,
-        max_depth: SCRAPLING_MAX_DEPTH_PER_TICK,
-        max_bytes: SCRAPLING_MAX_BYTES_PER_TICK,
+        max_depth: realism_profile.exploration_envelope.max_depth,
+        max_bytes: realism_profile.exploration_envelope.max_bytes,
         max_ms: realism_profile.pressure_envelope.max_time_budget_ms,
         realism_profile,
     }
@@ -740,6 +739,37 @@ mod tests {
         assert!(bulk_plan.max_requests > crawler_plan.max_requests);
         assert!(bulk_plan.max_requests > 8);
         assert!(bulk_plan.max_ms > 2_000);
+    }
+
+    #[test]
+    fn scrapling_worker_plan_uses_mode_specific_exploration_envelopes() {
+        let mut crawler_state = ControlState::default();
+        crawler_state.generated_tick_count = 0;
+        let crawler_plan = next_scrapling_worker_plan(1_700_000_100, &mut crawler_state);
+
+        let mut bulk_state = ControlState::default();
+        bulk_state.generated_tick_count = 1;
+        let bulk_plan = next_scrapling_worker_plan(1_700_000_101, &mut bulk_state);
+
+        assert_eq!(
+            crawler_plan.max_depth,
+            crawler_plan.realism_profile.exploration_envelope.max_depth
+        );
+        assert_eq!(
+            bulk_plan.max_depth,
+            bulk_plan.realism_profile.exploration_envelope.max_depth
+        );
+        assert_eq!(
+            crawler_plan.max_bytes,
+            crawler_plan.realism_profile.exploration_envelope.max_bytes
+        );
+        assert_eq!(
+            bulk_plan.max_bytes,
+            bulk_plan.realism_profile.exploration_envelope.max_bytes
+        );
+        assert!(bulk_plan.max_depth > crawler_plan.max_depth);
+        assert!(bulk_plan.max_bytes > crawler_plan.max_bytes);
+        assert!(bulk_plan.max_depth > 2);
     }
 
     #[test]
