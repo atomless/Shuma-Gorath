@@ -1605,10 +1605,20 @@ test-sim-public-generator: ## Validate generated contributor sim-public site art
 test-sim-public-runtime-serving: ## Validate generated contributor sim-public runtime serving and legacy-surface removal
 	@echo "$(CYAN)🧪 Validating sim-public runtime serving...$(NC)"
 	@./scripts/set_crate_type.sh rlib
-	@cargo test sim_public_relative_asset_path_maps_root_and_nested_routes -- --nocapture
+	@cargo test sim_public_relative_asset_path_maps_root_hosted_routes -- --nocapture
 	@cargo test maybe_handle_serves_generated_site_files_when_enabled -- --nocapture
 	@cargo test maybe_handle_serves_atom_feed_with_xml_content_type -- --nocapture
 	@cargo test maybe_handle_returns_empty_body_for_head -- --nocapture
+
+test-shuma-root-public-site-serving: ## Validate the root-hosted contributor public site and rooted adversary discoverability contract
+	@echo "$(CYAN)🧪 Validating root-hosted Shuma public-site serving...$(NC)"
+	@$(MAKE) --no-print-directory test-sim-public-generated-site-contract
+	@$(MAKE) --no-print-directory test-sim-public-generator
+	@$(MAKE) --no-print-directory test-sim-public-runtime-serving
+	@$(MAKE) --no-print-directory test-sim-public-discoverability-contract
+	@$(MAKE) --no-print-directory test-shuma-rooted-adversary-path-contract
+	@./scripts/set_crate_type.sh rlib
+	@cargo test static_bypass_excludes_root_public_metadata_paths -- --nocapture
 
 sim-public-refresh: ## Regenerate the contributor sim-public artifact explicitly
 	@python3 "$(SIM_PUBLIC_SITE_GENERATOR)" \
@@ -1628,6 +1638,11 @@ sim-public-refresh-if-stale: ## Regenerate the contributor sim-public artifact o
 test-sim-public-build-flow-contract: ## Validate contributor/runtime sim-public refresh-flow wiring and stale-generation discipline
 	@echo "$(CYAN)🧪 Validating sim-public build-flow contract...$(NC)"
 	@python3 -m unittest scripts/tests/test_sim_public_build_flow_contract.py
+
+test-shuma-rooted-adversary-path-contract: ## Validate rooted public-path assumptions across adversary corpora, runtime serving, and active operator surfaces
+	@echo "$(CYAN)🧪 Validating rooted adversary/public path contract...$(NC)"
+	@$(MAKE) --no-print-directory test-adversarial-deterministic-corpus
+	@python3 -m unittest scripts/tests/test_rooted_public_path_contract.py
 
 test-sim-public-discoverability-contract: ## Validate generated sim-public discoverability artifacts, pagination, and serving semantics
 	@echo "$(CYAN)🧪 Validating sim-public discoverability contract...$(NC)"
@@ -1699,7 +1714,7 @@ test-adversarial-runner-architecture: ## Run focused adversarial runner CLI, uni
 test-adversarial-deterministic-corpus: ## Validate shared deterministic attack corpus parity across runtime and CI oracle lanes
 	@echo "$(CYAN)🧪 Validating shared deterministic attack corpus parity...$(NC)"
 	@./scripts/set_crate_type.sh rlib
-	@cargo test default_deterministic_attack_corpus_targets_generated_sim_public_routes -- --nocapture
+	@cargo test default_deterministic_attack_corpus_targets_root_hosted_public_routes -- --nocapture
 	@python3 scripts/tests/check_adversarial_deterministic_corpus.py
 
 test-adversary-sim-lifecycle: ## Fast adversary-sim lifecycle regression gate (toggle/state/heartbeat contracts)
@@ -2417,7 +2432,7 @@ test-dashboard-game-loop-accountability: ## Run focused dashboard Game Loop obse
 	fi
 	@$(MAKE) --no-print-directory test-dashboard-svelte-check
 	@node --test \
-		--test-name-pattern='dashboard game loop accountability adapters normalize operator and oversight payloads safely|dashboard game loop observer source stays scoped to recent rounds and exact receipts|dashboard game loop accountability refresh populates observer snapshots through behavior|game loop, traffic, and diagnostics tabs make ownership boundaries explicit' \
+		--test-name-pattern='dashboard game loop accountability adapters normalize operator and oversight payloads safely|dashboard game loop observer source stays scoped to recent rounds and exact receipts|dashboard game loop accountability refresh populates observer snapshots through behavior|dashboard llm surface projection treats root-hosted public pages as public traversal|game loop, traffic, and diagnostics tabs make ownership boundaries explicit' \
 		e2e/dashboard.modules.unit.test.js
 	@if $(MAKE) --no-print-directory spin-wait-ready; then \
 		$(MAKE) --no-print-directory dashboard-verify-freshness || exit 1; \
@@ -2489,6 +2504,21 @@ test-dashboard-runtime-unit-contracts: ## Run focused dashboard native/refresh r
 	@$(MAKE) --no-print-directory test-dashboard-svelte-check
 	@node --test \
 		--test-name-pattern='dashboard native runtime restores session, normalizes tabs, and invalidates config mutations through behavior|dashboard refresh runtime clears caches and resets freshness snapshots through behavior' \
+		e2e/dashboard.modules.unit.test.js
+
+test-dashboard-root-public-surface-projection: ## Run focused dashboard unit checks for root-hosted public-surface projection
+	@echo "$(CYAN)🧪 Running focused dashboard root-public projection checks...$(NC)"
+	@if ! command -v corepack >/dev/null 2>&1; then \
+		echo "$(RED)❌ Error: corepack not found (install Node.js 18+).$(NC)"; \
+		exit 1; \
+	fi
+	@corepack enable > /dev/null 2>&1 || true
+	@if [ ! -d node_modules/.pnpm ] || [ ! -x node_modules/.bin/vite ] || [ ! -x node_modules/.bin/svelte-check ] || [ ! -d node_modules/svelte ] || [ ! -d node_modules/@sveltejs/kit ] || [ ! -d node_modules/@playwright/test ]; then \
+		corepack pnpm install --offline --frozen-lockfile || corepack pnpm install --frozen-lockfile; \
+	fi
+	@$(MAKE) --no-print-directory test-dashboard-svelte-check
+	@node --test \
+		--test-name-pattern='dashboard llm surface projection treats root-hosted public pages as public traversal' \
 		e2e/dashboard.modules.unit.test.js
 
 test-dashboard-config-refresh-contract: ## Run focused dashboard config refresh and restore-cleanup checks

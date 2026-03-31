@@ -1,4 +1,4 @@
-"""Build the contributor-generated /sim/public site artifact."""
+"""Build the contributor-generated root-hosted public site artifact."""
 
 from __future__ import annotations
 

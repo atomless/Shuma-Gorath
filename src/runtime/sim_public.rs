@@ -5,9 +5,11 @@ use std::{
 
 use spin_sdk::http::{Method, Request, Response};
 
-use crate::config::{Config, RuntimeEnvironment};
+use crate::{
+    config::{Config, RuntimeEnvironment},
+    http_route_namespace,
+};
 
-const SIM_PUBLIC_PREFIX: &str = "/sim/public";
 const SIM_PUBLIC_SITE_DIRNAME: &str = "sim-public-site";
 const SIM_PUBLIC_SITE_MANIFEST_FILENAME: &str = "manifest.json";
 const SIM_PUBLIC_SITE_CONTENT_DIRNAME: &str = "site";
@@ -92,14 +94,11 @@ pub(crate) fn maybe_handle_with_availability(
 
 fn sim_public_relative_asset_path(path: &str) -> Option<PathBuf> {
     let normalized_path = normalize_request_path(path);
-    if normalized_path != SIM_PUBLIC_PREFIX
-        && !normalized_path.starts_with(&format!("{SIM_PUBLIC_PREFIX}/"))
-    {
+    if !http_route_namespace::is_generated_public_site_path(normalized_path) {
         return None;
     }
 
-    let remainder = normalized_path.strip_prefix(SIM_PUBLIC_PREFIX).unwrap_or_default();
-    let trimmed = remainder.trim_start_matches('/');
+    let trimmed = normalized_path.trim_start_matches('/');
     if trimmed.is_empty() {
         return Some(PathBuf::from("index.html"));
     }
@@ -202,7 +201,7 @@ mod tests {
         fs::write(site_root.join("atom.xml"), "<feed>Alpha Research</feed>\n").expect("atom");
         fs::write(
             site_root.join("robots.txt"),
-            "User-agent: *\nAllow: /\nSitemap: http://127.0.0.1:3000/sim/public/sitemap.xml\n",
+            "User-agent: *\nAllow: /\nSitemap: http://127.0.0.1:3000/sitemap.xml\n",
         )
         .expect("robots");
         fs::write(
@@ -214,40 +213,40 @@ mod tests {
     }
 
     #[test]
-    fn sim_public_relative_asset_path_maps_root_and_nested_routes() {
+    fn sim_public_relative_asset_path_maps_root_hosted_routes() {
         assert_eq!(
-            sim_public_relative_asset_path("/sim/public/"),
+            sim_public_relative_asset_path("/"),
             Some(PathBuf::from("index.html"))
         );
         assert_eq!(
-            sim_public_relative_asset_path("/sim/public/about/"),
+            sim_public_relative_asset_path("/about/"),
             Some(PathBuf::from("about").join("index.html"))
         );
         assert_eq!(
-            sim_public_relative_asset_path("/sim/public/about"),
+            sim_public_relative_asset_path("/about"),
             Some(PathBuf::from("about").join("index.html"))
         );
         assert_eq!(
-            sim_public_relative_asset_path("/sim/public/atom.xml"),
+            sim_public_relative_asset_path("/atom.xml"),
             Some(PathBuf::from("atom.xml"))
         );
         assert_eq!(
-            sim_public_relative_asset_path("/sim/public/robots.txt"),
+            sim_public_relative_asset_path("/robots.txt"),
             Some(PathBuf::from("robots.txt"))
         );
         assert_eq!(
-            sim_public_relative_asset_path("/sim/public/sitemap.xml"),
+            sim_public_relative_asset_path("/sitemap.xml"),
             Some(PathBuf::from("sitemap.xml"))
         );
         assert_eq!(
-            sim_public_relative_asset_path("/sim/public/research/alpha/"),
+            sim_public_relative_asset_path("/research/alpha/"),
             Some(PathBuf::from("research").join("alpha").join("index.html"))
         );
     }
 
     #[test]
-    fn sim_public_relative_asset_path_rejects_non_sim_paths() {
-        assert_eq!(sim_public_relative_asset_path("/health"), None);
+    fn sim_public_relative_asset_path_rejects_shuma_control_paths() {
+        assert_eq!(sim_public_relative_asset_path("/shuma/health"), None);
     }
 
     #[test]
@@ -260,18 +259,20 @@ mod tests {
 
     #[test]
     fn maybe_handle_returns_none_for_non_sim_paths() {
-        let req = request(Method::Get, "/health");
-        assert!(maybe_handle_with_availability(&req, "/health", enabled_availability()).is_none());
+        let req = request(Method::Get, "/shuma/health");
+        assert!(
+            maybe_handle_with_availability(&req, "/shuma/health", enabled_availability()).is_none()
+        );
     }
 
     #[test]
     fn maybe_handle_returns_not_found_when_disabled() {
-        let req = request(Method::Get, "/sim/public/");
+        let req = request(Method::Get, "/");
         let availability = SimPublicAvailability {
             runtime_environment: RuntimeEnvironment::RuntimeDev,
             artifact_available: false,
         };
-        let resp = maybe_handle_with_availability(&req, "/sim/public/", availability)
+        let resp = maybe_handle_with_availability(&req, "/", availability)
             .expect("sim route should be handled");
         assert_eq!(*resp.status(), 404u16);
     }
@@ -322,8 +323,8 @@ mod tests {
 
     #[test]
     fn maybe_handle_rejects_non_get_head_methods() {
-        let req = request(Method::Post, "/sim/public/about/");
-        let resp = maybe_handle_with_availability(&req, "/sim/public/about/", enabled_availability())
+        let req = request(Method::Post, "/about/");
+        let resp = maybe_handle_with_availability(&req, "/about/", enabled_availability())
             .expect("sim route should be handled");
         assert_eq!(*resp.status(), 405u16);
     }
@@ -335,8 +336,8 @@ mod tests {
         seed_generated_site(&base);
         std::env::set_var("SHUMA_LOCAL_STATE_DIR", base.join(".shuma"));
 
-        let req = request(Method::Get, "/sim/public/research/alpha/");
-        let resp = maybe_handle_with_availability(&req, "/sim/public/research/alpha/", enabled_availability())
+        let req = request(Method::Get, "/research/alpha/");
+        let resp = maybe_handle_with_availability(&req, "/research/alpha/", enabled_availability())
             .expect("sim route should be handled");
 
         std::env::remove_var("SHUMA_LOCAL_STATE_DIR");
@@ -355,8 +356,8 @@ mod tests {
         seed_generated_site(&base);
         std::env::set_var("SHUMA_LOCAL_STATE_DIR", base.join(".shuma"));
 
-        let req = request(Method::Get, "/sim/public/atom.xml");
-        let resp = maybe_handle_with_availability(&req, "/sim/public/atom.xml", enabled_availability())
+        let req = request(Method::Get, "/atom.xml");
+        let resp = maybe_handle_with_availability(&req, "/atom.xml", enabled_availability())
             .expect("sim route should be handled");
 
         std::env::remove_var("SHUMA_LOCAL_STATE_DIR");
@@ -376,8 +377,8 @@ mod tests {
         seed_generated_site(&base);
         std::env::set_var("SHUMA_LOCAL_STATE_DIR", base.join(".shuma"));
 
-        let req = request(Method::Get, "/sim/public/robots.txt");
-        let resp = maybe_handle_with_availability(&req, "/sim/public/robots.txt", enabled_availability())
+        let req = request(Method::Get, "/robots.txt");
+        let resp = maybe_handle_with_availability(&req, "/robots.txt", enabled_availability())
             .expect("sim route should be handled");
 
         std::env::remove_var("SHUMA_LOCAL_STATE_DIR");
@@ -397,8 +398,8 @@ mod tests {
         seed_generated_site(&base);
         std::env::set_var("SHUMA_LOCAL_STATE_DIR", base.join(".shuma"));
 
-        let req = request(Method::Get, "/sim/public/sitemap.xml");
-        let resp = maybe_handle_with_availability(&req, "/sim/public/sitemap.xml", enabled_availability())
+        let req = request(Method::Get, "/sitemap.xml");
+        let resp = maybe_handle_with_availability(&req, "/sitemap.xml", enabled_availability())
             .expect("sim route should be handled");
 
         std::env::remove_var("SHUMA_LOCAL_STATE_DIR");
@@ -418,9 +419,9 @@ mod tests {
         seed_generated_site(&base);
         std::env::set_var("SHUMA_LOCAL_STATE_DIR", base.join(".shuma"));
 
-        let req = request(Method::Head, "/sim/public/");
+        let req = request(Method::Head, "/");
         let resp =
-            maybe_handle_with_availability(&req, "/sim/public/", enabled_availability())
+            maybe_handle_with_availability(&req, "/", enabled_availability())
                 .expect("sim route should be handled");
 
         std::env::remove_var("SHUMA_LOCAL_STATE_DIR");

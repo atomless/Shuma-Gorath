@@ -161,11 +161,11 @@ testClassifyMazeDocumentRecognizesBlockFallback();
 
 function testMergeAgenticSessionPathsRootsAndDeduplicatesWithinBudget() {
   const merged = mergeAgenticSessionPaths(
-    ["/sim/public/research/", "/sim/public/research/"],
-    ["/sim/public/plans/", "/sim/public/work/"],
+    ["/research/", "/research/"],
+    ["/plans/", "/work/"],
     3,
   );
-  assert.deepEqual(merged, ["/", "/sim/public/research/", "/sim/public/plans/"]);
+  assert.deepEqual(merged, ["/", "/research/", "/plans/"]);
 }
 
 testMergeAgenticSessionPathsRootsAndDeduplicatesWithinBudget();

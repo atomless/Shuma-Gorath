@@ -1022,7 +1022,7 @@ mod tests {
                                 blocked_by_surface_ids: Vec::new(),
                                 attempt_count: 3,
                                 sample_request_method: "GET".to_string(),
-                                sample_request_path: "/sim/public/?q=scrapling".to_string(),
+                                sample_request_path: "/?q=scrapling".to_string(),
                                 sample_response_status: Some(200),
                             },
                             crate::observability::scrapling_owned_surface::ScraplingOwnedSurfaceCoverageReceipt {
@@ -1717,7 +1717,7 @@ mod tests {
                     },
                     "candidate": {
                         "scenario_family": "cdp_high_confidence_deny",
-                        "path": "/sim/public/",
+                        "path": "/",
                         "expected_outcome": "deny_temp",
                         "observed_outcome": "deny_temp",
                         "severity": "high",

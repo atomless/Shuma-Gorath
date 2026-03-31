@@ -21,8 +21,7 @@ pub(crate) struct LlmSurfaceObservationRow {
 
 pub(crate) fn llm_receipt_surface_id(receipt: &LlmRuntimeActionReceipt) -> Option<&'static str> {
     let path = receipt.path.as_str();
-    if path == "/"
-        || path.starts_with("/sim/public/")
+    if crate::http_route_namespace::is_generated_public_site_path(path)
         || path.starts_with("/detail/")
         || path.starts_with("/search")
     {
@@ -128,4 +127,3 @@ pub(crate) fn summarize_llm_surface_observations(
 
     rows.into_values().collect()
 }
-

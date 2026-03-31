@@ -39,13 +39,13 @@ class LlmRuntimeWorkerUnitTests(unittest.TestCase):
                 {
                     "action_index": 2,
                     "action_type": "browser_click",
-                    "path": "/sim/public/research/",
+                    "path": "/research/",
                     "label": "research",
                 },
                 {
                     "action_index": 3,
                     "action_type": "browser_snapshot",
-                    "path": "/sim/public/plans/",
+                    "path": "/plans/",
                     "label": "plans",
                 },
             ],
@@ -499,7 +499,7 @@ class LlmRuntimeWorkerUnitTests(unittest.TestCase):
                     {
                         "action_index": 2,
                         "action_type": "browser_navigate",
-                        "path": "/sim/public/research/",
+                        "path": "/research/",
                         "status": 200,
                     },
                 ],
@@ -528,7 +528,7 @@ class LlmRuntimeWorkerUnitTests(unittest.TestCase):
                         {"method": "GET", "path": "/", "sim_nonce": "nonce-1"},
                         {
                             "method": "GET",
-                            "path": "/sim/public/research/",
+                            "path": "/research/",
                             "sim_nonce": "nonce-2",
                         },
                     ],
@@ -590,7 +590,7 @@ class LlmRuntimeWorkerUnitTests(unittest.TestCase):
         )
         self.assertEqual(report["worker_payload"]["requests_sent"], 2)
         self.assertEqual(len(report["_executed_actions"]), 2)
-        self.assertEqual(report["_executed_actions"][1]["path"], "/sim/public/research/")
+        self.assertEqual(report["_executed_actions"][1]["path"], "/research/")
 
 
 if __name__ == "__main__":

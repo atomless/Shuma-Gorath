@@ -8,8 +8,8 @@ import scripts.tests.frontier_capability_envelope as capability
 class FrontierCapabilityEnvelopeUnitTests(unittest.TestCase):
     def test_build_and_validate_action_capability_envelopes(self):
         actions = [
-            {"action_type": "http_get", "path": "/sim/public/research/"},
-            {"action_type": "http_get", "path": "/sim/public/work/"},
+            {"action_type": "http_get", "path": "/research/"},
+            {"action_type": "http_get", "path": "/work/"},
         ]
         verify_key, envelopes = capability.build_action_capability_envelopes(
             root_secret="sim-secret",
@@ -28,7 +28,7 @@ class FrontierCapabilityEnvelopeUnitTests(unittest.TestCase):
         self.assertEqual(errors, [])
 
     def test_validate_action_capability_envelopes_rejects_signature_mismatch(self):
-        actions = [{"action_type": "http_get", "path": "/sim/public/research/"}]
+        actions = [{"action_type": "http_get", "path": "/research/"}]
         verify_key, envelopes = capability.build_action_capability_envelopes(
             root_secret="sim-secret",
             run_id="run-123",
@@ -48,8 +48,8 @@ class FrontierCapabilityEnvelopeUnitTests(unittest.TestCase):
 
     def test_validate_action_capability_envelopes_rejects_nonce_replay(self):
         actions = [
-            {"action_type": "http_get", "path": "/sim/public/research/"},
-            {"action_type": "http_get", "path": "/sim/public/work/"},
+            {"action_type": "http_get", "path": "/research/"},
+            {"action_type": "http_get", "path": "/work/"},
         ]
         verify_key, envelopes = capability.build_action_capability_envelopes(
             root_secret="sim-secret",
@@ -69,7 +69,7 @@ class FrontierCapabilityEnvelopeUnitTests(unittest.TestCase):
         self.assertTrue(any("nonce_replay" in error for error in errors))
 
     def test_validate_action_capability_envelopes_rejects_expired_envelope(self):
-        actions = [{"action_type": "http_get", "path": "/sim/public/research/"}]
+        actions = [{"action_type": "http_get", "path": "/research/"}]
         verify_key, envelopes = capability.build_action_capability_envelopes(
             root_secret="sim-secret",
             run_id="run-123",
@@ -87,7 +87,7 @@ class FrontierCapabilityEnvelopeUnitTests(unittest.TestCase):
         self.assertTrue(any("envelope_expired" in error for error in errors))
 
     def test_validate_action_capability_envelopes_rejects_scope_mismatch(self):
-        actions = [{"action_type": "http_get", "path": "/sim/public/research/"}]
+        actions = [{"action_type": "http_get", "path": "/research/"}]
         verify_key, envelopes = capability.build_action_capability_envelopes(
             root_secret="sim-secret",
             run_id="run-123",

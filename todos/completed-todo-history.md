@@ -4,6 +4,69 @@ Moved from active TODO files on 2026-02-14.
 
 ## Additional completions (2026-03-31)
 
+### ROUTE-NS-1B And ROUTE-NS-1E Root-Host The Generated Public Site And Repoint Adversary Discovery
+
+- [x] Completed the rooted public-site and adversary-discovery tranche across:
+  - [`../src/runtime/sim_public.rs`](../src/runtime/sim_public.rs)
+  - [`../src/http_route_namespace.rs`](../src/http_route_namespace.rs)
+  - [`../src/lib.rs`](../src/lib.rs)
+  - [`../src/lib_tests/security.rs`](../src/lib_tests/security.rs)
+  - [`../src/crawler_policy/robots.rs`](../src/crawler_policy/robots.rs)
+  - [`../src/admin/adversary_sim_corpus.rs`](../src/admin/adversary_sim_corpus.rs)
+  - [`../src/admin/adversary_sim_lane_runtime.rs`](../src/admin/adversary_sim_lane_runtime.rs)
+  - [`../src/runtime/request_flow.rs`](../src/runtime/request_flow.rs)
+  - [`../src/observability/llm_surface_observation.rs`](../src/observability/llm_surface_observation.rs)
+  - [`../src/admin/api.rs`](../src/admin/api.rs)
+  - [`../src/admin/oversight_reconcile.rs`](../src/admin/oversight_reconcile.rs)
+  - [`../src/admin/replay_promotion_api.rs`](../src/admin/replay_promotion_api.rs)
+  - [`../src/observability/benchmark_comparison.rs`](../src/observability/benchmark_comparison.rs)
+  - [`../src/observability/benchmark_results.rs`](../src/observability/benchmark_results.rs)
+  - [`../src/observability/benchmark_results_comparison.rs`](../src/observability/benchmark_results_comparison.rs)
+  - [`../src/observability/operator_snapshot.rs`](../src/observability/operator_snapshot.rs)
+  - [`../src/observability/replay_promotion.rs`](../src/observability/replay_promotion.rs)
+  - [`../src/observability/scrapling_owned_surface.rs`](../src/observability/scrapling_owned_surface.rs)
+  - [`../scripts/build_sim_public_site.py`](../scripts/build_sim_public_site.py)
+  - [`../scripts/sim_public_site/__init__.py`](../scripts/sim_public_site/__init__.py)
+  - [`../scripts/sim_public_site/build.py`](../scripts/sim_public_site/build.py)
+  - [`../scripts/deploy/gateway_surface_catalog.py`](../scripts/deploy/gateway_surface_catalog.py)
+  - [`../scripts/tests/test_build_sim_public_site.py`](../scripts/tests/test_build_sim_public_site.py)
+  - [`../scripts/tests/test_sim_public_generated_site_contract.py`](../scripts/tests/test_sim_public_generated_site_contract.py)
+  - [`../scripts/tests/test_rooted_public_path_contract.py`](../scripts/tests/test_rooted_public_path_contract.py)
+  - [`../scripts/tests/test_scrapling_worker.py`](../scripts/tests/test_scrapling_worker.py)
+  - [`../scripts/tests/test_llm_runtime_worker.py`](../scripts/tests/test_llm_runtime_worker.py)
+  - [`../scripts/tests/test_adversarial_browser_driver.mjs`](../scripts/tests/test_adversarial_browser_driver.mjs)
+  - [`../scripts/tests/test_adversarial_container_runner.py`](../scripts/tests/test_adversarial_container_runner.py)
+  - [`../scripts/tests/test_adversarial_promote_candidates.py`](../scripts/tests/test_adversarial_promote_candidates.py)
+  - [`../scripts/tests/test_adversarial_simulation_runner.py`](../scripts/tests/test_adversarial_simulation_runner.py)
+  - [`../scripts/tests/test_frontier_action_contract.py`](../scripts/tests/test_frontier_action_contract.py)
+  - [`../scripts/tests/test_frontier_capability_envelope.py`](../scripts/tests/test_frontier_capability_envelope.py)
+  - [`../scripts/tests/adversarial/deterministic_attack_corpus.v1.json`](../scripts/tests/adversarial/deterministic_attack_corpus.v1.json)
+  - [`../scripts/tests/adversarial/frontier_action_contract.v1.json`](../scripts/tests/adversarial/frontier_action_contract.v1.json)
+  - [`../scripts/tests/adversarial/frontier_attack_generation_contract.v1.json`](../scripts/tests/adversarial/frontier_attack_generation_contract.v1.json)
+  - [`../config/sim_public_site/corpus.toml`](../config/sim_public_site/corpus.toml)
+  - [`../dashboard/src/lib/components/dashboard/monitoring-view-model.js`](../dashboard/src/lib/components/dashboard/monitoring-view-model.js)
+  - [`../e2e/dashboard.modules.unit.test.js`](../e2e/dashboard.modules.unit.test.js)
+  - [`../docs/adversarial-operator-guide.md`](../docs/adversarial-operator-guide.md)
+  - [`../docs/configuration.md`](../docs/configuration.md)
+  - [`../docs/testing.md`](../docs/testing.md)
+  - [`../scripts/README.md`](../scripts/README.md)
+  - [`../Makefile`](../Makefile)
+- [x] What landed:
+  - the generated contributor public site is now rooted at `/` with canonical root `robots.txt`, `sitemap.xml`, and `atom.xml` instead of `/sim/public/*`,
+  - runtime serving, route matching, and static-bypass logic now use the canonical `http_route_namespace` root-public matcher rather than a simulation-only prefix,
+  - deterministic adversary corpus defaults, realism path hints, benchmark/sample fixtures, and dashboard LLM surface projection now all start from `/` and rooted public sections like `/about/`, `/research/`, `/plans/`, `/work/`, `/page/*`, and `/sitemaps/*`,
+  - and a focused rooted-path audit plus Make targets now prevent active code and active test surfaces from drifting back to the legacy `/sim/public/*` contract.
+- [x] Why:
+  - the generated contributor terrain needs to match the actual protected host root before the remaining realism work can claim representative discovery or traversal behavior,
+  - and adversary path hints needed to stop implying a simulation-only prefix that real attackers would never be handed on a normal host.
+- [x] Evidence:
+  - `make test-shuma-root-public-site-serving`
+  - `make test-dashboard-root-public-surface-projection`
+  - `make test-shuma-route-namespace-contract`
+  - `make test-sim-public-build-flow-contract`
+  - `git diff --check`
+  - `rg -n '/sim/public' src scripts/tests dashboard/src/lib/components/dashboard/monitoring-view-model.js src/observability/llm_surface_observation.rs`
+
 ### ROUTE-NS-1A Freeze The Canonical Shuma Route-Namespace Contract
 
 - [x] Completed the first executable route-namespace tranche across:

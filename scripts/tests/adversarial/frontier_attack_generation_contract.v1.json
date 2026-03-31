@@ -18,8 +18,7 @@
       "retry_storm"
     ],
     "allowed_path_prefixes": [
-      "/",
-      "/sim/public/"
+      "/"
     ],
     "mutation_catalog": [
       {
@@ -34,7 +33,7 @@
         "id": "path-search-probe",
         "class": "path_selection",
         "behavioral_class": "path_variation",
-        "path_hint": "/sim/public/",
+        "path_hint": "/",
         "query_hint": {
           "q": "adaptive frontier probe"
         },
@@ -44,7 +43,7 @@
         "id": "path-research-revisit",
         "class": "path_selection",
         "behavioral_class": "crawl_variation",
-        "path_hint": "/sim/public/research/",
+        "path_hint": "/research/",
         "user_agent_suffix": "mut-research-revisit",
         "novelty_weight": 0.55
       }

@@ -164,18 +164,6 @@ Current note:
   - and the next remaining blocker is projection truth: operator/admin and dashboard surfaces still need to distinguish judged mixed-attacker episodes from mere lane visibility.
 - Do not claim mixed-attacker strict-baseline proof from the new score spine alone; mixed-attacker proof projection and repeated retained improvement under mixed pressure still remain required.
 
-- [ ] ROUTE-NS-1B Move the generated contributor public-content site from `/sim/public/*` to root-hosted public paths.
-  - Reference context:
-    - [`docs/research/2026-03-31-route-namespace-and-root-hosted-public-site-review.md`](../docs/research/2026-03-31-route-namespace-and-root-hosted-public-site-review.md)
-    - [`docs/plans/2026-03-31-route-namespace-and-root-hosted-public-site-plan.md`](../docs/plans/2026-03-31-route-namespace-and-root-hosted-public-site-plan.md)
-    - [`docs/plans/2026-03-30-contributor-generated-public-content-sim-site-plan.md`](../docs/plans/2026-03-30-contributor-generated-public-content-sim-site-plan.md)
-  - Closure gate:
-    - public-site truth: the generated contributor site must be served from `/` and ordinary public page paths, with root `robots.txt`, root `sitemap.xml`, and root `atom.xml`
-    - contributor truth: contributors running `make dev` must be able to browse the root-hosted generated site even when adversary sim is disabled or idle
-    - cleanup truth: `/sim/public/*` must not remain as the canonical generated-site path family
-    - proof: add and pass `make test-shuma-root-public-site-serving`
-    - insufficient: serving the same site in parallel at both `/sim/public/*` and `/*`, or tying local browsing to adversary-sim activity
-
 - [ ] ROUTE-NS-1C Move Shuma-owned control-plane, dashboard, health, and metrics routes under `/shuma/*`.
   - Reference context:
     - [`docs/research/2026-03-31-route-namespace-and-root-hosted-public-site-review.md`](../docs/research/2026-03-31-route-namespace-and-root-hosted-public-site-review.md)
@@ -195,17 +183,6 @@ Current note:
     - control truth: internal command routes must remain namespaced and clearly distinct from host-root public content
     - proof: keep focused runtime or script contract targets green and extend them where needed under `make test-shuma-control-route-migration`
     - insufficient: leaving mixed top-level and `/shuma/internal/*` command surfaces alive without explicit justification
-
-- [ ] ROUTE-NS-1E Migrate adversary corpus, realism path hints, and root-discovery assumptions to the corrected host-root model.
-  - Reference context:
-    - [`docs/research/2026-03-31-route-namespace-and-root-hosted-public-site-review.md`](../docs/research/2026-03-31-route-namespace-and-root-hosted-public-site-review.md)
-    - [`docs/plans/2026-03-31-route-namespace-and-root-hosted-public-site-plan.md`](../docs/plans/2026-03-31-route-namespace-and-root-hosted-public-site-plan.md)
-    - [`docs/plans/2026-03-20-shared-host-seed-contract.md`](../docs/plans/2026-03-20-shared-host-seed-contract.md)
-  - Closure gate:
-    - discovery truth: deterministic and adaptive adversary path hints must begin from `/` and root-level public hints such as `robots.txt` and sitemap references rather than `/sim/public/*`
-    - observer truth: benchmark or sample-path fixtures must stop implying `/sim/public/*` is the host site's public root
-    - proof: add and pass `make test-shuma-rooted-adversary-path-contract`
-    - insufficient: root-hosted generated content with adversary corpora and realism contracts still pointing at the old simulation-only prefix
 
 - [ ] ROUTE-NS-1F Remove legacy route-family assumptions from docs, tests, and operator guidance after full-path proof.
   - Reference context:

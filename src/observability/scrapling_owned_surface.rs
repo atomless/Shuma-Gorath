@@ -910,7 +910,7 @@ mod tests {
                     coverage_status: "pass_observed".to_string(),
                     attempt_count: 2,
                     sample_request_method: "GET".to_string(),
-                    sample_request_path: "/sim/public/?q=test".to_string(),
+                    sample_request_path: "/?q=test".to_string(),
                     sample_response_status: Some(200),
                 },
                 ScraplingSurfaceObservationReceipt {
@@ -918,7 +918,7 @@ mod tests {
                     coverage_status: "pass_observed".to_string(),
                     attempt_count: 2,
                     sample_request_method: "GET".to_string(),
-                    sample_request_path: "/sim/public/?q=test".to_string(),
+                    sample_request_path: "/?q=test".to_string(),
                     sample_response_status: Some(200),
                 },
                 ScraplingSurfaceObservationReceipt {
@@ -926,7 +926,7 @@ mod tests {
                     coverage_status: "pass_observed".to_string(),
                     attempt_count: 2,
                     sample_request_method: "GET".to_string(),
-                    sample_request_path: "/sim/public/?q=test".to_string(),
+                    sample_request_path: "/?q=test".to_string(),
                     sample_response_status: Some(200),
                 },
                 ScraplingSurfaceObservationReceipt {
@@ -1037,7 +1037,7 @@ mod tests {
                     coverage_status: "pass_observed".to_string(),
                     attempt_count: 1,
                     sample_request_method: "GET".to_string(),
-                    sample_request_path: "/sim/public/?q=test".to_string(),
+                    sample_request_path: "/?q=test".to_string(),
                     sample_response_status: Some(200),
                 },
                 ScraplingSurfaceObservationReceipt {

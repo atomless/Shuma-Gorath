@@ -5,9 +5,7 @@
 //! - Supports Cloudflare Content-Signal directive
 //! - Allows legitimate search engine crawlers
 
-use crate::config::Config;
-
-const DEFAULT_SIM_PUBLIC_SITEMAP_PATH: &str = "/sim/public/sitemap.xml";
+use crate::{config::Config, http_route_namespace::PUBLIC_SITEMAP_XML_PATH};
 
 /// Known AI training crawler user-agents
 pub const AI_TRAINING_BOTS: &[&str] = &[
@@ -163,9 +161,9 @@ fn sim_public_sitemap_url(public_origin: Option<&str>) -> String {
         .unwrap_or_default()
         .trim_end_matches('/');
     if origin.is_empty() {
-        return DEFAULT_SIM_PUBLIC_SITEMAP_PATH.to_string();
+        return PUBLIC_SITEMAP_XML_PATH.to_string();
     }
-    format!("{origin}{DEFAULT_SIM_PUBLIC_SITEMAP_PATH}")
+    format!("{origin}{PUBLIC_SITEMAP_XML_PATH}")
 }
 
 /// Get a human-readable policy name
@@ -267,7 +265,7 @@ mod tests {
         // Should allow Googlebot
         assert!(robots.contains("User-agent: Googlebot"));
         assert!(robots.contains("Allow: /"));
-        assert!(robots.contains("Sitemap: /sim/public/sitemap.xml"));
+        assert!(robots.contains("Sitemap: /sitemap.xml"));
     }
 
     #[test]
@@ -337,6 +335,6 @@ mod tests {
         let cfg = test_config();
         let robots = generate_robots_txt_for_public_origin(&cfg, Some("https://shuma.test"));
 
-        assert!(robots.contains("Sitemap: https://shuma.test/sim/public/sitemap.xml"));
+        assert!(robots.contains("Sitemap: https://shuma.test/sitemap.xml"));
     }
 }

@@ -3768,6 +3768,41 @@ test('monitoring view model and status module remain pure snapshot transforms', 
   });
 });
 
+test('dashboard llm surface projection treats root-hosted public pages as public traversal', { concurrency: false }, async () => {
+  await withBrowserGlobals({}, async () => {
+    const monitoringModelModule = await importBrowserModule('dashboard/src/lib/components/dashboard/monitoring-view-model.js');
+
+    const rows = monitoringModelModule.deriveLlmSurfaceRowsFromRuntimeSummary(
+      {
+        latestActionReceipts: [
+          { actionIndex: 1, actionType: 'http_get', path: '/', status: 200 },
+          { actionIndex: 2, actionType: 'http_get', path: '/research/', status: 200 },
+          { actionIndex: 3, actionType: 'http_get', path: '/sitemaps/pages.xml', status: 200 }
+        ]
+      },
+      'run-root-public'
+    );
+
+    assert.deepEqual(rows, [
+      {
+        key: 'run-root-public:public_path_traversal',
+        runId: 'run-root-public',
+        surfaceId: 'public_path_traversal',
+        surfaceLabel: 'Public Path Traversal',
+        surfaceState: 'leaked',
+        coverageStatus: 'attempt_observed',
+        successContract: 'runtime_action_observed',
+        dependencyKind: 'independent',
+        dependencySurfaceIds: [],
+        attemptCount: 3,
+        sampleRequestMethod: 'GET',
+        sampleRequestPath: '/',
+        sampleResponseStatus: 200
+      }
+    ]);
+  });
+});
+
 test('quick reference documents the runtime and deployment posture matrix', () => {
   const source = fs.readFileSync(path.resolve(__dirname, '..', 'docs', 'quick-reference.md'), 'utf8');
   assert.match(source, /## 🐙 Runtime and Deployment Posture Matrix/);

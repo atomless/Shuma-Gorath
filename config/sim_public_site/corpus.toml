@@ -1,8 +1,8 @@
-# Contributor-generated /sim/public site corpus policy.
+# Contributor-generated root-hosted public site corpus policy.
 # SIM-PUBSITE-1A freezes this location and the first-profile scope.
 
 [site]
-root_prefix = "/sim/public"
+root_prefix = "/"
 about_source = "README.md"
 
 [sections.research]

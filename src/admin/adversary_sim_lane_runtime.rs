@@ -763,7 +763,7 @@ pub(crate) fn run_internal_generation_tick(
             }
             // GEO probes should target normal public-surface paths so they traverse
             // the same policy path as real traffic and are not skipped by special endpoints.
-            if path.starts_with("/sim/public/") {
+            if crate::http_route_namespace::is_generated_public_site_path(path) {
                 builder.header("x-geo-country", "RU");
             }
             if (state.generated_tick_count + index as u64) % 4 == 0 {
@@ -837,7 +837,7 @@ pub(crate) fn run_internal_generation_tick(
 
         if includes_lane(SupplementalLane::ChallengeSubmit) {
             let challenge_abuse_body =
-                b"answer=bad&seed=invalid&return_to=%2Fsim%2Fpublic%2F".to_vec();
+                b"answer=bad&seed=invalid&return_to=%2F".to_vec();
             let mut challenge_submit = Request::builder();
             challenge_submit
                 .method(Method::Post)
@@ -857,7 +857,7 @@ pub(crate) fn run_internal_generation_tick(
                 now,
                 not_a_bot_fail_ip.as_str(),
                 "ShumaAdversarySim/1.0 not-a-bot-fail",
-                "/sim/public/about/",
+                crate::http_route_namespace::PUBLIC_ABOUT_PATH,
                 deterministic_lane_entropy(run_id.as_str(), state.generated_tick_count, 101),
                 1 + (state.generated_tick_count % 5),
             ) {
@@ -883,7 +883,7 @@ pub(crate) fn run_internal_generation_tick(
                 now,
                 not_a_bot_escalate_ip.as_str(),
                 "ShumaAdversarySim/1.0 not-a-bot-escalate",
-                "/sim/public/research/",
+                crate::http_route_namespace::PUBLIC_RESEARCH_PATH,
                 deterministic_lane_entropy(run_id.as_str(), state.generated_tick_count, 102),
                 2 + (state.generated_tick_count.wrapping_mul(3) % 7),
             ) {

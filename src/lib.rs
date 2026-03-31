@@ -179,6 +179,8 @@ pub(crate) fn should_bypass_expensive_bot_checks_for_static(req: &Request, path:
         crate::http_route_namespace::SHUMA_HEALTH_PATH
             | crate::http_route_namespace::SHUMA_METRICS_PATH
             | crate::http_route_namespace::PUBLIC_ROBOTS_TXT_PATH
+            | crate::http_route_namespace::PUBLIC_SITEMAP_XML_PATH
+            | crate::http_route_namespace::PUBLIC_ATOM_FEED_PATH
             | "/pow"
             | "/pow/verify"
             | "/tarpit/progress"
@@ -190,7 +192,7 @@ pub(crate) fn should_bypass_expensive_bot_checks_for_static(req: &Request, path:
     if crate::http_route_namespace::is_shuma_admin_path(path) {
         return false;
     }
-    if path == "/sim/public" || path.starts_with("/sim/public/") {
+    if crate::http_route_namespace::is_generated_public_site_path(path) {
         return false;
     }
     is_obvious_static_asset_path(path)

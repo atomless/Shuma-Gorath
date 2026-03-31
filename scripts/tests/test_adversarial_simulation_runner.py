@@ -992,7 +992,7 @@ class AdversarialRunnerUnitTests(unittest.TestCase):
         candidate_payload = seed_candidates[0]["payload"]
         self.assertEqual(candidate_payload["schema_version"], "frontier_payload_schema.v1")
         self.assertEqual(candidate_payload["scenario"]["ip"], "[masked]")
-        self.assertEqual(candidate_payload["target"]["path_hint"], "/sim/public/")
+        self.assertEqual(candidate_payload["target"]["path_hint"], "/")
         self.assertEqual(
             attack_plan["attack_generation_contract"]["schema_version"],
             "frontier-attack-generation-contract.v1",
@@ -1057,7 +1057,7 @@ class AdversarialRunnerUnitTests(unittest.TestCase):
     def test_frontier_path_hint_for_scenario_defaults_for_unknown_driver(self):
         self.assertEqual(
             runner.frontier_path_hint_for_scenario({"driver": "allow_browser_allowlist"}),
-            "/sim/public/",
+            "/",
         )
         self.assertEqual(
             runner.frontier_path_hint_for_scenario({"driver": "not_mapped"}),

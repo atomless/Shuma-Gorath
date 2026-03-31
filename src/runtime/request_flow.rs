@@ -545,7 +545,7 @@ mod tests {
     fn clean_allow_monitoring_intents_skip_live_inference_for_adversary_sim_origin() {
         let intents = clean_allow_monitoring_intents(
             crate::runtime::request_outcome::TrafficOrigin::AdversarySim,
-            "/sim/public/",
+            "/",
             25,
             true,
         );

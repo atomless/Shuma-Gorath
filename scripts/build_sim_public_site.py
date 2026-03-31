@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Contributor-generated /sim/public site builder entrypoint."""
+"""Contributor-generated root-hosted public site builder entrypoint."""
 
 from __future__ import annotations
 
@@ -17,7 +17,7 @@ from sim_public_site import (
 
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(
-        description="Inspect or build the contributor-generated /sim/public site artifact."
+        description="Inspect or build the contributor-generated root-hosted public site artifact."
     )
     parser.add_argument(
         "--print-contract",

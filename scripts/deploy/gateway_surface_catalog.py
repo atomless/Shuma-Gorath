@@ -30,7 +30,6 @@ RESERVED_ROUTES: list[ReservedRoute] = [
     ReservedRoute(kind="exact", pattern="/pow", owner="shuma_challenge"),
     ReservedRoute(kind="exact", pattern="/pow/verify", owner="shuma_challenge"),
     ReservedRoute(kind="exact", pattern="/tarpit/progress", owner="shuma_tarpit"),
-    ReservedRoute(kind="prefix", pattern="/sim/public", owner="shuma_sim_public"),
     ReservedRoute(kind="prefix", pattern="/_/", owner="shuma_maze_namespace"),
 ]
 

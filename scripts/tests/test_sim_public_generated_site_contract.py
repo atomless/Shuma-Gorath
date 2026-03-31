@@ -40,6 +40,18 @@ class SimPublicGeneratedSiteContractTests(unittest.TestCase):
         self.assertTrue((REPO_ROOT / "scripts" / "sim_public_site").is_dir())
         self.assertTrue((REPO_ROOT / "config" / "sim_public_site" / "corpus.toml").is_file())
 
+    def test_repo_corpus_config_freezes_root_hosted_public_prefix(self) -> None:
+        corpus = (REPO_ROOT / "config" / "sim_public_site" / "corpus.toml").read_text(
+            encoding="utf-8"
+        )
+        self.assertIn('root_prefix = "/"', corpus)
+
+    def test_gateway_surface_catalog_no_longer_reserves_legacy_sim_public_prefix(self) -> None:
+        gateway_catalog = (
+            REPO_ROOT / "scripts" / "deploy" / "gateway_surface_catalog.py"
+        ).read_text(encoding="utf-8")
+        self.assertNotIn('pattern="/sim/public"', gateway_catalog)
+
 
 if __name__ == "__main__":
     unittest.main()

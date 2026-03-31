@@ -78,7 +78,7 @@ class BuildSimPublicSiteTests(unittest.TestCase):
             textwrap.dedent(
                 """\
                 [site]
-                root_prefix = "/sim/public"
+                root_prefix = "/"
                 about_source = "README.md"
 
                 [sections.research]
@@ -137,8 +137,8 @@ class BuildSimPublicSiteTests(unittest.TestCase):
 
         self.assertIn("<main>", index_html)
         self.assertIn("<article>", index_html)
-        self.assertIn('href="/sim/public/about/"', index_html)
-        self.assertIn('href="/sim/public/research/2026-03-30-alpha-research/"', index_html)
+        self.assertIn('href="/about/"', index_html)
+        self.assertIn('href="/research/2026-03-30-alpha-research/"', index_html)
         self.assertIn('<time datetime="2026-03-30">', index_html)
         self.assertLess(index_html.index("Alpha Research"), index_html.index("Beta Plan"))
         self.assertLess(index_html.index("Beta Plan"), index_html.index("Shipped Something Important"))
@@ -151,12 +151,12 @@ class BuildSimPublicSiteTests(unittest.TestCase):
 
         manifest = json.loads((self.artifact_root / "manifest.json").read_text(encoding="utf-8"))
         self.assertEqual(manifest["site_url"], "https://example.test")
-        self.assertEqual(manifest["root_path"], "/sim/public/")
-        self.assertEqual(manifest["about_path"], "/sim/public/about/")
+        self.assertEqual(manifest["root_path"], "/")
+        self.assertEqual(manifest["about_path"], "/about/")
 
         atom_xml = (site_root / "atom.xml").read_text(encoding="utf-8")
         self.assertIn("<feed", atom_xml)
-        self.assertIn("https://example.test/sim/public/", atom_xml)
+        self.assertIn("https://example.test/", atom_xml)
         self.assertIn("Alpha Research", atom_xml)
 
     def test_build_generates_discoverability_artifacts_and_pagination(self) -> None:
@@ -181,17 +181,17 @@ class BuildSimPublicSiteTests(unittest.TestCase):
         pages_sitemap = (site_root / "sitemaps" / "pages.xml").read_text(encoding="utf-8")
         entries_sitemap = (site_root / "sitemaps" / "entries.xml").read_text(encoding="utf-8")
 
-        self.assertIn('href="/sim/public/page/2/"', index_html)
+        self.assertIn('href="/page/2/"', index_html)
         self.assertIn('rel="next"', index_html)
         self.assertIn("Research Entry 4", page_2_html)
-        self.assertIn('href="/sim/public/research/page/2/"', research_index)
+        self.assertIn('href="/research/page/2/"', research_index)
         self.assertIn('rel="prev"', research_page_2)
-        self.assertIn("Sitemap: https://example.test/sim/public/sitemap.xml", robots_txt)
+        self.assertIn("Sitemap: https://example.test/sitemap.xml", robots_txt)
         self.assertIn("sitemaps/pages.xml", sitemap_index)
         self.assertIn("sitemaps/entries.xml", sitemap_index)
-        self.assertIn("https://example.test/sim/public/about/", pages_sitemap)
+        self.assertIn("https://example.test/about/", pages_sitemap)
         self.assertIn(
-            "https://example.test/sim/public/research/2026-03-30-alpha-research/",
+            "https://example.test/research/2026-03-30-alpha-research/",
             entries_sitemap,
         )
 

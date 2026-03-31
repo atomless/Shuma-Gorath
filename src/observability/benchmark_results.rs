@@ -2376,7 +2376,7 @@ mod tests {
                                 blocked_by_surface_ids: Vec::new(),
                                 attempt_count: 2,
                                 sample_request_method: "GET".to_string(),
-                                sample_request_path: "/sim/public/".to_string(),
+                                sample_request_path: "/".to_string(),
                                 sample_response_status: Some(200),
                             },
                             crate::observability::scrapling_owned_surface::ScraplingOwnedSurfaceCoverageReceipt {
@@ -2510,7 +2510,7 @@ mod tests {
                                     blocked_by_surface_ids: Vec::new(),
                                     attempt_count: 2,
                                     sample_request_method: "GET".to_string(),
-                                    sample_request_path: "/sim/public/".to_string(),
+                                    sample_request_path: "/".to_string(),
                                     sample_response_status: Some(200),
                                 },
                                 crate::observability::scrapling_owned_surface::ScraplingOwnedSurfaceCoverageReceipt {
@@ -2576,7 +2576,7 @@ mod tests {
                             crate::admin::adversary_sim_worker_plan::LlmRuntimeActionReceipt {
                                 action_index: 1,
                                 action_type: "http_get".to_string(),
-                                path: "/sim/public/research/".to_string(),
+                                path: "/research/".to_string(),
                                 label: Some("docs".to_string()),
                                 status: Some(200),
                                 error: None,
@@ -2680,7 +2680,7 @@ mod tests {
                                 blocked_by_surface_ids: Vec::new(),
                                 attempt_count: 1,
                                 sample_request_method: "GET".to_string(),
-                                sample_request_path: "/sim/public/".to_string(),
+                                sample_request_path: "/".to_string(),
                                 sample_response_status: Some(200),
                             },
                             crate::observability::scrapling_owned_surface::ScraplingOwnedSurfaceCoverageReceipt {
@@ -2802,7 +2802,7 @@ mod tests {
                                     blocked_by_surface_ids: Vec::new(),
                                     attempt_count: 2,
                                     sample_request_method: "GET".to_string(),
-                                    sample_request_path: "/sim/public/".to_string(),
+                                    sample_request_path: "/".to_string(),
                                     sample_response_status: Some(200),
                                 },
                                 crate::observability::scrapling_owned_surface::ScraplingOwnedSurfaceCoverageReceipt {
@@ -2879,7 +2879,7 @@ mod tests {
                                     blocked_by_surface_ids: Vec::new(),
                                     attempt_count: 2,
                                     sample_request_method: "GET".to_string(),
-                                    sample_request_path: "/sim/public/".to_string(),
+                                    sample_request_path: "/".to_string(),
                                     sample_response_status: Some(200),
                                 },
                                 crate::observability::scrapling_owned_surface::ScraplingOwnedSurfaceCoverageReceipt {
@@ -2995,7 +2995,7 @@ mod tests {
                                     blocked_by_surface_ids: Vec::new(),
                                     attempt_count: 2,
                                     sample_request_method: "GET".to_string(),
-                                    sample_request_path: "/sim/public/".to_string(),
+                                    sample_request_path: "/".to_string(),
                                     sample_response_status: Some(200),
                                 },
                                 crate::observability::scrapling_owned_surface::ScraplingOwnedSurfaceCoverageReceipt {
@@ -3066,7 +3066,7 @@ mod tests {
                                     blocked_by_surface_ids: Vec::new(),
                                     attempt_count: 2,
                                     sample_request_method: "GET".to_string(),
-                                    sample_request_path: "/sim/public/".to_string(),
+                                    sample_request_path: "/".to_string(),
                                     sample_response_status: Some(200),
                                 },
                                 crate::observability::scrapling_owned_surface::ScraplingOwnedSurfaceCoverageReceipt {
@@ -3203,7 +3203,7 @@ mod tests {
                                     blocked_by_surface_ids: Vec::new(),
                                     attempt_count: 2,
                                     sample_request_method: "GET".to_string(),
-                                    sample_request_path: "/sim/public/".to_string(),
+                                    sample_request_path: "/".to_string(),
                                     sample_response_status: Some(200),
                                 },
                                 crate::observability::scrapling_owned_surface::ScraplingOwnedSurfaceCoverageReceipt {
@@ -3280,7 +3280,7 @@ mod tests {
                                     blocked_by_surface_ids: Vec::new(),
                                     attempt_count: 2,
                                     sample_request_method: "GET".to_string(),
-                                    sample_request_path: "/sim/public/".to_string(),
+                                    sample_request_path: "/".to_string(),
                                     sample_response_status: Some(200),
                                 },
                                 crate::observability::scrapling_owned_surface::ScraplingOwnedSurfaceCoverageReceipt {
@@ -3396,7 +3396,7 @@ mod tests {
                                 blocked_by_surface_ids: Vec::new(),
                                 attempt_count: 1,
                                 sample_request_method: "GET".to_string(),
-                                sample_request_path: "/sim/public/".to_string(),
+                                sample_request_path: "/".to_string(),
                                 sample_response_status: Some(429),
                             },
                         ],
@@ -3487,7 +3487,7 @@ mod tests {
                                 blocked_by_surface_ids: Vec::new(),
                                 attempt_count: 2,
                                 sample_request_method: "GET".to_string(),
-                                sample_request_path: "/sim/public/".to_string(),
+                                sample_request_path: "/".to_string(),
                                 sample_response_status: Some(200),
                             },
                             crate::observability::scrapling_owned_surface::ScraplingOwnedSurfaceCoverageReceipt {

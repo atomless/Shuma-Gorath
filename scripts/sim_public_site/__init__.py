@@ -1,4 +1,4 @@
-"""Shared contract and build helpers for the contributor-generated /sim/public site."""
+"""Shared contract and build helpers for the contributor-generated root-hosted public site."""
 
 from __future__ import annotations
 

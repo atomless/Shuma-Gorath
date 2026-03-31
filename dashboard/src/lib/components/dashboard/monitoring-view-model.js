@@ -764,7 +764,18 @@ const llmReceiptSurfaceId = (receipt = {}) => {
   if (!path) return '';
   if (
     path === '/'
-    || path.startsWith('/sim/public/')
+    || path === '/about'
+    || path.startsWith('/about/')
+    || path === '/research'
+    || path.startsWith('/research/')
+    || path === '/plans'
+    || path.startsWith('/plans/')
+    || path === '/work'
+    || path.startsWith('/work/')
+    || path === '/page'
+    || path.startsWith('/page/')
+    || path === '/sitemaps'
+    || path.startsWith('/sitemaps/')
     || path.startsWith('/detail/')
     || path.startsWith('/search')
   ) {

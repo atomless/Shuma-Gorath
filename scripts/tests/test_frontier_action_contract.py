@@ -39,9 +39,7 @@ class FrontierActionContractUnitTests(unittest.TestCase):
             )
 
     def test_resolve_frontier_actions_rejects_unsupported_keys(self):
-        raw_actions = (
-            '[{"action_type":"http_get","path":"/sim/public/","headers":{"authorization":"x"}}]'
-        )
+        raw_actions = '[{"action_type":"http_get","path":"/","headers":{"authorization":"x"}}]'
         with self.assertRaises(frontier_contract.FrontierActionValidationError):
             frontier_contract.resolve_frontier_actions(
                 raw_actions,

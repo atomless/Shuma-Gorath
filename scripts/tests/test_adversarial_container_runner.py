@@ -161,10 +161,10 @@ class AdversarialContainerRunnerUnitTests(unittest.TestCase):
                     "action_index": 1,
                     "action_type": "http_get",
                     "method": "GET",
-                    "path": "/sim/public/research/",
+                    "path": "/research/",
                     "query": {"q": "adaptive frontier probe"},
                     "label": "research",
-                    "url": "http://host.docker.internal:3000/sim/public/research/?q=adaptive+frontier+probe",
+                    "url": "http://host.docker.internal:3000/research/?q=adaptive+frontier+probe",
                     "target_origin": "http://host.docker.internal:3000",
                 }
             ]
@@ -174,7 +174,7 @@ class AdversarialContainerRunnerUnitTests(unittest.TestCase):
             [
                 {
                     "action_type": "http_get",
-                    "path": "/sim/public/research/",
+                    "path": "/research/",
                     "query": {"q": "adaptive frontier probe"},
                     "label": "research",
                 }
@@ -213,7 +213,7 @@ class AdversarialContainerRunnerUnitTests(unittest.TestCase):
                     "payload": {
                         "schema_version": "frontier_payload_schema.v1",
                         "request_id": "req-a",
-                        "target": {"path_hint": "/sim/public/research/"},
+                        "target": {"path_hint": "/research/"},
                     },
                 },
                 {
@@ -232,7 +232,7 @@ class AdversarialContainerRunnerUnitTests(unittest.TestCase):
             forbidden_secret_values=[],
         )
         self.assertEqual(len(actions), 2)
-        self.assertEqual(actions[0]["path"], "/sim/public/research/")
+        self.assertEqual(actions[0]["path"], "/research/")
         self.assertEqual(actions[1]["path"], "/challenge/not-a-bot-checkbox")
         self.assertEqual(lineage[0]["scenario_id"], "scenario_a")
         self.assertEqual(lineage[1]["request_id"], "req-b")
@@ -248,7 +248,7 @@ class AdversarialContainerRunnerUnitTests(unittest.TestCase):
                         "schema_version": "frontier_payload_schema.v1",
                         "request_id": "req-bad",
                         "api_key_hint": "must-not-pass",
-                        "target": {"path_hint": "/sim/public/research/"},
+                        "target": {"path_hint": "/research/"},
                     },
                 }
             ],
@@ -288,7 +288,7 @@ class AdversarialContainerRunnerUnitTests(unittest.TestCase):
         payload = {
             "schema_version": "frontier_payload_schema.v1",
             "request_id": "req-1",
-            "target": {"path_hint": "/sim/public/research/"},
+            "target": {"path_hint": "/research/"},
             "attack_metadata": {"note": "sk-secret-value"},
         }
         reasons = container_runner.validate_attack_plan_candidate_payload(
@@ -434,7 +434,7 @@ class AdversarialContainerRunnerUnitTests(unittest.TestCase):
                     "proposed_action": {
                         "action_index": 1,
                         "action_type": "http_get",
-                        "path": "/sim/public/research/",
+                        "path": "/research/",
                     },
                 }
             ],
@@ -443,7 +443,7 @@ class AdversarialContainerRunnerUnitTests(unittest.TestCase):
                     {
                         "action_index": 1,
                         "status": 200,
-                        "path": "/sim/public/research/",
+                        "path": "/research/",
                     }
                 ]
             },

@@ -1,6 +1,6 @@
 {
   "schema_version": "sim-deterministic-attack-corpus.v1",
-  "corpus_revision": "2026-03-30.1",
+  "corpus_revision": "2026-03-31.1",
   "taxonomy_version": "sim-policy-taxonomy.v1",
   "runtime_profile": "runtime_toggle",
   "ci_profile": "ci_oracle",
@@ -9,12 +9,12 @@
     "primary_request_count": 9,
     "supplemental_request_count": 7,
     "primary_public_paths": [
-      "/sim/public/",
-      "/sim/public/about/",
-      "/sim/public/research/",
-      "/sim/public/plans/",
-      "/sim/public/work/",
-      "/sim/public/atom.xml"
+      "/",
+      "/about/",
+      "/research/",
+      "/plans/",
+      "/work/",
+      "/atom.xml"
     ],
     "honeypot_probe_moduli": [
       5,
@@ -62,7 +62,7 @@
       "sim_lane": "deterministic_black_box"
     },
     "paths": {
-      "public_search": "/sim/public/",
+      "public_search": "/",
       "pow": "/pow",
       "not_a_bot_checkbox": "/challenge/not-a-bot-checkbox",
       "honeypot": "/instaban",
@@ -86,7 +86,7 @@
     "drivers": {
       "allow_browser_allowlist": {
         "driver_class": "browser_realistic",
-        "path_hint": "/sim/public/",
+        "path_hint": "/",
         "taxonomy_category": "allowlist"
       },
       "not_a_bot_pass": {
@@ -111,27 +111,27 @@
       },
       "rate_limit_enforce": {
         "driver_class": "http_scraper",
-        "path_hint": "/sim/public/",
+        "path_hint": "/",
         "taxonomy_category": "rate"
       },
       "retry_storm_enforce": {
         "driver_class": "http_scraper",
-        "path_hint": "/sim/public/",
+        "path_hint": "/",
         "taxonomy_category": "rate"
       },
       "geo_challenge": {
         "driver_class": "browser_realistic",
-        "path_hint": "/sim/public/about/",
+        "path_hint": "/about/",
         "taxonomy_category": "geo"
       },
       "geo_maze": {
         "driver_class": "browser_realistic",
-        "path_hint": "/sim/public/research/",
+        "path_hint": "/research/",
         "taxonomy_category": "geo"
       },
       "geo_block": {
         "driver_class": "browser_realistic",
-        "path_hint": "/sim/public/plans/",
+        "path_hint": "/plans/",
         "taxonomy_category": "geo"
       },
       "honeypot_deny_temp": {
@@ -166,7 +166,7 @@
       },
       "header_spoofing_probe": {
         "driver_class": "browser_realistic",
-        "path_hint": "/sim/public/",
+        "path_hint": "/",
         "taxonomy_category": "headers"
       },
       "cdp_high_confidence_deny": {

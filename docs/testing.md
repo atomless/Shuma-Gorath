@@ -136,7 +136,7 @@ That command is the fastest truthful local/pre-merge proof bundle for the curren
 
 Additional scope notes:
 
-- This local path is expected to run against the generated contributor `/sim/public/*` feed/about/section surface. Contributors can browse that surface on local dev whenever the generated artifact exists; it no longer depends on adversary-sim being actively enabled.
+- This local path is expected to run against the generated contributor root-hosted public surface: `/`, `/about/`, `/research/`, `/plans/`, `/work/`, `/atom.xml`, `/robots.txt`, and `/sitemap.xml`. Contributors can browse that surface on local dev whenever the generated artifact exists; it no longer depends on adversary-sim being actively enabled.
 - It proves attacker-faithful Scrapling plus the first working game loop only.
 - It does not yet prove repeated retained improvement under the strict `human_only_private` loop, the later human-traversal calibration that must be measured from real human sessions, or the live-host realism layer on its own.
 
@@ -230,7 +230,7 @@ Notes:
 - `make test-rsi-game-mainline` is now the focused proof path for the landed `RSI-GAME-MAINLINE-1A` plus `RSI-GAME-MAINLINE-1B` chain and the later `RSI-GAME-ARCH-1K` plus `RSI-GAME-ARCH-1L` follow-ons. It proves the automatic post-sim oversight trigger still fires once, the post-sim oversight route can apply a bounded canary, adversary-sim supervisor can auto-materialize exactly one protected post-change Scrapling candidate window, terminal improved or rolled-back judgments can persist one fresh bounded continuation rerun request, the internal adversary-sim beat can auto-start that rerun, and the later post-rerun oversight judgment can open the next bounded canary from fresh evidence instead of immediate patch chaining.
 - Runtime-dev note: the supervisor-owned post-canary candidate run is intentionally shortened to `30s`, which is the smallest meaningful local window on the current shared-host cadence because it still yields roughly `30` one-second beats, about `6` full passes through Scrapling's current five personas, and up to `240` total request slots at the current per-tick cap.
 - Proof-path note: the current fast adversarial and RSI continuity gates now read monitoring bootstrap and sim-event evidence from bounded hot-read paths with separate control-plane read, write, and observation timeout budgets. Keep that bounded read discipline in place when changing the runner or monitoring APIs, otherwise the local `30s` candidate or continuation window will regress into observation-path timeout noise rather than real loop failure.
-- `make test-rsi-game-human-only-strict` is the focused proof path for `RSI-GAME-HO-1A`; it proves the live local loop now runs under `human_only_private`, preserves `strict_human_only` verified-identity suppression, derives strict suspicious-forwarded request, byte, and latency targets from adversary-sim scope as `0.0`, exercises the local `/sim/public/*` surface, and records a matching `post_adversary_sim` oversight run for the latest Scrapling sim run.
+- `make test-rsi-game-human-only-strict` is the focused proof path for `RSI-GAME-HO-1A`; it proves the live local loop now runs under `human_only_private`, preserves `strict_human_only` verified-identity suppression, derives strict suspicious-forwarded request, byte, and latency targets from adversary-sim scope as `0.0`, exercises the local root-hosted generated contributor surface, and records a matching `post_adversary_sim` oversight run for the latest Scrapling sim run.
 - `make test-rsi-game-human-only-proof` is the focused proof path for the closed `RSI-GAME-HO-1` tranche; it bundles the strict runtime proof above with deterministic repeated retained-improvement proof, showing many bounded config moves across the strict baseline, judged retain outcomes archived with strict profile lineage, and measured movement to zero suspicious leakage without weakening `human_only_private`.
 - `make test-native-build-warning-hygiene` is the focused proof path for `BUILD-HYGIENE-1`; it forces a fresh native host compile and treats warnings as errors so dead-code or cfg drift in canonical Rust test builds fails fast instead of quietly normalizing warning noise.
 - `make test-env-isolation-contract` is the focused proof path for `TEST-ENV-1`; it scans Rust test functions and fails if any test mutates process env without acquiring `lock_env()` before the first mutation.
@@ -450,13 +450,13 @@ Structural refactor proof map:
 - `make test-adversarial-runner-architecture` is the focused CLI, unit, and validate-only gate for the Python adversarial runner and closely related governance helpers.
 - `make test-adversary-sim-domain-contract` is the focused backend adversary-sim lifecycle and lane-domain gate that stays off the live runtime-surface path.
 
-The generated contributor public surface now lives at `/sim/public/`, with stable feed and section routes including `/sim/public/about/`, `/sim/public/research/`, `/sim/public/plans/`, `/sim/public/work/`, `/sim/public/atom.xml`, `/sim/public/robots.txt`, and `/sim/public/sitemap.xml`.
+The generated contributor public surface now lives at the root host path, with stable feed and section routes including `/`, `/about/`, `/research/`, `/plans/`, `/work/`, `/atom.xml`, `/robots.txt`, and `/sitemap.xml`.
 That surface is available whenever the generated artifact exists; it no longer depends on adversary-sim being actively enabled and must remain browseable even when adversary sim is disabled or idle.
 These pages are the intended first local public surface for strict-loop development, human-friction assessment under the current config, and proof when contributors do not yet have a real hosted origin behind Shuma.
 Contributor refresh paths:
 - `make sim-public-refresh` rebuilds the generated artifact explicitly.
 - `make sim-public-refresh-if-stale` rebuilds only when the artifact is missing, source-stale, or older than the bounded freshness window.
-- `make dev` and `make run` reuse the stale-check path so contributors can browse `/sim/public/*` locally without running adversary sim first, including when adversary sim is disabled or idle.
+- `make dev` and `make run` reuse the stale-check path so contributors can browse the root-hosted generated public surface locally without running adversary sim first, including when adversary sim is disabled or idle.
 - `make build`, `make setup-runtime`, and `make run-prebuilt` do not generate the contributor site artifact.
 Dashboard DOM-class contract for runtime/simulation affordances:
 - `<html>` must include exactly one runtime environment class: `runtime-dev` or `runtime-prod` (derived from trusted runtime config).

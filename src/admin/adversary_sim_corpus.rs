@@ -3,6 +3,11 @@ use serde::{Deserialize, Serialize};
 use serde_json::json;
 use std::collections::BTreeMap;
 
+use crate::http_route_namespace::{
+    PUBLIC_ABOUT_PATH, PUBLIC_ATOM_FEED_PATH, PUBLIC_PLANS_PATH, PUBLIC_RESEARCH_PATH,
+    PUBLIC_ROOT_PATH, PUBLIC_WORK_PATH,
+};
+
 pub(crate) const DETERMINISTIC_ATTACK_CORPUS_SCHEMA_VERSION: &str =
     "sim-deterministic-attack-corpus.v1";
 pub(crate) const DETERMINISTIC_ATTACK_CORPUS_PATH: &str =
@@ -134,7 +139,7 @@ fn default_deterministic_attack_corpus() -> DeterministicAttackCorpus {
         (
             "allow_browser_allowlist",
             "browser_realistic",
-            "/sim/public/",
+            PUBLIC_ROOT_PATH,
             "allowlist",
         ),
         (
@@ -154,31 +159,31 @@ fn default_deterministic_attack_corpus() -> DeterministicAttackCorpus {
         (
             "rate_limit_enforce",
             "http_scraper",
-            "/sim/public/",
+            PUBLIC_ROOT_PATH,
             "rate",
         ),
         (
             "retry_storm_enforce",
             "http_scraper",
-            "/sim/public/",
+            PUBLIC_ROOT_PATH,
             "rate",
         ),
         (
             "geo_challenge",
             "browser_realistic",
-            "/sim/public/about/",
+            PUBLIC_ABOUT_PATH,
             "geo",
         ),
         (
             "geo_maze",
             "browser_realistic",
-            "/sim/public/research/",
+            PUBLIC_RESEARCH_PATH,
             "geo",
         ),
         (
             "geo_block",
             "browser_realistic",
-            "/sim/public/plans/",
+            PUBLIC_PLANS_PATH,
             "geo",
         ),
         ("honeypot_deny_temp", "browser_realistic", "/instaban", "honeypot"),
@@ -215,7 +220,7 @@ fn default_deterministic_attack_corpus() -> DeterministicAttackCorpus {
         (
             "header_spoofing_probe",
             "browser_realistic",
-            "/sim/public/",
+            PUBLIC_ROOT_PATH,
             "headers",
         ),
         ("cdp_high_confidence_deny", "http_scraper", "/cdp-report", "cdp"),
@@ -268,12 +273,12 @@ fn default_deterministic_attack_corpus() -> DeterministicAttackCorpus {
             primary_request_count: 9,
             supplemental_request_count: 7,
             primary_public_paths: vec![
-                "/sim/public/".to_string(),
-                "/sim/public/about/".to_string(),
-                "/sim/public/research/".to_string(),
-                "/sim/public/plans/".to_string(),
-                "/sim/public/work/".to_string(),
-                "/sim/public/atom.xml".to_string(),
+                PUBLIC_ROOT_PATH.to_string(),
+                PUBLIC_ABOUT_PATH.to_string(),
+                PUBLIC_RESEARCH_PATH.to_string(),
+                PUBLIC_PLANS_PATH.to_string(),
+                PUBLIC_WORK_PATH.to_string(),
+                PUBLIC_ATOM_FEED_PATH.to_string(),
             ],
             honeypot_probe_moduli: vec![5, 7],
             rate_burst: RateBurstProfile {
@@ -318,7 +323,7 @@ fn default_deterministic_attack_corpus() -> DeterministicAttackCorpus {
                 sim_lane: "deterministic_black_box".to_string(),
             },
             paths: RuntimePathProfile {
-                public_search: "/sim/public/".to_string(),
+                public_search: PUBLIC_ROOT_PATH.to_string(),
                 pow: "/pow".to_string(),
                 not_a_bot_checkbox: "/challenge/not-a-bot-checkbox".to_string(),
                 honeypot: "/instaban".to_string(),
@@ -357,20 +362,20 @@ mod tests {
     use super::default_deterministic_attack_corpus;
 
     #[test]
-    fn default_deterministic_attack_corpus_targets_generated_sim_public_routes() {
+    fn default_deterministic_attack_corpus_targets_root_hosted_public_routes() {
         let corpus = default_deterministic_attack_corpus();
         assert_eq!(
             corpus.runtime_toggle.primary_public_paths,
             vec![
-                "/sim/public/".to_string(),
-                "/sim/public/about/".to_string(),
-                "/sim/public/research/".to_string(),
-                "/sim/public/plans/".to_string(),
-                "/sim/public/work/".to_string(),
-                "/sim/public/atom.xml".to_string(),
+                "/".to_string(),
+                "/about/".to_string(),
+                "/research/".to_string(),
+                "/plans/".to_string(),
+                "/work/".to_string(),
+                "/atom.xml".to_string(),
             ]
         );
-        assert_eq!(corpus.runtime_toggle.paths.public_search, "/sim/public/");
+        assert_eq!(corpus.runtime_toggle.paths.public_search, "/");
         assert_eq!(
             corpus
                 .ci_oracle
@@ -378,7 +383,7 @@ mod tests {
                 .get("allow_browser_allowlist")
                 .expect("allow-browser driver")
                 .path_hint,
-            "/sim/public/"
+            "/"
         );
         assert_eq!(
             corpus
@@ -387,7 +392,7 @@ mod tests {
                 .get("geo_challenge")
                 .expect("geo-challenge driver")
                 .path_hint,
-            "/sim/public/about/"
+            "/about/"
         );
         assert_eq!(
             corpus
@@ -396,7 +401,7 @@ mod tests {
                 .get("geo_maze")
                 .expect("geo-maze driver")
                 .path_hint,
-            "/sim/public/research/"
+            "/research/"
         );
         assert_eq!(
             corpus
@@ -405,7 +410,7 @@ mod tests {
                 .get("geo_block")
                 .expect("geo-block driver")
                 .path_hint,
-            "/sim/public/plans/"
+            "/plans/"
         );
     }
 }

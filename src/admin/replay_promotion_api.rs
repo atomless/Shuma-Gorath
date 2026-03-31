@@ -215,7 +215,7 @@ mod tests {
                 },
                 "candidate": {
                     "scenario_family": "cdp_high_confidence_deny",
-                    "path": "/sim/public/",
+                    "path": "/",
                     "expected_outcome": "deny_temp",
                     "observed_outcome": "deny_temp",
                     "severity": "high",

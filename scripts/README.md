@@ -20,10 +20,10 @@ Automation scripts used by the Makefile live here.
   - `validate_gateway_route_collisions.py`: validates discovered origin surface catalog against Shuma/Spin reserved routes and writes a deterministic preflight report (invoked by `make deploy-env-validate`)
   - `probe_gateway_origin_bypass.py`: optional active probe that compares gateway vs direct-origin reachability and classifies origin-bypass posture (invoked by `make test-gateway-origin-bypass-probe`)
 - `build_site_surface_catalog.py`: compiles a deterministic site-surface catalog from a local docroot so setup flows do not require a human-authored sitemap
-- `build_sim_public_site.py`: builds the contributor-generated `/sim/public/*` site artifact from allowlisted markdown roots under `.shuma/sim-public-site/`
+- `build_sim_public_site.py`: builds the contributor-generated root-hosted public site artifact from allowlisted markdown roots under `.shuma/sim-public-site/`
 - `manage_remote_target.py`: CLI entrypoint for normalized `ssh_systemd` day-2 remote operations (`make remote-*`)
 - `prepare_linode_shared_host.py`: agent-oriented shared-host setup entrypoint that captures/persists local Linode handoff state and writes a setup receipt
-- `sim_public_site/`: shared generator helpers plus the CommonMark rendering bridge for the contributor-generated `/sim/public/*` site
+- `sim_public_site/`: shared generator helpers plus the CommonMark rendering bridge for the contributor-generated root-hosted public site
 - `site_surface_catalog.py`: shared local docroot and sitemap inventory helpers used by the generic site-surface catalog builder
   - `tests/`
   - `integration.sh`: HTTP integration scenarios used by `make test` and `make test-integration`

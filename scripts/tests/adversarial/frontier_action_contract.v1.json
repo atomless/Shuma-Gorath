@@ -71,27 +71,27 @@
     },
     {
       "action_type": "http_get",
-      "path": "/sim/public/",
+      "path": "/",
       "label": "latest"
     },
     {
       "action_type": "http_get",
-      "path": "/sim/public/about/",
+      "path": "/about/",
       "label": "about"
     },
     {
       "action_type": "http_get",
-      "path": "/sim/public/research/",
+      "path": "/research/",
       "label": "research"
     },
     {
       "action_type": "http_get",
-      "path": "/sim/public/plans/",
+      "path": "/plans/",
       "label": "plans"
     },
     {
       "action_type": "http_get",
-      "path": "/sim/public/work/",
+      "path": "/work/",
       "label": "work"
     }
   ],
