@@ -1,6 +1,6 @@
 # TODO Roadmap
 
-Last updated: 2026-03-30
+Last updated: 2026-03-31
 
 This is the active execution-ready work queue.
 Blocked or contingent work lives in `todos/blocked-todo.md`.
@@ -153,12 +153,13 @@ Current note:
 - `SIM-REALISM-2B` is now landed: Scrapling and Agentic Traffic now carry a bounded identity-envelope contract, planners can emit pool-backed request or browser identities, and observer-only realism receipts now distinguish `pool_backed`, `fixed_proxy`, and `degraded_local` identity posture without leaking simulator provenance into Shuma defence truth.
 - `SIM-REALISM-2C` is now landed: the shared realism contract now carries a bounded `transport_envelope`, Scrapling and Agentic request-mode emit coherent persona and geo-aligned Accept-Language or user-agent posture instead of pinning everything to one local default, Agentic browser-mode now carries explicit locale and browser-client posture into the Playwright session, and both worker receipt paths preserve the applied transport or locale envelope as observer-only truth.
 - `SIM-REALISM-2D` is now landed: Scrapling browser personas now preserve compact XHR-backed secondary-traffic counts, Agentic browser-mode now preserves compact same-origin request-event secondary-traffic counts, and recent-run plus operator-snapshot read models now distinguish top-level action truth from background or subresource browser activity without bloating hot reads into raw traces. The next active execution priority is now `SIM-REALISM-2E`.
-- `SIM-REALISM-2E` is now landed: adversary lanes now carry bounded recurrence envelopes, planner and worker receipts preserve explicit dormancy and re-entry truth, supervisor dispatch honors recurrence dormancy without misreporting healthy idle windows as stalled generation, and the next active execution priority is now `SIM-REALISM-2F`.
+- `SIM-REALISM-2E` is now landed: adversary lanes now carry bounded recurrence envelopes, planner and worker receipts preserve explicit dormancy and re-entry truth, supervisor dispatch honors recurrence dormancy without misreporting healthy idle windows as stalled generation, and the next active execution priority is now `SIM-REALISM-2I`.
 - `ROUTE-NS-1` is now landed: the generated public-content site moved from `/sim/public/*` to the protected host root, and Shuma-owned control and operational routes moved under `/shuma/*` with no pre-launch compatibility aliases.
 - `SIM-REALISM-2` is now the explicit follow-on chain after `SIM-REALISM-1D`: the lanes still fall short on trusted-ingress client-IP realism, per-persona exploration depth and frontier realism, compact traversal receipts, richer public discoverability of the dummy surface, explicit degraded identity labeling, and long-horizon recurrence even after the pressure, identity-envelope, transport-envelope, and browser-secondary-traffic tranches landed.
 - `SIM-REALISM-3` is now the explicit post-`2J` sufficiency chain: even after `SIM-REALISM-2F..2J`, the lanes will still fall short on overlapping multi-lane pressure, richer agentic action capability, true campaign-scale dormancy, deeper transport realism, and explicit representativeness gating unless `SIM-REALISM-3A..3E` land as well.
+- Remaining adversary-realism tranches now inherit the shared acceptance and envelope-governance contract in [`../docs/plans/2026-03-31-adversary-realism-acceptance-and-envelope-governance-plan.md`](../docs/plans/2026-03-31-adversary-realism-acceptance-and-envelope-governance-plan.md): no tranche closes from “more bans” alone, every envelope must be justified as a hostile persona model rather than a simulator comfort limit, and every tranche must prove measurable baseline-to-post-tranche realism escalation in its relevant scorecard dimensions.
 - Do not treat mere lane execution or recent-run visibility as characteristic attacker pressure while the lanes still lack trusted-ingress identity realism, deeper exploration/frontier truth, root-host public-terrain correctness, and long-horizon recurrence behavior even after browser-mode session execution is real.
-- Remaining adversary realism is now the hard prerequisite for later Game Loop and Tuning work. Until `SIM-REALISM-2F..2J` and `SIM-REALISM-3A..3E` are landed, keep the later Game Loop refactor or mixed-attacker proof chain and the later Tuning realignment chain blocked rather than execution-ready.
+- Remaining adversary realism is now the hard prerequisite for later Game Loop and Tuning work. Until `SIM-REALISM-2I..2J` and `SIM-REALISM-3A..3E` are landed, keep the later Game Loop refactor or mixed-attacker proof chain and the later Tuning realignment chain blocked rather than execution-ready.
 - Do not open `humans_plus_verified_only` until a later second strict-baseline proof has shown retained config-change improvement under both Scrapling and LLM attacker pressure.
 - `DIAG-CLEANUP-1`, `MON-OVERHAUL-1C`, and `SIM-LLM-1C3` are now all landed, so the later combined-attacker strict-baseline proof is no longer blocked by missing LLM runtime visibility.
 - The real `RSI-GAME-HO-2` blocker is now architectural and explicit:
@@ -179,6 +180,7 @@ Current note:
     - trust-boundary truth: realistic client-IP restoration for sim traffic must come only through a Shuma-owned trusted ingress or proxy path, not by teaching Scrapling or Agentic workers to emit `x-shuma-forwarded-secret` or any equivalent privileged header
     - runtime truth: when trusted sim ingress is configured, Shuma must observe real parseable client IPs instead of mostly `unknown`; when it is not configured, receipts must explicitly mark identity realism as degraded
     - parity truth: the same trust gate used for external forwarded headers must remain the only authority for client-IP restoration, with no sim-only bypass
+    - scorecard truth: closure must show measurable baseline-to-post-tranche improvement in the identity-realism dimensions this slice owns, not just a qualitative claim that IPs look more realistic
     - proof: add and pass `make test-adversary-sim-trusted-ingress-ip-realism`, and keep attacker-plane contract checks and forwarded-header security tests green
     - insufficient: forging `x-forwarded-for` plus `x-shuma-forwarded-secret` from the workers, sim-only IP extraction shortcuts, or claiming realistic IPs from local process churn alone
 
@@ -193,6 +195,7 @@ Current note:
     - observer truth: recent-run and operator surfaces must distinguish `real client IP observed`, `bucketed IP`, and `identity realism degraded` instead of rendering hashed buckets like `h382` as if they were meaningful addresses
     - receipt truth: machine-facing receipts must preserve whether identity realism was pool-backed, trusted-ingress-backed, or degraded
     - wording truth: UI and docs must describe hashed or bucketed identity values as buckets, not as source IPs
+    - scorecard truth: closure must show measurable before/after improvement in observer honesty about identity provenance, not just a new hidden receipt field
     - proof: add and pass `make test-adversary-sim-identity-observer-truth`, and keep relevant dashboard accountability and machine-contract targets green if rendered wording changes
     - insufficient: continuing to show `unknown` or `h*` values without provenance labeling, or UI copy that implies realistic network identity when only degraded local identity exists
 
@@ -206,6 +209,7 @@ Current note:
     - runtime truth: Shuma must be able to execute bounded overlapping Scrapling and Agentic pressure instead of serializing every adversary lane into one pending-worker slot
     - operator truth: the Red Team lane selector must expose an explicit mixed Scrapling plus Agentic parallel mode rather than forcing the operator to infer concurrency from separate runs
     - receipt truth: recent-run and operator read models must preserve overlapping-lane lineage, peak concurrency, and per-lane contribution truth without inventing simulator labels in runtime evidence
+    - scorecard truth: closure must show measurable baseline-to-post-tranche overlap or concurrency escalation, not just a new mixed-lane label
     - proof: add and pass `make test-adversary-sim-parallel-lane-realism` and `make test-dashboard-red-team-lane-selector-contract`
     - insufficient: alternating Scrapling and Agentic runs that only appear adjacent in history, or a UI label for parallel mode without bounded overlapping execution proof
 
@@ -218,6 +222,7 @@ Current note:
     - capability truth: Agentic request and browser modes must cover a broader hostile public-web action set than `GET /` plus trivial click-through navigation, while staying same-origin, root-started, and public-hint-bounded
     - degraded truth: when provider generation falls back, the fallback must still look like focused adversarial retrieval rather than a polite root fetch with one or two hints
     - observer truth: realism receipts must preserve which action families were attempted and whether the lane fell back to degraded capability
+    - scorecard truth: closure must show measurable baseline-to-post-tranche change in hostile action breadth or degraded-fallback sharpness, not just a broader allowlist on paper
     - proof: add and pass `make test-adversary-sim-agentic-action-realism`
     - insufficient: relabeling the current GET-only fallback as realistic, or widening capability by handing the worker hidden route knowledge
 
@@ -230,6 +235,7 @@ Current note:
     - recurrence truth: recurrence modeling must include hours-to-days dormancy or return behavior rather than only within-run pauses or short between-session gaps
     - supervisor truth: healthy dormant windows must remain distinguishable from stalled or broken generation
     - observer truth: receipts and operator surfaces must make long-window re-entry explicit without pretending one short local run proved campaign-scale return behavior
+    - scorecard truth: closure must show measurable baseline-to-post-tranche change in dormancy or re-entry realism, not just longer configuration values
     - proof: add and pass `make test-adversary-sim-long-window-recurrence-realism`
     - insufficient: only extending a within-run sleep window, or claiming long-horizon realism from plan metadata alone
 
@@ -242,6 +248,7 @@ Current note:
     - transport truth: request-native personas must carry a deeper transport or protocol posture than today’s coarse named envelopes where the runtime stack can support it
     - degraded truth: where the runtime cannot model field-grade transport fidelity, receipts and docs must state that explicitly instead of overclaiming realism
     - observer truth: machine-facing read models must preserve transport-realism class or degraded status without turning the hot path into raw handshake traces
+    - scorecard truth: closure must show measurable baseline-to-post-tranche improvement in achieved transport realism or degraded-truth honesty, not just renamed posture labels
     - proof: add and pass `make test-adversary-sim-transport-fingerprint-realism`
     - insufficient: swapping user-agent strings alone, or claiming field-grade transport realism without proving what is actually emitted
 
@@ -254,6 +261,7 @@ Current note:
     - policy truth: Shuma must not describe adversary lanes as representative when required supporting infrastructure such as trusted ingress or pool-backed identities is absent
     - operator truth: local and operator surfaces must explicitly say when realism is degraded by missing infrastructure or deployment topology
     - sequencing truth: later Game Loop or Tuning tranches must be gated on this readiness contract rather than on lane existence alone
+    - scorecard truth: closure must show measurable before/after improvement in representativeness readiness truth, not just a buried caveat in prose
     - proof: add and pass `make test-adversary-sim-representativeness-readiness`
     - insufficient: burying infrastructure caveats in docs while UI and backlog still speak as if the attacker model is field-representative
 

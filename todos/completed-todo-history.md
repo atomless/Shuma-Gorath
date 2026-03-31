@@ -4,6 +4,28 @@ Moved from active TODO files on 2026-02-14.
 
 ## Additional completions (2026-03-31)
 
+### Adversary Realism Acceptance And Envelope Governance Addendum
+
+- [x] Completed the realism acceptance-governance planning slice across:
+  - [`../docs/research/2026-03-31-adversary-realism-acceptance-and-envelope-governance-review.md`](../docs/research/2026-03-31-adversary-realism-acceptance-and-envelope-governance-review.md)
+  - [`../docs/plans/2026-03-31-adversary-realism-acceptance-and-envelope-governance-plan.md`](../docs/plans/2026-03-31-adversary-realism-acceptance-and-envelope-governance-plan.md)
+  - [`../docs/plans/2026-03-30-adversary-lane-wild-traffic-gap-plan.md`](../docs/plans/2026-03-30-adversary-lane-wild-traffic-gap-plan.md)
+  - [`../docs/plans/2026-03-31-post-2j-adversary-realism-sufficiency-plan.md`](../docs/plans/2026-03-31-post-2j-adversary-realism-sufficiency-plan.md)
+  - [`../docs/research/README.md`](../docs/research/README.md)
+  - [`../docs/plans/README.md`](../docs/plans/README.md)
+  - [`../todos/todo.md`](../todos/todo.md)
+- [x] What landed:
+  - the realism chain now has one explicit acceptance scorecard covering emission shape, terrain reach, defence engagement, identity or transport truth, safety, and representativeness readiness,
+  - the remaining `SIM-REALISM-2I..3E` tasks now state that closure requires measurable baseline-to-post-tranche realism escalation rather than “more bans” or feature presence alone,
+  - the repo now explicitly forbids accepting `pressure_envelope`, `exploration_envelope`, or later realism envelopes as simulator comfort limits unless they are justified as hostile persona models,
+  - and the stale `SIM-REALISM-2` plan note claiming `2F` was still next has been corrected so the active queue truth now points at `2I`.
+- [x] Why:
+  - the ongoing realism discussion exposed a real governance gap: envelopes and receipts could easily be mistaken for realism even when they were only making the simulator look tidy or bounded,
+  - and later Game Loop and Tuning work needed a tighter closure doctrine before the remaining realism tranches continue.
+- [x] Evidence:
+  - `git diff --check`
+  - docs-only tranche: tests intentionally not run because this slice changes research, plans, and backlog truth only
+
 ### Adversary Realism Exploration Envelopes, Frontier Receipts, And Discoverability Backlog Cleanup
 
 - [x] Completed the `SIM-REALISM-2F` and `SIM-REALISM-2G` execution slice across:

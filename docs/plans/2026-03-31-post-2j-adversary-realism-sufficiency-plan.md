@@ -16,6 +16,17 @@
 4. Do not overstate representativeness when required infrastructure is absent.
 5. Do not add lane-selector wording that implies realism or maturity beyond what the receipts and topology can actually prove.
 
+## Shared Acceptance Contract
+
+All `SIM-REALISM-3*` tranches inherit the shared scorecard and envelope-governance doctrine in [`2026-03-31-adversary-realism-acceptance-and-envelope-governance-plan.md`](./2026-03-31-adversary-realism-acceptance-and-envelope-governance-plan.md).
+
+That means:
+
+1. no tranche closes from “more bans” alone,
+2. no stronger envelope or capability closes unless it is grounded as a hostile persona model,
+3. every tranche must identify its expected realism escalation dimensions up front,
+4. and closure now requires measurable baseline-to-post-tranche change in those dimensions.
+
 ## Task 1: `SIM-REALISM-3A` Add Overlapping Multi-Lane And Multi-Identity Concurrency Realism
 
 **Files:**
@@ -35,6 +46,7 @@
 1. Shuma can truthfully emit overlapping Scrapling and Agentic pressure rather than only serializing one lane at a time.
 2. The Red Team lane dropdown exposes an explicit parallel mixed-lane option without implying more maturity than the underlying runtime supports.
 3. Receipts and observer surfaces preserve per-lane contribution and overlap truth for the mixed-lane mode.
+4. Closure includes measurable baseline-to-post-tranche change in overlap or concurrency realism, not just a new lane label or scheduler path.
 
 **Proof:**
 1. Add and pass `make test-adversary-sim-parallel-lane-realism`.
@@ -61,6 +73,7 @@
 1. The agentic lane can perform realistic bounded public-host hostile behaviors beyond simple `GET` retrieval.
 2. Provider degradation still leaves the lane meaningfully adversarial rather than collapsing to one polite fallback pattern.
 3. The expanded action surface remains same-origin, public-hint-only, and Shuma-blind.
+4. Closure includes measurable baseline-to-post-tranche change in hostile action breadth or fallback sharpness, not just a larger allowed-action list.
 
 **Proof:**
 1. Add and pass `make test-adversary-sim-agentic-action-realism`.
@@ -84,6 +97,7 @@
 1. The realism contract can express materially longer return windows than the current few-second re-entry.
 2. Observer and receipt surfaces can distinguish one short burst from a bounded longer campaign.
 3. The implementation remains testable and bounded for local contributor use.
+4. Closure includes measurable baseline-to-post-tranche change in dormant-window or re-entry realism rather than only new plan metadata.
 
 **Proof:**
 1. Add and pass `make test-adversary-sim-long-window-recurrence-realism`.
@@ -104,6 +118,7 @@
 1. Transport realism moves beyond coarse `curl_impersonate` or `urllib_direct` naming where the current stack can support deeper proof.
 2. Any limits of the underlying stack are exposed explicitly as degraded realism rather than silently hidden.
 3. Observer surfaces can distinguish shallow transport posture from richer transport realism.
+4. Closure includes measurable baseline-to-post-tranche change in transport-realism class or degraded-truth coverage rather than only renamed envelopes.
 
 **Proof:**
 1. Add and pass `make test-adversary-sim-transport-fingerprint-realism`.
@@ -130,6 +145,7 @@
 1. Shuma no longer relies on implicit assumptions to decide whether realism claims are valid.
 2. Operator and contributor surfaces can tell when the lanes are degraded by missing infrastructure.
 3. Later Game Loop and Tuning work can key off an explicit representativeness contract instead of vague narrative claims.
+4. Closure includes measurable before/after change in representativeness readiness truth rather than only a new internal flag.
 
 **Proof:**
 1. Add and pass `make test-adversary-sim-representativeness-readiness`.

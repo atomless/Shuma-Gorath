@@ -8,7 +8,7 @@
 
 **Related research:** [`../research/2026-03-30-adversary-lane-wild-traffic-gap-review.md`](../research/2026-03-30-adversary-lane-wild-traffic-gap-review.md)
 
-**Status note:** `SIM-REALISM-2A`, `SIM-REALISM-2B`, `SIM-REALISM-2C`, `SIM-REALISM-2D`, and `SIM-REALISM-2E` are now landed. The next active realism tranche is `SIM-REALISM-2F`, which will replace the remaining flat exploration caps with explicit per-persona traversal envelopes on top of the new pressure, identity, transport-envelope, browser-secondary-traffic, and recurrence contract.
+**Status note:** `SIM-REALISM-2A`, `SIM-REALISM-2B`, `SIM-REALISM-2C`, `SIM-REALISM-2D`, `SIM-REALISM-2E`, `SIM-REALISM-2F`, and `SIM-REALISM-2G` are now landed. The generated root-hosted contributor public site that satisfied the old `SIM-REALISM-2H` discoverability need is also already landed. The next active realism tranche is therefore `SIM-REALISM-2I`.
 
 ---
 
@@ -20,6 +20,17 @@
 4. Do not turn realism work into uncontrolled aggression. Every stronger behavior must remain bounded by an explicit contract and receipt-backed proof.
 5. Do not reintroduce hidden or internal route catalogs, worker-only path hints, or fake public-surface inventories to make traversal look deeper.
 6. Do not grant attacker-plane workers privileged ingress headers or sim-only trust shortcuts. If realistic client IPs are needed, restore them through the same trusted ingress boundary external traffic must satisfy.
+
+## Shared Acceptance Contract
+
+All remaining `SIM-REALISM-2*` tranches now inherit the acceptance and envelope-governance doctrine in [`2026-03-31-adversary-realism-acceptance-and-envelope-governance-plan.md`](./2026-03-31-adversary-realism-acceptance-and-envelope-governance-plan.md).
+
+That means:
+
+1. no tranche closes from “more bans” alone,
+2. every realism envelope must be justified as a hostile persona model rather than a simulator comfort limit,
+3. every tranche must declare which realism scorecard dimensions it is expected to improve,
+4. and closure now requires measurable baseline-to-post-tranche change in the relevant dimensions, not just receipt presence or feature existence.
 
 ## Task 1: Refresh Backlog And Sequencing Truth
 
@@ -162,6 +173,8 @@
 
 ## Task 7: `SIM-REALISM-2F` Replace Flat Discovery Caps With Per-Persona Exploration Envelopes
 
+**Status:** Landed on 2026-03-31.
+
 **Files:**
 - Later code targets: `src/admin/adversary_sim.rs`, `src/admin/adversary_sim_lane_runtime.rs`, `src/admin/adversary_sim_realism_profile.rs`, `scripts/supervisor/scrapling_worker.py`, `scripts/supervisor/llm_runtime_worker.py`
 - Later proof targets: focused realism tests, retained worker proofs, `Makefile`
@@ -181,6 +194,8 @@
 2. Keep retained Scrapling and Agentic worker tests green.
 
 ## Task 8: `SIM-REALISM-2G` Add Compact Exploration Receipts And Observer Truth
+
+**Status:** Landed on 2026-03-31.
 
 **Files:**
 - Later code targets: worker receipt emitters, `src/observability/hot_read_documents.rs`, recent-run projection files, relevant admin or dashboard observer adapters
@@ -207,6 +222,8 @@
 2. Keep relevant machine-contract tests green, and keep dashboard accountability proof green if rendered observer surfaces change.
 
 ## Task 9: `SIM-REALISM-2H` Make The Dummy Site More Richly Publicly Discoverable Without Choreography
+
+**Status:** Landed through the generated contributor-site and route-namespace chains on 2026-03-31.
 
 **Files:**
 - Later code targets: `src/runtime/sim_public.rs`, generated-site build surfaces, `robots.txt` or sitemap support surfaces, shared-host seed/discovery helpers where needed
@@ -256,6 +273,7 @@ Detailed topology and trust-boundary addendum:
 1. When trusted sim ingress is configured, Shuma can observe parseable client IPs for sim traffic.
 2. When it is not configured, the system explicitly reports degraded identity realism instead of silently collapsing to misleading values.
 3. The attacker plane gains no new privilege to impersonate trusted ingress directly.
+4. Closure includes measurable baseline-to-post-tranche change in the identity-realism dimensions this slice owns, rather than a qualitative claim that IP truth “looks better”.
 
 **Proof:**
 1. Add and pass `make test-adversary-sim-trusted-ingress-ip-realism`.
@@ -284,6 +302,7 @@ Detailed topology and trust-boundary addendum:
 1. Operators can distinguish real observed client-IP realism from degraded bucket-only identity.
 2. UI wording no longer makes hashed bucket values look like realistic source addresses.
 3. Receipt truth remains compact and machine-readable.
+4. Closure includes a measurable before/after improvement in observer honesty about identity provenance, not just a new receipt field in isolation.
 
 **Proof:**
 1. Add and pass `make test-adversary-sim-identity-observer-truth`.
@@ -291,17 +310,11 @@ Detailed topology and trust-boundary addendum:
 
 ## Recommended Execution Order
 
-1. finish `SIM-PUBSITE-1A..1D`
-2. finish `SIM-REALISM-1C`
-3. finish `SIM-REALISM-1D`
-4. `SIM-REALISM-2A`
-5. `SIM-REALISM-2B`
-6. `SIM-REALISM-2C`
-7. `SIM-REALISM-2D`
-8. `SIM-REALISM-2F`
-9. `SIM-REALISM-2G`
-10. `SIM-REALISM-2H`
-11. `SIM-REALISM-2I`
-12. `SIM-REALISM-2J`
-13. `SIM-REALISM-2E`
-14. only then reopen representative mixed-attacker or tuning-quality claims
+1. `SIM-REALISM-2I`
+2. `SIM-REALISM-2J`
+3. `SIM-REALISM-3A`
+4. `SIM-REALISM-3B`
+5. `SIM-REALISM-3C`
+6. `SIM-REALISM-3D`
+7. `SIM-REALISM-3E`
+8. only then reopen representative mixed-attacker or tuning-quality claims
