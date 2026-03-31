@@ -30,6 +30,23 @@ fn early_router_short_circuits_shuma_admin_options() {
 }
 
 #[test]
+fn early_router_short_circuits_shuma_internal_options() {
+    let req = request(Method::Options, "/shuma/internal/adversary-sim/beat");
+    let caps = capabilities();
+    let resp = maybe_handle_early_route(&req, "/shuma/internal/adversary-sim/beat", &caps);
+    assert!(resp.is_some());
+    assert_eq!(*resp.unwrap().status(), 403u16);
+}
+
+#[test]
+fn early_router_does_not_consume_legacy_top_level_internal_paths() {
+    let req = request(Method::Post, "/internal/adversary-sim/beat");
+    let caps = capabilities();
+    let resp = maybe_handle_early_route(&req, "/internal/adversary-sim/beat", &caps);
+    assert!(resp.is_none());
+}
+
+#[test]
 fn early_router_does_not_consume_cdp_report_path() {
     let req = request(Method::Post, "/cdp-report");
     let caps = capabilities();

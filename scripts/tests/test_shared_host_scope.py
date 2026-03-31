@@ -29,7 +29,7 @@ class SharedHostScopeUnitTests(unittest.TestCase):
         )
         self.assertIn("/private", descriptor.denied_path_prefixes)
         self.assertIn("/shuma/admin", descriptor.denied_path_prefixes)
-        self.assertIn("/internal", descriptor.denied_path_prefixes)
+        self.assertIn("/shuma/internal", descriptor.denied_path_prefixes)
 
     def test_accepts_in_scope_https_candidate_and_strips_fragment(self):
         descriptor = self.make_descriptor()

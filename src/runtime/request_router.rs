@@ -881,7 +881,7 @@ pub(crate) fn maybe_handle_early_route(
     }
 
     // Internal control-plane endpoints (host-side supervisor/ops tooling only)
-    if path.starts_with("/internal/") {
+    if route_namespace::is_shuma_internal_path(path) {
         if req.method() == &Method::Options {
             return Some(Response::new(403, "Forbidden"));
         }

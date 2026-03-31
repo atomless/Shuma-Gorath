@@ -397,11 +397,11 @@ def admin_auth_headers(env: dict[str, str], base_url: str) -> dict[str, str]:
 def edge_cron_path_and_query(env: dict[str, str]) -> str:
     secret = required_env_value(env, "SHUMA_ADVERSARY_SIM_EDGE_CRON_SECRET")
     query = urllib_parse.urlencode({EDGE_CRON_SECRET_QUERY_KEY: secret})
-    return f"/internal/adversary-sim/beat?{query}"
+    return f"/shuma/internal/adversary-sim/beat?{query}"
 
 
 def redacted_edge_cron_path_and_query() -> str:
-    return f"/internal/adversary-sim/beat?{EDGE_CRON_SECRET_QUERY_KEY}=<redacted>"
+    return f"/shuma/internal/adversary-sim/beat?{EDGE_CRON_SECRET_QUERY_KEY}=<redacted>"
 
 
 def cron_scope_args(*, app_id: str, account_id: str, account_name: str) -> list[str]:

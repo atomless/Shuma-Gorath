@@ -722,7 +722,7 @@ mod tests {
         let mut builder = Request::builder();
         builder
             .method(Method::Post)
-            .uri("/internal/adversary-sim/beat")
+            .uri("/shuma/internal/adversary-sim/beat")
             .header("authorization", "Bearer test-admin-key")
             .header("x-shuma-forwarded-secret", "test-forwarded-secret")
             .header("x-forwarded-proto", "https")
@@ -735,10 +735,10 @@ mod tests {
         let mut builder = Request::builder();
         builder
             .method(Method::Get)
-            .uri("/internal/adversary-sim/beat?edge_cron_secret=test-edge-cron-secret")
+            .uri("/shuma/internal/adversary-sim/beat?edge_cron_secret=test-edge-cron-secret")
             .header(
                 "spin-full-url",
-                "https://edge.example.com/internal/adversary-sim/beat?edge_cron_secret=test-edge-cron-secret",
+                "https://edge.example.com/shuma/internal/adversary-sim/beat?edge_cron_secret=test-edge-cron-secret",
             );
         builder.build()
     }
@@ -747,7 +747,7 @@ mod tests {
         let mut builder = Request::builder();
         builder
             .method(Method::Post)
-            .uri("/internal/oversight/agent/run")
+            .uri("/shuma/internal/oversight/agent/run")
             .header("authorization", "Bearer test-admin-key")
             .header("x-shuma-forwarded-secret", "test-forwarded-secret")
             .header("x-forwarded-proto", "https")
@@ -768,7 +768,7 @@ mod tests {
         let mut missing_marker = Request::builder();
         missing_marker
             .method(Method::Post)
-            .uri("/internal/adversary-sim/beat")
+            .uri("/shuma/internal/adversary-sim/beat")
             .header("authorization", "Bearer test-admin-key")
             .header("x-shuma-forwarded-secret", "test-forwarded-secret")
             .header("x-forwarded-proto", "https")
@@ -780,7 +780,7 @@ mod tests {
         let mut wrong_ip = Request::builder();
         wrong_ip
             .method(Method::Post)
-            .uri("/internal/adversary-sim/beat")
+            .uri("/shuma/internal/adversary-sim/beat")
             .header("authorization", "Bearer test-admin-key")
             .header("x-shuma-forwarded-secret", "test-forwarded-secret")
             .header("x-forwarded-proto", "https")
@@ -793,7 +793,7 @@ mod tests {
         let mut insecure = Request::builder();
         insecure
             .method(Method::Post)
-            .uri("/internal/adversary-sim/beat")
+            .uri("/shuma/internal/adversary-sim/beat")
             .header("authorization", "Bearer test-admin-key")
             .header("x-shuma-forwarded-secret", "test-forwarded-secret")
             .header("x-forwarded-for", "127.0.0.1")
@@ -822,10 +822,10 @@ mod tests {
         let mut wrong_secret = Request::builder();
         wrong_secret
             .method(Method::Get)
-            .uri("/internal/adversary-sim/beat?edge_cron_secret=wrong")
+            .uri("/shuma/internal/adversary-sim/beat?edge_cron_secret=wrong")
             .header(
                 "spin-full-url",
-                "https://edge.example.com/internal/adversary-sim/beat?edge_cron_secret=wrong",
+                "https://edge.example.com/shuma/internal/adversary-sim/beat?edge_cron_secret=wrong",
             );
         assert!(!is_internal_adversary_sim_edge_cron_request(
             &wrong_secret.build()
@@ -834,7 +834,7 @@ mod tests {
         let mut insecure = Request::builder();
         insecure
             .method(Method::Get)
-            .uri("/internal/adversary-sim/beat?edge_cron_secret=test-edge-cron-secret");
+            .uri("/shuma/internal/adversary-sim/beat?edge_cron_secret=test-edge-cron-secret");
         assert!(!is_internal_adversary_sim_edge_cron_request(
             &insecure.build()
         ));
@@ -858,7 +858,7 @@ mod tests {
         let mut wrong_marker = Request::builder();
         wrong_marker
             .method(Method::Post)
-            .uri("/internal/oversight/agent/run")
+            .uri("/shuma/internal/oversight/agent/run")
             .header("authorization", "Bearer test-admin-key")
             .header("x-shuma-forwarded-secret", "test-forwarded-secret")
             .header("x-forwarded-proto", "https")
@@ -871,7 +871,7 @@ mod tests {
         let mut wrong_ip = Request::builder();
         wrong_ip
             .method(Method::Post)
-            .uri("/internal/oversight/agent/run")
+            .uri("/shuma/internal/oversight/agent/run")
             .header("authorization", "Bearer test-admin-key")
             .header("x-shuma-forwarded-secret", "test-forwarded-secret")
             .header("x-forwarded-proto", "https")

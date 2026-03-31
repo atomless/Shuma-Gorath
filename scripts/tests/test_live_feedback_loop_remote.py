@@ -312,7 +312,7 @@ class _FakeLiveFeedbackLoopRemote(LIVE_FEEDBACK_LOOP_REMOTE.LiveFeedbackLoopRemo
         raise AssertionError(f"Unexpected request: {method} {path}")
 
     def _internal_request_json(self, method: str, path: str, payload=None):
-        if path == "/internal/oversight/agent/run":
+        if path == "/shuma/internal/oversight/agent/run":
             self._periodic_trigger_calls += 1
             if self._periodic_trigger_calls == 1:
                 return {
@@ -359,7 +359,7 @@ class _FakeLiveFeedbackLoopRemote(LIVE_FEEDBACK_LOOP_REMOTE.LiveFeedbackLoopRemo
                 "operation_id": "op-enable-1" if payload["enabled"] else "op-disable-1",
                 "decision": "accepted",
             }
-        if path == "/internal/oversight/agent/run":
+        if path == "/shuma/internal/oversight/agent/run":
             return self._internal_request_json(method, path, payload)
         raise AssertionError(f"Unexpected loopback request: {method} {path}")
 

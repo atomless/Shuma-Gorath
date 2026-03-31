@@ -461,7 +461,7 @@ PY"""
     def _trigger_periodic_agent_run(self) -> dict[str, Any]:
         payload = self._internal_request_json(
             "POST",
-            "/internal/oversight/agent/run",
+            "/shuma/internal/oversight/agent/run",
             {"trigger_kind": "periodic_supervisor"},
         )
         if payload.get("schema_version") != "oversight_agent_execution_v1":

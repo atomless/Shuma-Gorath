@@ -184,7 +184,7 @@ pub fn autonomous_execution_profile() -> AutonomousExecutionProfile {
             max_catchup_ticks_per_invocation:
                 AUTONOMOUS_SHARED_SERVER_MAX_CATCHUP_TICKS_PER_INVOCATION,
             trigger_surface: "internal_beat_endpoint",
-            beat_endpoint: "/internal/adversary-sim/beat",
+            beat_endpoint: crate::http_route_namespace::SHUMA_INTERNAL_ADVERSARY_SIM_BEAT_PATH,
             cron_schedule: None,
         },
         crate::config::GatewayDeploymentProfile::EdgeFermyon => AutonomousExecutionProfile {
@@ -192,7 +192,7 @@ pub fn autonomous_execution_profile() -> AutonomousExecutionProfile {
             max_catchup_ticks_per_invocation:
                 AUTONOMOUS_EDGE_FERMYON_MAX_CATCHUP_TICKS_PER_INVOCATION,
             trigger_surface: "edge_cron",
-            beat_endpoint: "/internal/adversary-sim/beat",
+            beat_endpoint: crate::http_route_namespace::SHUMA_INTERNAL_ADVERSARY_SIM_BEAT_PATH,
             cron_schedule: Some(AUTONOMOUS_EDGE_FERMYON_CRON_SCHEDULE),
         },
     }

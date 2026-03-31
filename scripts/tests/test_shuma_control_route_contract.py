@@ -14,12 +14,14 @@ ACTIVE_SHUMA_ROUTE_SURFACES = {
         "SHUMA_HEALTH_PATH",
         "SHUMA_METRICS_PATH",
         "is_shuma_admin_path(path)",
+        "is_shuma_internal_path(path)",
     ],
     Path("src/runtime/request_router/tests.rs"): [
         "/shuma/dashboard",
         "/shuma/dashboard/index.html",
         "/shuma/health",
         "/shuma/admin/config",
+        "/shuma/internal/adversary-sim/beat",
     ],
     Path("dashboard/src/lib/runtime/dashboard-paths.js"): [
         "/shuma/dashboard",
@@ -46,6 +48,17 @@ ACTIVE_SHUMA_ROUTE_SURFACES = {
         'pattern="/shuma/health"',
         'pattern="/shuma/metrics"',
         'pattern="/shuma/admin"',
+        'pattern="/shuma/internal/"',
+    ],
+    Path("scripts/supervisor/adversary_sim_supervisor.rs"): [
+        "/shuma/internal/adversary-sim/beat",
+        "/shuma/internal/adversary-sim/worker-result",
+    ],
+    Path("scripts/run_with_oversight_supervisor.sh"): [
+        "/shuma/internal/oversight/agent/run",
+    ],
+    Path("scripts/deploy/fermyon_akamai_edge_deploy.py"): [
+        "/shuma/internal/adversary-sim/beat",
     ],
     Path("scripts/run_with_adversary_sim_supervisor.sh"): [
         "/shuma/admin/adversary-sim/status",
@@ -71,6 +84,15 @@ ACTIVE_SHUMA_ROUTE_SURFACES = {
     Path("src/admin/api.rs"): [
         "route_namespace::SHUMA_METRICS_PATH",
         "%2Fshuma%2Fdashboard%2Findex.html",
+        "route_namespace::SHUMA_INTERNAL_ADVERSARY_SIM_BEAT_PATH",
+        "route_namespace::SHUMA_INTERNAL_ADVERSARY_SIM_WORKER_RESULT_PATH",
+        "route_namespace::SHUMA_INTERNAL_OVERSIGHT_AGENT_RUN_PATH",
+    ],
+    Path("src/admin/oversight_agent.rs"): [
+        "route_namespace::SHUMA_INTERNAL_OVERSIGHT_AGENT_RUN_PATH",
+    ],
+    Path("src/admin/adversary_sim_state.rs"): [
+        "crate::http_route_namespace::SHUMA_INTERNAL_ADVERSARY_SIM_BEAT_PATH",
     ],
     Path("src/request_validation.rs"): [
         "%2Fshuma%2Fdashboard%2Findex.html%23status",
@@ -83,6 +105,16 @@ ACTIVE_SHUMA_ROUTE_SURFACES = {
 LEGACY_ROUTE_DRIFT_SURFACES = {
     Path("scripts/run_with_adversary_sim_supervisor.sh"): [
         r"(?<!/shuma)/admin/adversary-sim/status",
+    ],
+    Path("scripts/supervisor/adversary_sim_supervisor.rs"): [
+        r"(?<!/shuma)/internal/adversary-sim/beat",
+        r"(?<!/shuma)/internal/adversary-sim/worker-result",
+    ],
+    Path("scripts/run_with_oversight_supervisor.sh"): [
+        r"(?<!/shuma)/internal/oversight/agent/run",
+    ],
+    Path("scripts/deploy/fermyon_akamai_edge_deploy.py"): [
+        r"(?<!/shuma)/internal/adversary-sim/beat",
     ],
     Path("scripts/deploy/remote_target.py"): [
         r"http://127\.0\.0\.1:3000/health(?![A-Za-z0-9_-])",
@@ -106,6 +138,15 @@ LEGACY_ROUTE_DRIFT_SURFACES = {
         r'"/metrics"',
         r"fetch\('/metrics'\)",
         r"(?<!%2Fshuma)%2Fdashboard%2Findex\.html",
+        r"(?<!/shuma)/internal/adversary-sim/beat",
+        r"(?<!/shuma)/internal/adversary-sim/worker-result",
+        r"(?<!/shuma)/internal/oversight/agent/run",
+    ],
+    Path("src/admin/oversight_agent.rs"): [
+        r"(?<!/shuma)/internal/oversight/agent/run",
+    ],
+    Path("src/admin/adversary_sim_state.rs"): [
+        r'"/internal/adversary-sim/beat"',
     ],
     Path("src/request_validation.rs"): [
         r"(?<!%2Fshuma)%2Fdashboard%2Findex\.html",

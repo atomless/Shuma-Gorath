@@ -33,7 +33,7 @@ post_periodic_agent_run() {
 
   curl -fsS --max-time 5 -X POST \
     "${headers[@]}" \
-    "${BASE_URL}/internal/oversight/agent/run" \
+    "${BASE_URL}/shuma/internal/oversight/agent/run" \
     --data '{"trigger_kind":"periodic_supervisor"}' >/dev/null
 }
 
@@ -58,7 +58,7 @@ trap cleanup EXIT INT TERM
 APP_PID=$!
 
 if [[ -z "${ADMIN_API_KEY}" ]]; then
-  echo "[oversight-supervisor] disabled: SHUMA_API_KEY is empty; cannot post /internal/oversight/agent/run" >&2
+  echo "[oversight-supervisor] disabled: SHUMA_API_KEY is empty; cannot post /shuma/internal/oversight/agent/run" >&2
 else
   run_oversight_manager &
   OVERSIGHT_MANAGER_PID=$!

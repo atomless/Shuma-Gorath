@@ -3958,7 +3958,7 @@ mod admin_config_tests {
         let mut builder = Request::builder();
         builder
             .method(Method::Post)
-            .uri("/internal/adversary-sim/beat")
+            .uri(route_namespace::SHUMA_INTERNAL_ADVERSARY_SIM_BEAT_PATH)
             .header("host", "localhost:3000")
             .header("authorization", authorization.as_str())
             .header("x-shuma-forwarded-secret", "test-forwarded-secret")
@@ -3974,7 +3974,7 @@ mod admin_config_tests {
         let mut builder = Request::builder();
         builder
             .method(Method::Post)
-            .uri("/internal/oversight/agent/run")
+            .uri(route_namespace::SHUMA_INTERNAL_OVERSIGHT_AGENT_RUN_PATH)
             .header("host", "localhost:3000")
             .header("content-type", "application/json")
             .header("authorization", authorization.as_str())
@@ -3991,7 +3991,7 @@ mod admin_config_tests {
         let mut builder = Request::builder();
         builder
             .method(Method::Post)
-            .uri("/internal/adversary-sim/worker-result")
+            .uri(route_namespace::SHUMA_INTERNAL_ADVERSARY_SIM_WORKER_RESULT_PATH)
             .header("host", "localhost:3000")
             .header("content-type", "application/json")
             .header("authorization", authorization.as_str())
@@ -4301,11 +4301,17 @@ mod admin_config_tests {
         let mut builder = Request::builder();
         builder
             .method(Method::Get)
-            .uri(format!("/internal/adversary-sim/beat?edge_cron_secret={secret}").as_str())
+            .uri(
+                format!(
+                    "{}?edge_cron_secret={secret}",
+                    route_namespace::SHUMA_INTERNAL_ADVERSARY_SIM_BEAT_PATH
+                )
+                .as_str(),
+            )
             .header(
                 "spin-full-url",
                 format!(
-                    "https://edge.example.com/internal/adversary-sim/beat?edge_cron_secret={secret}"
+                    "https://edge.example.com/shuma/internal/adversary-sim/beat?edge_cron_secret={secret}"
                 )
                 .as_str(),
             )
@@ -14291,8 +14297,10 @@ const MONITORING_FRESHNESS_SLO_P95_MS: u64 = 300;
 const MONITORING_FRESHNESS_SLO_P99_MS: u64 = 500;
 const MONITORING_MANUAL_REFRESH_STALENESS_BOUND_MS: u64 = 60_000;
 const MONITORING_MAX_ALLOWED_LAG_BEFORE_DEGRADED_MS: u64 = 2_000;
-const INTERNAL_ADVERSARY_SIM_BEAT_PATH: &str = "/internal/adversary-sim/beat";
-const INTERNAL_ADVERSARY_SIM_WORKER_RESULT_PATH: &str = "/internal/adversary-sim/worker-result";
+const INTERNAL_ADVERSARY_SIM_BEAT_PATH: &str =
+    route_namespace::SHUMA_INTERNAL_ADVERSARY_SIM_BEAT_PATH;
+const INTERNAL_ADVERSARY_SIM_WORKER_RESULT_PATH: &str =
+    route_namespace::SHUMA_INTERNAL_ADVERSARY_SIM_WORKER_RESULT_PATH;
 const MONITORING_STALE_LAG_THRESHOLD_MS: u64 = 10_000;
 const MONITORING_LOAD_ENVELOPE_EVENTS_PER_SEC: u64 = 1_000;
 const MONITORING_LOAD_ENVELOPE_OPERATOR_CLIENTS: u64 = 5;
@@ -20709,10 +20717,10 @@ fn request_bypasses_admin_ip_allowlist(req: &Request, path: &str) -> bool {
 /// Handles host-side internal control-plane endpoints (no browser/UI callers).
 ///
 /// Currently supports:
-///   - POST /internal/adversary-sim/beat: run one bounded host-side autonomous supervisor beat
-///   - GET /internal/adversary-sim/beat?edge_cron_secret=...: run one bounded edge cron beat
-///   - POST /internal/adversary-sim/worker-result: persist one bounded Scrapling worker result
-///   - POST /internal/oversight/agent/run: execute one bounded shared-host recommend-only agent cycle
+///   - POST /shuma/internal/adversary-sim/beat: run one bounded host-side autonomous supervisor beat
+///   - GET /shuma/internal/adversary-sim/beat?edge_cron_secret=...: run one bounded edge cron beat
+///   - POST /shuma/internal/adversary-sim/worker-result: persist one bounded Scrapling worker result
+///   - POST /shuma/internal/oversight/agent/run: execute one bounded shared-host recommend-only agent cycle
 pub fn handle_internal(req: &Request) -> Response {
     let path = req.path();
     let internal_beat_authorized = path == INTERNAL_ADVERSARY_SIM_BEAT_PATH

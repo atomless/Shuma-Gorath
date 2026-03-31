@@ -403,7 +403,7 @@ class DeployFermyonAkamaiEdgeTests(unittest.TestCase):
         self.assertEqual(cron["job_name_prefix"], "shuma-adversary-sim-beat")
         self.assertEqual(cron["job_count"], 5)
         self.assertEqual(cron["schedules"], list(deploy.EDGE_CRON_SCHEDULES))
-        self.assertEqual(cron["path_and_query"], "/internal/adversary-sim/beat?edge_cron_secret=<redacted>")
+        self.assertEqual(cron["path_and_query"], "/shuma/internal/adversary-sim/beat?edge_cron_secret=<redacted>")
 
     def test_ensure_adversary_sim_edge_cron_tolerates_delete_when_job_is_already_gone(self) -> None:
         calls: list[list[str]] = []

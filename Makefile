@@ -1635,14 +1635,17 @@ test-dashboard-shuma-route-contract: ## Validate dashboard path helpers and admi
 		--test-name-pattern='dashboard shuma route helpers and admin client default to the shuma namespace' \
 		e2e/dashboard.modules.unit.test.js
 
-test-shuma-control-route-migration: ## Validate the /shuma/* control-plane, dashboard, health, and metrics migration contract
+test-shuma-control-route-migration: ## Validate the /shuma/* control-plane, internal, dashboard, health, and metrics migration contract
 	@echo "$(CYAN)🧪 Validating Shuma control-route migration...$(NC)"
 	@./scripts/set_crate_type.sh rlib
 	@cargo test early_router_short_circuits_shuma_health_path -- --nocapture
 	@cargo test early_router_short_circuits_shuma_admin_options -- --nocapture
+	@cargo test early_router_short_circuits_shuma_internal_options -- --nocapture
+	@cargo test early_router_does_not_consume_legacy_top_level_internal_paths -- --nocapture
 	@cargo test early_router_redirects_shuma_dashboard_root_to_index_html -- --nocapture
 	@cargo test early_router_redirects_shuma_dashboard_trailing_slash_root_to_index_html -- --nocapture
 	@python3 -m unittest scripts/tests/test_shuma_control_route_contract.py
+	@python3 -m unittest scripts/tests/test_shared_host_scope.py
 	@$(MAKE) --no-print-directory test-dashboard-shuma-route-contract
 
 sim-public-refresh: ## Regenerate the contributor sim-public artifact explicitly

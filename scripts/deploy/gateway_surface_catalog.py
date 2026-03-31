@@ -24,7 +24,7 @@ RESERVED_ROUTES: list[ReservedRoute] = [
     ReservedRoute(kind="exact", pattern="/shuma/metrics", owner="shuma_control_plane"),
     ReservedRoute(kind="exact", pattern="/robots.txt", owner="shuma_control_plane"),
     ReservedRoute(kind="prefix", pattern="/shuma/admin", owner="shuma_admin_api"),
-    ReservedRoute(kind="prefix", pattern="/internal/", owner="shuma_internal_api"),
+    ReservedRoute(kind="prefix", pattern="/shuma/internal/", owner="shuma_internal_api"),
     ReservedRoute(kind="exact", pattern="/challenge/puzzle", owner="shuma_challenge"),
     ReservedRoute(kind="exact", pattern="/challenge/not-a-bot-checkbox", owner="shuma_challenge"),
     ReservedRoute(kind="exact", pattern="/pow", owner="shuma_challenge"),

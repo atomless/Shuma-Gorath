@@ -164,16 +164,6 @@ Current note:
   - and the next remaining blocker is projection truth: operator/admin and dashboard surfaces still need to distinguish judged mixed-attacker episodes from mere lane visibility.
 - Do not claim mixed-attacker strict-baseline proof from the new score spine alone; mixed-attacker proof projection and repeated retained improvement under mixed pressure still remain required.
 
-- [ ] ROUTE-NS-1D Move internal Shuma supervisor and loop-control routes under `/shuma/internal/*`.
-  - Reference context:
-    - [`docs/research/2026-03-31-route-namespace-and-root-hosted-public-site-review.md`](../docs/research/2026-03-31-route-namespace-and-root-hosted-public-site-review.md)
-    - [`docs/plans/2026-03-31-route-namespace-and-root-hosted-public-site-plan.md`](../docs/plans/2026-03-31-route-namespace-and-root-hosted-public-site-plan.md)
-  - Closure gate:
-    - internal truth: supervisor, oversight, and lifecycle helpers must no longer call top-level `/internal/*`
-    - control truth: internal command routes must remain namespaced and clearly distinct from host-root public content
-    - proof: keep focused runtime or script contract targets green and extend them where needed under `make test-shuma-control-route-migration`
-    - insufficient: leaving mixed top-level and `/shuma/internal/*` command surfaces alive without explicit justification
-
 - [ ] ROUTE-NS-1F Remove legacy route-family assumptions from docs, tests, and operator guidance after full-path proof.
   - Reference context:
     - [`docs/research/2026-03-31-route-namespace-and-root-hosted-public-site-review.md`](../docs/research/2026-03-31-route-namespace-and-root-hosted-public-site-review.md)

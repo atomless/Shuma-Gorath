@@ -1,4 +1,5 @@
 use crate::challenge::KeyValueStore;
+use crate::http_route_namespace as route_namespace;
 use serde::{Deserialize, Serialize};
 use std::collections::hash_map::DefaultHasher;
 use std::hash::{Hash, Hasher};
@@ -11,7 +12,8 @@ pub(crate) const OVERSIGHT_AGENT_RUN_SCHEMA_VERSION: &str = "oversight_agent_run
 pub(crate) const OVERSIGHT_AGENT_EXECUTION_SCHEMA_VERSION: &str = "oversight_agent_execution_v1";
 pub(crate) const OVERSIGHT_AGENT_STATUS_SCHEMA_VERSION: &str = "oversight_agent_status_v1";
 pub(crate) const OVERSIGHT_AGENT_DEFAULT_INTERVAL_SECONDS: u64 = 300;
-pub(crate) const OVERSIGHT_AGENT_INTERNAL_PATH: &str = "/internal/oversight/agent/run";
+pub(crate) const OVERSIGHT_AGENT_INTERNAL_PATH: &str =
+    route_namespace::SHUMA_INTERNAL_OVERSIGHT_AGENT_RUN_PATH;
 
 const OVERSIGHT_AGENT_HISTORY_PREFIX: &str = "oversight_agent_runs:v1";
 const OVERSIGHT_AGENT_HISTORY_LIMIT: usize = 12;

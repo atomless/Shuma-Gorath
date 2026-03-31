@@ -20,7 +20,7 @@ DEFAULT_REQUIRE_HTTPS = True
 DEFAULT_DENY_IP_LITERALS = True
 BASELINE_DENIED_PATH_PREFIXES = (
     "/shuma/admin",
-    "/internal",
+    "/shuma/internal",
     "/shuma/dashboard",
     "/session",
     "/auth",

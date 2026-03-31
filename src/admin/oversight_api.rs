@@ -1323,7 +1323,7 @@ mod tests {
 
         let internal_request = Request::builder()
             .method(Method::Post)
-            .uri("/internal/oversight/agent/run")
+            .uri("/shuma/internal/oversight/agent/run")
             .header("host", "localhost:3000")
             .header("authorization", "Bearer oversight-agent-test-key")
             .header("x-shuma-forwarded-secret", "test-forwarded-secret")
@@ -1370,7 +1370,7 @@ mod tests {
 
         let internal_request = Request::builder()
             .method(Method::Post)
-            .uri("/internal/oversight/agent/run")
+            .uri("/shuma/internal/oversight/agent/run")
             .header("host", "localhost:3000")
             .header("authorization", "Bearer oversight-agent-test-key")
             .header("x-shuma-forwarded-secret", "test-forwarded-secret")

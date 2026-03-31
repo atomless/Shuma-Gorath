@@ -20,7 +20,7 @@ class AdversarySimSupervisorContractTests(unittest.TestCase):
 
     def test_supervisor_worker_posts_external_worker_results_to_internal_endpoint(self) -> None:
         source = SUPERVISOR_WORKER_SOURCE.read_text(encoding="utf-8")
-        self.assertIn("/internal/adversary-sim/worker-result", source)
+        self.assertIn("/shuma/internal/adversary-sim/worker-result", source)
 
     def test_supervisor_worker_knows_about_scrapling_dispatch_mode(self) -> None:
         source = SUPERVISOR_WORKER_SOURCE.read_text(encoding="utf-8")

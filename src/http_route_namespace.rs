@@ -13,6 +13,11 @@ pub(crate) const SHUMA_DASHBOARD_INDEX_PATH: &str = "/shuma/dashboard/index.html
 pub(crate) const SHUMA_DASHBOARD_LOGIN_PATH: &str = "/shuma/dashboard/login.html";
 #[allow(dead_code)] // Declared now so later internal-route migration does not invent a second path contract.
 pub(crate) const SHUMA_INTERNAL_PREFIX: &str = "/shuma/internal";
+pub(crate) const SHUMA_INTERNAL_ADVERSARY_SIM_BEAT_PATH: &str = "/shuma/internal/adversary-sim/beat";
+pub(crate) const SHUMA_INTERNAL_ADVERSARY_SIM_WORKER_RESULT_PATH: &str =
+    "/shuma/internal/adversary-sim/worker-result";
+pub(crate) const SHUMA_INTERNAL_OVERSIGHT_AGENT_RUN_PATH: &str =
+    "/shuma/internal/oversight/agent/run";
 pub(crate) const SHUMA_HEALTH_PATH: &str = "/shuma/health";
 pub(crate) const SHUMA_METRICS_PATH: &str = "/shuma/metrics";
 
@@ -82,6 +87,9 @@ mod tests {
             SHUMA_DASHBOARD_INDEX_PATH,
             SHUMA_DASHBOARD_LOGIN_PATH,
             SHUMA_INTERNAL_PREFIX,
+            SHUMA_INTERNAL_ADVERSARY_SIM_BEAT_PATH,
+            SHUMA_INTERNAL_ADVERSARY_SIM_WORKER_RESULT_PATH,
+            SHUMA_INTERNAL_OVERSIGHT_AGENT_RUN_PATH,
             SHUMA_HEALTH_PATH,
             SHUMA_METRICS_PATH,
         ] {

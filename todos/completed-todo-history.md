@@ -4,6 +4,46 @@ Moved from active TODO files on 2026-02-14.
 
 ## Additional completions (2026-03-31)
 
+### ROUTE-NS-1D Namespace Internal Supervisor And Loop-Control Routes Under `/shuma/internal/*`
+
+- [x] Completed the internal-route namespace tranche across:
+  - [`../src/http_route_namespace.rs`](../src/http_route_namespace.rs)
+  - [`../src/runtime/request_router.rs`](../src/runtime/request_router.rs)
+  - [`../src/runtime/request_router/tests.rs`](../src/runtime/request_router/tests.rs)
+  - [`../src/admin/api.rs`](../src/admin/api.rs)
+  - [`../src/admin/auth.rs`](../src/admin/auth.rs)
+  - [`../src/admin/adversary_sim_state.rs`](../src/admin/adversary_sim_state.rs)
+  - [`../src/admin/oversight_agent.rs`](../src/admin/oversight_agent.rs)
+  - [`../src/admin/oversight_api.rs`](../src/admin/oversight_api.rs)
+  - [`../scripts/supervisor/adversary_sim_supervisor.rs`](../scripts/supervisor/adversary_sim_supervisor.rs)
+  - [`../scripts/run_with_oversight_supervisor.sh`](../scripts/run_with_oversight_supervisor.sh)
+  - [`../scripts/deploy/fermyon_akamai_edge_deploy.py`](../scripts/deploy/fermyon_akamai_edge_deploy.py)
+  - [`../scripts/deploy/gateway_surface_catalog.py`](../scripts/deploy/gateway_surface_catalog.py)
+  - [`../scripts/tests/shared_host_scope.py`](../scripts/tests/shared_host_scope.py)
+  - [`../scripts/tests/test_shared_host_scope.py`](../scripts/tests/test_shared_host_scope.py)
+  - [`../scripts/tests/adversarial/shared_host_scope_contract.v1.json`](../scripts/tests/adversarial/shared_host_scope_contract.v1.json)
+  - [`../scripts/tests/test_shuma_control_route_contract.py`](../scripts/tests/test_shuma_control_route_contract.py)
+  - [`../scripts/tests/test_adversary_sim_supervisor.py`](../scripts/tests/test_adversary_sim_supervisor.py)
+  - [`../scripts/tests/test_oversight_supervisor.py`](../scripts/tests/test_oversight_supervisor.py)
+  - [`../scripts/tests/test_deploy_fermyon_akamai_edge.py`](../scripts/tests/test_deploy_fermyon_akamai_edge.py)
+  - [`../scripts/tests/live_feedback_loop_remote.py`](../scripts/tests/live_feedback_loop_remote.py)
+  - [`../scripts/tests/test_live_feedback_loop_remote.py`](../scripts/tests/test_live_feedback_loop_remote.py)
+  - [`../Makefile`](../Makefile)
+- [x] What landed:
+  - canonical internal supervisor and loop-control endpoints now resolve through `/shuma/internal/adversary-sim/beat`, `/shuma/internal/adversary-sim/worker-result`, and `/shuma/internal/oversight/agent/run`,
+  - the runtime early router now accepts only `/shuma/internal/*` and explicitly stops consuming legacy top-level `/internal/*`,
+  - supervisor wrappers, edge-cron helpers, oversight triggers, and auth fixtures now all use the namespaced internal control-plane contract,
+  - and shared-host discovery boundaries now deny `/shuma/internal` instead of the superseded top-level `/internal` path family.
+- [x] Why:
+  - Shuma-owned internal control paths needed the same namespace isolation as the rest of the control plane before the root-host public site can safely occupy `/`,
+  - and leaving the shared-host scope or supervisor helpers on the legacy internal prefix would have created a split control model that attackers or contributors could not reason about cleanly.
+- [x] Evidence:
+  - `make test-shuma-control-route-migration`
+  - `git diff --check`
+  - `rg -n --pcre2 '(?<!/shuma)/internal/' src scripts dashboard e2e Makefile --glob '!docs/**' --glob '!todos/**' --glob '!**/*.md'`
+  - `rg -n '"/internal' src scripts dashboard e2e Makefile --glob '!docs/**' --glob '!todos/**' --glob '!**/*.md'`
+  - remaining exact hits are intentionally fenced negative checks in [`../src/runtime/request_router/tests.rs`](../src/runtime/request_router/tests.rs) and [`../scripts/tests/test_shuma_control_route_contract.py`](../scripts/tests/test_shuma_control_route_contract.py)
+
 ### ROUTE-NS-1C Namespace Shuma-Owned Control Routes Under `/shuma/*`
 
 - [x] Completed the Shuma-owned control-route migration tranche across:
