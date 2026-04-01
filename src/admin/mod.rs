@@ -5,6 +5,7 @@ pub(crate) mod adversary_sim_identity_pool;
 pub(crate) mod adversary_sim_llm_lane;
 pub(crate) mod adversary_sim_lane_runtime;
 pub(crate) mod adversary_sim_realism_profile;
+pub(crate) mod adversary_sim_representativeness;
 pub(crate) mod adversary_sim_status_truth;
 pub(crate) mod adversary_sim_state;
 pub(crate) mod adversary_sim_trusted_ingress;

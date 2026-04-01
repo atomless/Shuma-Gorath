@@ -4210,6 +4210,164 @@ test("red team tab keeps controls and recent run history without machine-diagnos
   test.setTimeout(180_000);
   await withRestoredAdversarySimConfig(request, async () => {
     await forceAdversarySimDisabled(request);
+    let mockedDesiredLane = "scrapling_traffic";
+    const buildAdversarySimStatusPayload = () => ({
+      runtime_environment: "runtime-dev",
+      adversary_sim_available: true,
+      adversary_sim_enabled: false,
+      generation_active: false,
+      historical_data_visible: true,
+      phase: "off",
+      run_id: "simrun-red-team-truth",
+      started_at: 0,
+      ends_at: 0,
+      duration_seconds: 180,
+      remaining_seconds: 0,
+      active_run_count: 0,
+      active_lane_count: 0,
+      desired_lane: mockedDesiredLane,
+      active_lane: null,
+      lane_switch_seq: 2,
+      last_lane_switch_at: 1710000000,
+      last_lane_switch_reason: "beat_boundary_reconciliation",
+      queue_policy: "single_flight",
+      history_retention: {
+        retention_hours: 168,
+        cleanup_supported: true,
+        cleanup_endpoint: "/shuma/admin/adversary-sim/history/cleanup",
+        cleanup_command: "make telemetry-clean"
+      },
+      supervisor: {
+        owner: "backend_autonomous_supervisor",
+        cadence_seconds: 1,
+        max_catchup_ticks_per_invocation: 8,
+        heartbeat_active: false,
+        worker_active: false,
+        last_heartbeat_at: 1710000000,
+        idle_seconds: 25,
+        off_state_inert: true,
+        trigger_surface: "internal_beat_endpoint"
+      },
+      generation_diagnostics: {
+        health: "ok",
+        reason: "persisted_events_observed",
+        recommended_action: "No action required.",
+        generated_tick_count: 1,
+        generated_request_count: 235,
+        last_generated_at: 1710000030,
+        last_generation_error: "",
+        truth_basis: "persisted_event_lower_bound"
+      },
+      lane_diagnostics: {
+        schema_version: "v1",
+        truth_basis: "persisted_event_lower_bound",
+        lanes: {
+          synthetic_traffic: {
+            beat_attempts: 0,
+            beat_successes: 0,
+            beat_failures: 0,
+            generated_requests: 0,
+            blocked_requests: 0,
+            offsite_requests: 0,
+            response_bytes: 0,
+            response_status_count: {},
+            last_generated_at: 0,
+            last_error: ""
+          },
+          scrapling_traffic: {
+            beat_attempts: 1,
+            beat_successes: 1,
+            beat_failures: 0,
+            generated_requests: 235,
+            blocked_requests: 5,
+            offsite_requests: 0,
+            response_bytes: 4096,
+            response_status_count: { "200": 230, "429": 5 },
+            last_generated_at: 1710000030,
+            last_error: ""
+          },
+          bot_red_team: {
+            beat_attempts: 0,
+            beat_successes: 0,
+            beat_failures: 0,
+            generated_requests: 0,
+            blocked_requests: 0,
+            offsite_requests: 0,
+            response_bytes: 0,
+            response_status_count: {},
+            last_generated_at: 0,
+            last_error: ""
+          }
+        },
+        request_failure_classes: {
+          cancelled: { count: 0, last_seen_at: 0 },
+          timeout: { count: 0, last_seen_at: 0 },
+          transport: { count: 0, last_seen_at: 0 },
+          http: { count: 0, last_seen_at: 0 }
+        }
+      },
+      persisted_event_evidence: {
+        run_id: "simrun-red-team-truth",
+        lane: "scrapling_traffic",
+        profile: "baseline",
+        monitoring_event_count: 235,
+        defense_delta_count: 4,
+        ban_outcome_count: 1,
+        first_observed_at: 1710000005,
+        last_observed_at: 1710000030,
+        truth_basis: "persisted_event_lower_bound"
+      },
+      representativeness_readiness: {
+        status: "partially_representative",
+        summary: "Some realism prerequisites are configured, but hostile-lane claims remain only partially representative until the missing infrastructure is supplied.",
+        blockers: [
+          "Scrapling browser traffic is not backed by a multi-identity browser proxy pool.",
+          "Agentic request traffic is not backed by a multi-identity proxy pool."
+        ],
+        representative_hostile_lane_count: 0,
+        partially_representative_hostile_lane_count: 2,
+        hostile_lane_count: 2,
+        prerequisites: {
+          trusted_ingress_configured: true,
+          scrapling_request_proxy_pool_count: 2,
+          scrapling_browser_proxy_pool_count: 0,
+          agentic_request_proxy_pool_count: 0,
+          scrapling_request_proxy_configured: false,
+          scrapling_browser_proxy_configured: false
+        },
+        lane_statuses: {
+          synthetic_traffic: {
+            status: "degraded",
+            summary: "Synthetic Traffic is non-hostile by design and cannot support representative attacker claims.",
+            blockers: [
+              "Synthetic Traffic is non-hostile by design and cannot stand in for wild adversary traffic."
+            ]
+          },
+          scrapling_traffic: {
+            status: "partially_representative",
+            summary: "Scrapling Traffic has some realism backing, but missing proxy-pool coverage still limits representative claims.",
+            blockers: [
+              "Scrapling browser traffic is not backed by a multi-identity browser proxy pool."
+            ]
+          },
+          bot_red_team: {
+            status: "partially_representative",
+            summary: "Agentic Traffic has some realism backing, but missing request-pool or browser trusted-ingress backing still limits representative claims.",
+            blockers: [
+              "Agentic request traffic is not backed by a multi-identity proxy pool."
+            ]
+          },
+          parallel_mixed_traffic: {
+            status: "partially_representative",
+            summary: "Scrapling + Agentic has some realism backing, but mixed-lane claims remain only partially representative until every hostile lane has its required infrastructure.",
+            blockers: [
+              "Scrapling browser traffic is not backed by a multi-identity browser proxy pool.",
+              "Agentic request traffic is not backed by a multi-identity proxy pool."
+            ]
+          }
+        }
+      }
+    });
     await page.route("**/shuma/admin/oversight/history", async (route) => {
       await route.fulfill({
         status: 200,
@@ -4332,112 +4490,27 @@ test("red team tab keeps controls and recent run history without machine-diagnos
       await route.fulfill({
         status: 200,
         contentType: "application/json",
+        body: JSON.stringify(buildAdversarySimStatusPayload())
+      });
+    });
+    await page.route("**/shuma/admin/adversary-sim/control", async (route) => {
+      if (route.request().method() !== "POST") {
+        await route.continue();
+        return;
+      }
+      const payload = route.request().postDataJSON() || {};
+      const requestedLane = String(payload?.lane || "").trim().toLowerCase();
+      if (requestedLane) {
+        mockedDesiredLane = requestedLane;
+      }
+      await route.fulfill({
+        status: 200,
+        contentType: "application/json",
         body: JSON.stringify({
-          runtime_environment: "runtime-dev",
-          adversary_sim_available: true,
-          adversary_sim_enabled: false,
-          generation_active: false,
-          historical_data_visible: true,
-          phase: "off",
-          run_id: "simrun-red-team-truth",
-          started_at: 0,
-          ends_at: 0,
-          duration_seconds: 180,
-          remaining_seconds: 0,
-          active_run_count: 0,
-          active_lane_count: 0,
-          desired_lane: "scrapling_traffic",
-          active_lane: null,
-          lane_switch_seq: 2,
-          last_lane_switch_at: 1710000000,
-          last_lane_switch_reason: "beat_boundary_reconciliation",
-          queue_policy: "single_flight",
-          history_retention: {
-            retention_hours: 168,
-            cleanup_supported: true,
-            cleanup_endpoint: "/shuma/admin/adversary-sim/history/cleanup",
-            cleanup_command: "make telemetry-clean"
-          },
-          supervisor: {
-            owner: "backend_autonomous_supervisor",
-            cadence_seconds: 1,
-            max_catchup_ticks_per_invocation: 8,
-            heartbeat_active: false,
-            worker_active: false,
-            last_heartbeat_at: 1710000000,
-            idle_seconds: 25,
-            off_state_inert: true,
-            trigger_surface: "internal_beat_endpoint"
-          },
-          generation_diagnostics: {
-            health: "ok",
-            reason: "persisted_events_observed",
-            recommended_action: "No action required.",
-            generated_tick_count: 1,
-            generated_request_count: 235,
-            last_generated_at: 1710000030,
-            last_generation_error: "",
-            truth_basis: "persisted_event_lower_bound"
-          },
-          lane_diagnostics: {
-            schema_version: "v1",
-            truth_basis: "persisted_event_lower_bound",
-            lanes: {
-              synthetic_traffic: {
-                beat_attempts: 0,
-                beat_successes: 0,
-                beat_failures: 0,
-                generated_requests: 0,
-                blocked_requests: 0,
-                offsite_requests: 0,
-                response_bytes: 0,
-                response_status_count: {},
-                last_generated_at: 0,
-                last_error: ""
-              },
-              scrapling_traffic: {
-                beat_attempts: 1,
-                beat_successes: 1,
-                beat_failures: 0,
-                generated_requests: 235,
-                blocked_requests: 5,
-                offsite_requests: 0,
-                response_bytes: 4096,
-                response_status_count: { "200": 230, "429": 5 },
-                last_generated_at: 1710000030,
-                last_error: ""
-              },
-              bot_red_team: {
-                beat_attempts: 0,
-                beat_successes: 0,
-                beat_failures: 0,
-                generated_requests: 0,
-                blocked_requests: 0,
-                offsite_requests: 0,
-                response_bytes: 0,
-                response_status_count: {},
-                last_generated_at: 0,
-                last_error: ""
-              }
-            },
-            request_failure_classes: {
-              cancelled: { count: 0, last_seen_at: 0 },
-              timeout: { count: 0, last_seen_at: 0 },
-              transport: { count: 0, last_seen_at: 0 },
-              http: { count: 0, last_seen_at: 0 }
-            }
-          },
-          persisted_event_evidence: {
-            run_id: "simrun-red-team-truth",
-            lane: "scrapling_traffic",
-            profile: "baseline",
-            monitoring_event_count: 235,
-            defense_delta_count: 4,
-            ban_outcome_count: 1,
-            first_observed_at: 1710000005,
-            last_observed_at: 1710000030,
-            truth_basis: "persisted_event_lower_bound"
-          }
+          requested_enabled: false,
+          status: buildAdversarySimStatusPayload(),
+          config: {},
+          runtime: {}
         })
       });
     });
@@ -4447,6 +4520,19 @@ test("red team tab keeps controls and recent run history without machine-diagnos
 
     await expect(page.locator("#adversary-runs")).toBeVisible();
     await expect(page.locator("#adversary-sim-lifecycle-copy")).toBeVisible();
+    await expect(page.locator("#adversary-sim-representativeness-copy")).toContainText(
+      "Realism readiness for Scrapling Traffic: Partially Representative."
+    );
+    await expect(page.locator("#adversary-sim-representativeness-copy")).toContainText(
+      "Scrapling browser traffic is not backed by a multi-identity browser proxy pool."
+    );
+    await page.locator("#adversary-sim-lane-select").selectOption("bot_red_team");
+    await expect(page.locator("#adversary-sim-representativeness-copy")).toContainText(
+      "Realism readiness for Agentic Traffic: Partially Representative."
+    );
+    await expect(page.locator("#adversary-sim-representativeness-copy")).toContainText(
+      "Agentic request traffic is not backed by a multi-identity proxy pool."
+    );
     await expect(page.locator("#adversary-sim-generation-truth-basis")).toHaveCount(0);
     await expect(page.locator("#adversary-sim-lane-diagnostics-truth-basis")).toHaveCount(0);
     await expect(page.locator("#adversary-sim-truth-state-lower-bound")).toHaveCount(0);

@@ -90,6 +90,8 @@ pub(crate) fn adversary_sim_status_payload(
         || crate::admin::oversight_agent::continuation_supervisor_attention_required(
             store, site_id,
         );
+    let representativeness_readiness =
+        crate::admin::adversary_sim_representativeness::project_representativeness_readiness();
     if let Some(object) = payload.as_object_mut() {
         if let Some(generation) = object.get_mut("generation").and_then(|value| value.as_object_mut()) {
             generation.insert(
@@ -201,6 +203,11 @@ pub(crate) fn adversary_sim_status_payload(
             "persisted_event_evidence".to_string(),
             truth_projection
                 .persisted_event_evidence
+                .unwrap_or(serde_json::Value::Null),
+        );
+        object.insert(
+            "representativeness_readiness".to_string(),
+            serde_json::to_value(representativeness_readiness)
                 .unwrap_or(serde_json::Value::Null),
         );
         object.insert(

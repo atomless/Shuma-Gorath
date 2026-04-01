@@ -4,6 +4,36 @@ Moved from active TODO files on 2026-02-14.
 
 ## Additional completions (2026-03-31)
 
+### SIM-REALISM-3E Representativeness Infrastructure Gating
+
+- [x] Completed `SIM-REALISM-3E` across:
+  - [`../src/admin/adversary_sim_representativeness.rs`](../src/admin/adversary_sim_representativeness.rs)
+  - [`../src/admin/mod.rs`](../src/admin/mod.rs)
+  - [`../src/admin/adversary_sim_api.rs`](../src/admin/adversary_sim_api.rs)
+  - [`../src/admin/api.rs`](../src/admin/api.rs)
+  - [`../dashboard/src/lib/domain/adversary-sim.js`](../dashboard/src/lib/domain/adversary-sim.js)
+  - [`../dashboard/src/lib/domain/api-client.js`](../dashboard/src/lib/domain/api-client.js)
+  - [`../dashboard/src/lib/runtime/dashboard-adversary-sim.js`](../dashboard/src/lib/runtime/dashboard-adversary-sim.js)
+  - [`../dashboard/src/lib/components/dashboard/RedTeamTab.svelte`](../dashboard/src/lib/components/dashboard/RedTeamTab.svelte)
+  - [`../e2e/dashboard.modules.unit.test.js`](../e2e/dashboard.modules.unit.test.js)
+  - [`../e2e/dashboard.smoke.spec.js`](../e2e/dashboard.smoke.spec.js)
+  - [`../scripts/tests/test_adversary_sim_make_targets.py`](../scripts/tests/test_adversary_sim_make_targets.py)
+  - [`../Makefile`](../Makefile)
+  - [`../docs/testing.md`](../docs/testing.md)
+  - [`../docs/adversarial-operator-guide.md`](../docs/adversarial-operator-guide.md)
+  - [`../docs/plans/2026-03-20-mature-adversary-sim-evolution-roadmap.md`](../docs/plans/2026-03-20-mature-adversary-sim-evolution-roadmap.md)
+  - [`../docs/plans/2026-03-16-pre-launch-roadmap-gap-capture-and-sequencing.md`](../docs/plans/2026-03-16-pre-launch-roadmap-gap-capture-and-sequencing.md)
+  - [`../docs/plans/2026-03-30-adversary-lane-wild-traffic-gap-plan.md`](../docs/plans/2026-03-30-adversary-lane-wild-traffic-gap-plan.md)
+  - [`../docs/plans/2026-03-31-post-2j-adversary-realism-sufficiency-plan.md`](../docs/plans/2026-03-31-post-2j-adversary-realism-sufficiency-plan.md)
+  - [`../todos/todo.md`](../todos/todo.md)
+  - [`../todos/blocked-todo.md`](../todos/blocked-todo.md)
+- [x] What landed:
+  - Adversary-sim status now emits an explicit `representativeness_readiness` contract with per-lane representative, partially representative, or degraded truth keyed to trusted ingress and hostile-lane proxy-pool backing instead of implying maturity from lane existence alone.
+  - The Red Team tab now renders lane-specific realism-readiness copy from that contract, so operators can see when Scrapling, Agentic, or mixed-lane pressure is only partial or degraded before using it as Game Loop or Tuning evidence.
+  - The focused proof path `make test-adversary-sim-representativeness-readiness` now covers backend contract truth, dashboard adaptation and rendering, and the exact Make-target selector contract so this readiness surface cannot silently drift.
+- [x] Evidence:
+  - `make test-adversary-sim-representativeness-readiness`
+
 ### SIM-REALISM-3D Transport And Network Fingerprint Realism
 
 - [x] Completed `SIM-REALISM-3D` across:

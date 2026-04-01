@@ -5898,6 +5898,90 @@ mod admin_config_tests {
     }
 
     #[test]
+    fn adversary_sim_status_surfaces_representativeness_readiness_truth() {
+        let _lock = crate::test_support::lock_env();
+        std::env::set_var("SHUMA_ADMIN_CONFIG_WRITE_ENABLED", "true");
+        std::env::set_var("SHUMA_RUNTIME_ENV", "runtime-dev");
+        std::env::set_var("SHUMA_ADVERSARY_SIM_AVAILABLE", "true");
+        std::env::set_var(
+            "ADVERSARY_SIM_TRUSTED_INGRESS_PROXY_URL",
+            "http://127.0.0.1:3871",
+        );
+        std::env::set_var("ADVERSARY_SIM_TRUSTED_INGRESS_AUTH_TOKEN", "trusted-token");
+        std::env::set_var(
+            "ADVERSARY_SIM_SCRAPLING_REQUEST_PROXY_POOL_JSON",
+            r#"[{"label":"res-gb-1","proxy_url":"http://127.0.0.1:8899","identity_class":"residential","country_code":"GB"},{"label":"mob-us-1","proxy_url":"http://127.0.0.1:8898","identity_class":"mobile","country_code":"US"}]"#,
+        );
+        std::env::remove_var("ADVERSARY_SIM_SCRAPLING_BROWSER_PROXY_POOL_JSON");
+        std::env::remove_var("ADVERSARY_SIM_AGENTIC_REQUEST_PROXY_POOL_JSON");
+        std::env::remove_var("ADVERSARY_SIM_SCRAPLING_REQUEST_PROXY_URL");
+        std::env::remove_var("ADVERSARY_SIM_SCRAPLING_BROWSER_PROXY_URL");
+
+        let store = TestStore::default();
+        let auth = bearer_rw_auth();
+        let status_req = make_request(Method::Get, "/shuma/admin/adversary-sim/status", Vec::new());
+        let status_resp = handle_admin_adversary_sim_status(&status_req, &store, "default", &auth);
+        assert_eq!(*status_resp.status(), 200u16);
+        let status_json: serde_json::Value = serde_json::from_slice(status_resp.body()).unwrap();
+        let readiness = status_json
+            .get("representativeness_readiness")
+            .expect("representativeness readiness");
+        assert_eq!(
+            readiness.get("status").and_then(|value| value.as_str()),
+            Some("partially_representative")
+        );
+        assert_eq!(
+            readiness
+                .get("prerequisites")
+                .and_then(|value| value.get("trusted_ingress_configured"))
+                .and_then(|value| value.as_bool()),
+            Some(true)
+        );
+        assert_eq!(
+            readiness
+                .get("prerequisites")
+                .and_then(|value| value.get("scrapling_request_proxy_pool_count"))
+                .and_then(|value| value.as_u64()),
+            Some(2)
+        );
+        assert_eq!(
+            readiness
+                .get("lane_statuses")
+                .and_then(|value| value.get("scrapling_traffic"))
+                .and_then(|value| value.get("status"))
+                .and_then(|value| value.as_str()),
+            Some("partially_representative")
+        );
+        assert_eq!(
+            readiness
+                .get("lane_statuses")
+                .and_then(|value| value.get("parallel_mixed_traffic"))
+                .and_then(|value| value.get("status"))
+                .and_then(|value| value.as_str()),
+            Some("partially_representative")
+        );
+        let blockers = readiness
+            .get("lane_statuses")
+            .and_then(|value| value.get("scrapling_traffic"))
+            .and_then(|value| value.get("blockers"))
+            .and_then(|value| value.as_array())
+            .expect("scrapling blockers");
+        assert!(blockers.iter().any(|value| {
+            value
+                .as_str()
+                .map(|entry| entry.contains("Scrapling browser traffic is not backed by a multi-identity browser proxy pool."))
+                .unwrap_or(false)
+        }));
+
+        std::env::remove_var("SHUMA_ADMIN_CONFIG_WRITE_ENABLED");
+        std::env::remove_var("SHUMA_RUNTIME_ENV");
+        std::env::remove_var("SHUMA_ADVERSARY_SIM_AVAILABLE");
+        std::env::remove_var("ADVERSARY_SIM_TRUSTED_INGRESS_PROXY_URL");
+        std::env::remove_var("ADVERSARY_SIM_TRUSTED_INGRESS_AUTH_TOKEN");
+        std::env::remove_var("ADVERSARY_SIM_SCRAPLING_REQUEST_PROXY_POOL_JSON");
+    }
+
+    #[test]
     fn adversary_sim_control_status_exposes_additive_lane_migration_contract() {
         let _lock = crate::test_support::lock_env();
         std::env::set_var("SHUMA_ADMIN_CONFIG_WRITE_ENABLED", "true");

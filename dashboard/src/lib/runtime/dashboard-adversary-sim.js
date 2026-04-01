@@ -249,6 +249,136 @@ function normalizePersistedEventEvidence(value) {
   };
 }
 
+function normalizeStringArray(value) {
+  if (!Array.isArray(value)) return [];
+  return value
+    .map((entry) => String(entry || '').trim())
+    .filter(Boolean);
+}
+
+function normalizeRepresentativenessLaneReadiness(value) {
+  const source = asRecord(value);
+  return {
+    status: String(pick(source, 'status', 'status', '') || ''),
+    summary: String(pick(source, 'summary', 'summary', '') || ''),
+    blockers: normalizeStringArray(pick(source, 'blockers', 'blockers', []))
+  };
+}
+
+function normalizeRepresentativenessReadiness(value) {
+  const source = asRecord(value);
+  const prerequisites = asRecord(pick(source, 'prerequisites', 'prerequisites', {}));
+  const laneStatuses = asRecord(pick(source, 'lane_statuses', 'laneStatuses', {}));
+  return {
+    status: String(pick(source, 'status', 'status', '') || ''),
+    summary: String(pick(source, 'summary', 'summary', '') || ''),
+    blockers: normalizeStringArray(pick(source, 'blockers', 'blockers', [])),
+    representativeHostileLaneCount: Math.max(
+      0,
+      Math.floor(
+        toSafeNumber(
+          pick(source, 'representative_hostile_lane_count', 'representativeHostileLaneCount', 0),
+          0
+        )
+      )
+    ),
+    partiallyRepresentativeHostileLaneCount: Math.max(
+      0,
+      Math.floor(
+        toSafeNumber(
+          pick(
+            source,
+            'partially_representative_hostile_lane_count',
+            'partiallyRepresentativeHostileLaneCount',
+            0
+          ),
+          0
+        )
+      )
+    ),
+    hostileLaneCount: Math.max(
+      0,
+      Math.floor(toSafeNumber(pick(source, 'hostile_lane_count', 'hostileLaneCount', 0), 0))
+    ),
+    prerequisites: {
+      trustedIngressConfigured: pick(
+        prerequisites,
+        'trusted_ingress_configured',
+        'trustedIngressConfigured',
+        false
+      ) === true,
+      scraplingRequestProxyPoolCount: Math.max(
+        0,
+        Math.floor(
+          toSafeNumber(
+            pick(
+              prerequisites,
+              'scrapling_request_proxy_pool_count',
+              'scraplingRequestProxyPoolCount',
+              0
+            ),
+            0
+          )
+        )
+      ),
+      scraplingBrowserProxyPoolCount: Math.max(
+        0,
+        Math.floor(
+          toSafeNumber(
+            pick(
+              prerequisites,
+              'scrapling_browser_proxy_pool_count',
+              'scraplingBrowserProxyPoolCount',
+              0
+            ),
+            0
+          )
+        )
+      ),
+      agenticRequestProxyPoolCount: Math.max(
+        0,
+        Math.floor(
+          toSafeNumber(
+            pick(
+              prerequisites,
+              'agentic_request_proxy_pool_count',
+              'agenticRequestProxyPoolCount',
+              0
+            ),
+            0
+          )
+        )
+      ),
+      scraplingRequestProxyConfigured: pick(
+        prerequisites,
+        'scrapling_request_proxy_configured',
+        'scraplingRequestProxyConfigured',
+        false
+      ) === true,
+      scraplingBrowserProxyConfigured: pick(
+        prerequisites,
+        'scrapling_browser_proxy_configured',
+        'scraplingBrowserProxyConfigured',
+        false
+      ) === true
+    },
+    laneStatuses: {
+      syntheticTraffic: normalizeRepresentativenessLaneReadiness(
+        pick(laneStatuses, 'synthetic_traffic', 'syntheticTraffic', {})
+      ),
+      scraplingTraffic: normalizeRepresentativenessLaneReadiness(
+        pick(laneStatuses, 'scrapling_traffic', 'scraplingTraffic', {})
+      ),
+      botRedTeam: normalizeRepresentativenessLaneReadiness(
+        pick(laneStatuses, 'bot_red_team', 'botRedTeam', {})
+      ),
+      parallelMixedTraffic: normalizeRepresentativenessLaneReadiness(
+        pick(laneStatuses, 'parallel_mixed_traffic', 'parallelMixedTraffic', {})
+      )
+    }
+  };
+}
+
 /**
  * @param {unknown} value
  * @returns {'off' | 'running' | 'stopping'}
@@ -306,7 +436,8 @@ function normalizePhase(value) {
  *     lastGenerationError: string,
  *     truthBasis: string
  *   },
- *   persistedEventEvidence: ReturnType<typeof normalizePersistedEventEvidence>
+ *   persistedEventEvidence: ReturnType<typeof normalizePersistedEventEvidence>,
+ *   representativenessReadiness: ReturnType<typeof normalizeRepresentativenessReadiness>
  * }}
  */
 export function normalizeAdversarySimStatus(payload) {
@@ -326,6 +457,12 @@ export function normalizeAdversarySimStatus(payload) {
   const supervisor = supervisorRaw && typeof supervisorRaw === 'object'
     ? /** @type {Record<string, unknown>} */ (supervisorRaw)
     : {};
+  const representativenessReadinessRaw = pick(
+    source,
+    'representativeness_readiness',
+    'representativenessReadiness',
+    {}
+  );
   const phase = normalizePhase(pick(source, 'phase', 'phase', 'off'));
   const durationSeconds = Math.max(
     1,
@@ -447,6 +584,9 @@ export function normalizeAdversarySimStatus(payload) {
     },
     persistedEventEvidence: normalizePersistedEventEvidence(
       pick(source, 'persisted_event_evidence', 'persistedEventEvidence', null)
+    ),
+    representativenessReadiness: normalizeRepresentativenessReadiness(
+      representativenessReadinessRaw
     )
   };
 }

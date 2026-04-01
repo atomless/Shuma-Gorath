@@ -420,6 +420,34 @@ class AdversarySimMakeTargetTests(unittest.TestCase):
         self.assertIn("e2e/dashboard.modules.unit.test.js", body)
         self.assertIn("test-dashboard-red-team-pane", body)
 
+    def test_representativeness_readiness_target_chains_backend_and_dashboard_selectors(self) -> None:
+        source = MAKEFILE.read_text(encoding="utf-8")
+        match = re.search(
+            r"^test-adversary-sim-representativeness-readiness:.*?(?=^[A-Za-z0-9_.-]+:|\Z)",
+            source,
+            re.MULTILINE | re.DOTALL,
+        )
+        self.assertIsNotNone(match)
+        body = match.group(0)
+        self.assertIn(
+            "representativeness_readiness_is_degraded_without_realism_infrastructure",
+            body,
+        )
+        self.assertIn(
+            "representativeness_readiness_is_partial_with_trusted_ingress_only",
+            body,
+        )
+        self.assertIn(
+            "representativeness_readiness_is_representative_when_hostile_prerequisites_exist",
+            body,
+        )
+        self.assertIn(
+            "adversary_sim_status_surfaces_representativeness_readiness_truth",
+            body,
+        )
+        self.assertIn("test-dashboard-red-team-pane", body)
+        self.assertIn("scripts/tests/test_adversary_sim_make_targets.py", body)
+
     def test_browser_secondary_traffic_realism_target_uses_browser_runtime_and_projection_selectors(self) -> None:
         source = MAKEFILE.read_text(encoding="utf-8")
         match = re.search(

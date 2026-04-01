@@ -741,6 +741,34 @@ test('dashboard API client preserves adversary-sim lane status and diagnostics f
         last_observed_at: 1715,
         truth_basis: 'persisted_event_lower_bound'
       },
+      representativeness_readiness: {
+        status: 'partially_representative',
+        summary: 'Some realism prerequisites are configured.',
+        blockers: ['Agentic request traffic is not backed by a multi-identity proxy pool.'],
+        representative_hostile_lane_count: 0,
+        partially_representative_hostile_lane_count: 2,
+        hostile_lane_count: 2,
+        prerequisites: {
+          trusted_ingress_configured: true,
+          scrapling_request_proxy_pool_count: 2,
+          scrapling_browser_proxy_pool_count: 0,
+          agentic_request_proxy_pool_count: 0,
+          scrapling_request_proxy_configured: false,
+          scrapling_browser_proxy_configured: false
+        },
+        lane_statuses: {
+          scrapling_traffic: {
+            status: 'partially_representative',
+            summary: 'Scrapling Traffic has some realism backing.',
+            blockers: ['Scrapling browser traffic is not backed by a multi-identity browser proxy pool.']
+          },
+          bot_red_team: {
+            status: 'partially_representative',
+            summary: 'Agentic Traffic has some realism backing.',
+            blockers: ['Agentic request traffic is not backed by a multi-identity proxy pool.']
+          }
+        }
+      },
       lane_diagnostics: {
         schema_version: 'v1',
         truth_basis: 'persisted_event_lower_bound',
@@ -806,9 +834,16 @@ test('dashboard API client preserves adversary-sim lane status and diagnostics f
     assert.equal(adapted.lane_diagnostics.request_failure_classes.http.last_seen_at, 1715);
     assert.equal(adapted.persisted_event_evidence.run_id, 'simrun-red-team-truth');
     assert.equal(adapted.persisted_event_evidence.monitoring_event_count, 235);
+    assert.equal(adapted.representativeness_readiness.status, 'partially_representative');
+    assert.equal(adapted.representativeness_readiness.prerequisites.trusted_ingress_configured, true);
+    assert.equal(
+      adapted.representativeness_readiness.lane_statuses.scrapling_traffic.status,
+      'partially_representative'
+    );
 
     const defaulted = apiModule.adaptAdversarySimStatus({});
     assert.equal(defaulted.desired_lane, 'scrapling_traffic');
+    assert.equal(defaulted.representativeness_readiness.status, '');
   });
 });
 
@@ -4266,6 +4301,39 @@ test('dashboard adversary-sim runtime normalizes orchestration status', { concur
         last_observed_at: 1100,
         truth_basis: 'persisted_event_lower_bound'
       },
+      representativeness_readiness: {
+        status: 'partially_representative',
+        summary: 'Some realism prerequisites are configured.',
+        blockers: ['Scrapling browser traffic is not backed by a multi-identity browser proxy pool.'],
+        representative_hostile_lane_count: 0,
+        partially_representative_hostile_lane_count: 2,
+        hostile_lane_count: 2,
+        prerequisites: {
+          trusted_ingress_configured: true,
+          scrapling_request_proxy_pool_count: 2,
+          scrapling_browser_proxy_pool_count: 0,
+          agentic_request_proxy_pool_count: 0,
+          scrapling_request_proxy_configured: false,
+          scrapling_browser_proxy_configured: false
+        },
+        lane_statuses: {
+          scrapling_traffic: {
+            status: 'partially_representative',
+            summary: 'Scrapling Traffic has some realism backing.',
+            blockers: ['Scrapling browser traffic is not backed by a multi-identity browser proxy pool.']
+          },
+          bot_red_team: {
+            status: 'partially_representative',
+            summary: 'Agentic Traffic has some realism backing.',
+            blockers: ['Agentic request traffic is not backed by a multi-identity proxy pool.']
+          },
+          parallel_mixed_traffic: {
+            status: 'partially_representative',
+            summary: 'Scrapling + Agentic has some realism backing.',
+            blockers: ['Agentic request traffic is not backed by a multi-identity proxy pool.']
+          }
+        }
+      },
       lane_diagnostics: {
         schema_version: 'v1',
         truth_basis: 'persisted_event_lower_bound',
@@ -4343,6 +4411,12 @@ test('dashboard adversary-sim runtime normalizes orchestration status', { concur
     assert.equal(normalized.generationDiagnostics.generatedTickCount, 3);
     assert.equal(normalized.generationDiagnostics.generatedRequestCount, 12);
     assert.equal(normalized.generationDiagnostics.truthBasis, 'persisted_event_lower_bound');
+    assert.equal(normalized.representativenessReadiness.status, 'partially_representative');
+    assert.equal(normalized.representativenessReadiness.prerequisites.trustedIngressConfigured, true);
+    assert.equal(
+      normalized.representativenessReadiness.laneStatuses.scraplingTraffic.status,
+      'partially_representative'
+    );
     assert.equal(normalized.laneDiagnostics.schemaVersion, 'v1');
     assert.equal(normalized.laneDiagnostics.truthBasis, 'persisted_event_lower_bound');
     assert.equal(normalized.laneDiagnostics.lanes.scraplingTraffic.generatedRequests, 0);
@@ -5803,6 +5877,8 @@ test('red team tab reuses verification-style config panel primitives for its adv
   assert.match(redTeamTabSource, /<option value="bot_red_team">Agentic Traffic<\/option>/);
   assert.match(redTeamTabSource, /<option value="parallel_mixed_traffic">Scrapling \+ Agentic<\/option>/);
   assert.match(redTeamTabSource, /<p id="adversary-sim-lifecycle-copy" class="control-desc text-muted">\{lifecycleCopy\}<\/p>/);
+  assert.match(redTeamTabSource, /id="adversary-sim-representativeness-copy"/);
+  assert.match(redTeamTabSource, /Realism readiness for \{formatAdversarySimLaneLabel\(laneValue\)\}/);
   assert.match(redTeamTabSource, /class="dashboard-adversary-sim-progress"/);
   assert.match(redTeamTabSource, /class="dashboard-adversary-sim-progress__fill"/);
   assert.match(redTeamTabSource, /export let laneValue = 'scrapling_traffic';/);
@@ -6399,6 +6475,7 @@ test('red team tab keeps only controls and recent adversary runs after diagnosti
   assert.match(source, /summaryLabel="Active bans linked to recent runs"/);
   assert.match(source, /emptyText="No recent adversary simulation runs are currently retained in the compact run history\."/);
   assert.match(source, /degradedText="Monitoring freshness is degraded or stale\. Missing red team run rows may indicate delayed telemetry rather than no simulation activity\."/);
+  assert.match(source, /selectedLaneRepresentativenessCopy/);
   assert.doesNotMatch(source, /<h3>Status Truth<\/h3>/);
   assert.doesNotMatch(source, /id="adversary-sim-generation-truth-basis"/);
   assert.doesNotMatch(source, /id="adversary-sim-lane-diagnostics-truth-basis"/);

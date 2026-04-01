@@ -31,6 +31,18 @@ Runtime-toggle adversary generation is owned by a host-side supervisor heartbeat
 5. Host-side supervisor requests use trusted-forwarding plus the internal supervisor marker so `runtime-prod` deployments can keep HTTPS enforcement and operator IP allowlists without starving the supervisor.
 6. `make setup` and `make setup-runtime` now also provision the repo-owned `.venv-scrapling` runtime used by the real Scrapling worker and its focused verification gates.
 
+## Representativeness Readiness
+
+The adversary-realism implementation chain is now allowed to fail closed on infrastructure truth instead of implying that lane existence alone is representative attacker pressure.
+
+That means operators must read `GET /shuma/admin/adversary-sim/status` for `representativeness_readiness` before treating Scrapling, Agentic, or `Scrapling + Agentic` runs as representative Game Loop or Tuning evidence:
+
+1. `representative` means the required hostile-lane backing is present for that lane.
+2. `partially_representative` means some realism backing exists, but important infrastructure is still missing.
+3. `degraded` means the environment must not be treated as representative attacker pressure for that lane.
+
+Use `make test-adversary-sim-representativeness-readiness` as the focused proof path for this contract. Do not reopen later mixed-attacker Game Loop or Tuning work on top of partial or degraded hostile-lane readiness.
+
 ## Telemetry Is The Map
 
 For adversarial simulation work, operators should treat observed telemetry as the authoritative map of what the adversary actually reached.

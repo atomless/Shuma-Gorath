@@ -1,6 +1,10 @@
 <script>
   import { onDestroy } from 'svelte';
   import { formatUnixSecondsLocal } from '../../domain/core/date-time.js';
+  import {
+    formatAdversarySimLaneLabel,
+    formatRepresentativenessStatusLabel
+  } from '../../domain/adversary-sim.js';
   import { deriveAdversaryRunRowsFromSummaries } from './monitoring-view-model.js';
   import AdversaryRunPanel from './monitoring/AdversaryRunPanel.svelte';
   import ConfigPanel from './primitives/ConfigPanel.svelte';
@@ -32,6 +36,19 @@
   let progressTimer = null;
 
   const formatTime = (rawTs) => formatUnixSecondsLocal(rawTs, '-');
+  const toStringArray = (value) => Array.isArray(value)
+    ? value.map((entry) => String(entry || '').trim()).filter(Boolean)
+    : [];
+
+  function selectLaneRepresentativeness(readiness, lane) {
+    const source = readiness && typeof readiness === 'object' ? readiness : {};
+    const laneStatuses = source.laneStatuses && typeof source.laneStatuses === 'object'
+      ? source.laneStatuses
+      : (source.lane_statuses && typeof source.lane_statuses === 'object' ? source.lane_statuses : {});
+    const normalizedLane = String(lane || '').trim().toLowerCase();
+    if (!normalizedLane) return {};
+    return laneStatuses[normalizedLane] || laneStatuses[normalizedLane.replace(/_([a-z])/g, (_, char) => char.toUpperCase())] || {};
+  }
 
   function handleToggleChange(event) {
     if (typeof onToggleChange === 'function') {
@@ -81,6 +98,37 @@
   $: adversaryRunRows = Array.isArray(adversaryRunSummary?.runRows)
     ? adversaryRunSummary.runRows.slice(0, 8)
     : [];
+  $: representativenessReadiness = adversarySimStatus && typeof adversarySimStatus === 'object'
+    ? (adversarySimStatus.representativenessReadiness || adversarySimStatus.representativeness_readiness || {})
+    : {};
+  $: selectedLaneRepresentativeness = selectLaneRepresentativeness(representativenessReadiness, laneValue);
+  $: selectedLaneRepresentativenessLabel = formatRepresentativenessStatusLabel(
+    selectedLaneRepresentativeness?.status || '',
+    ''
+  );
+  $: selectedLaneRepresentativenessSummary = String(
+    selectedLaneRepresentativeness?.summary || ''
+  ).trim();
+  $: selectedLaneRepresentativenessBlockers = toStringArray(
+    selectedLaneRepresentativeness?.blockers
+  );
+  $: selectedLaneRepresentativenessCopyParts = [];
+  $: if (selectedLaneRepresentativenessLabel) {
+    selectedLaneRepresentativenessCopyParts = [`${selectedLaneRepresentativenessLabel}.`];
+    if (selectedLaneRepresentativenessSummary) {
+      selectedLaneRepresentativenessCopyParts.push(selectedLaneRepresentativenessSummary);
+    }
+    if (selectedLaneRepresentativenessBlockers.length > 0) {
+      selectedLaneRepresentativenessCopyParts.push(
+        `Missing: ${selectedLaneRepresentativenessBlockers.join('; ')}`
+      );
+    }
+  } else if (selectedLaneRepresentativenessSummary) {
+    selectedLaneRepresentativenessCopyParts = [selectedLaneRepresentativenessSummary];
+  } else {
+    selectedLaneRepresentativenessCopyParts = [];
+  }
+  $: selectedLaneRepresentativenessCopy = selectedLaneRepresentativenessCopyParts.join(' ');
   $: progressWidth = `${Number(progressState.progressPercent || 0).toFixed(3)}%`;
   $: shouldTickProgress = progressState.active === true && (managed ? isActive : true);
   $: syncProgressTimer(shouldTickProgress);
@@ -139,6 +187,11 @@
         </div>
       </div>
       <p id="adversary-sim-lifecycle-copy" class="control-desc text-muted">{lifecycleCopy}</p>
+      {#if selectedLaneRepresentativenessCopy}
+        <p id="adversary-sim-representativeness-copy" class="control-desc text-muted">
+          Realism readiness for {formatAdversarySimLaneLabel(laneValue)}: {selectedLaneRepresentativenessCopy}
+        </p>
+      {/if}
       <div class="dashboard-adversary-sim-progress" aria-hidden="true">
         <div class="dashboard-adversary-sim-progress__fill" style={`width: ${progressWidth};`}></div>
       </div>

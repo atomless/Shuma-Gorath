@@ -5,6 +5,12 @@ const ADVERSARY_SIM_LANE_LABELS = Object.freeze({
   parallel_mixed_traffic: 'Scrapling + Agentic'
 });
 
+const REPRESENTATIVENESS_STATUS_LABELS = Object.freeze({
+  representative: 'Representative',
+  partially_representative: 'Partially Representative',
+  degraded: 'Degraded'
+});
+
 const TOKEN_ACRONYMS = Object.freeze({
   ai: 'AI',
   api: 'API',
@@ -37,4 +43,11 @@ export const formatAdversarySimLaneLabel = (value, fallback = '-') => {
   const normalized = String(value || '').trim().toLowerCase();
   if (!normalized) return fallback;
   return ADVERSARY_SIM_LANE_LABELS[normalized] || humanizeAdversarySimToken(normalized, fallback);
+};
+
+export const formatRepresentativenessStatusLabel = (value, fallback = '-') => {
+  const normalized = String(value || '').trim().toLowerCase();
+  if (!normalized) return fallback;
+  return REPRESENTATIVENESS_STATUS_LABELS[normalized]
+    || humanizeAdversarySimToken(normalized, fallback);
 };

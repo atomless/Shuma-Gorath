@@ -2,6 +2,8 @@
 
 **Goal:** Close the realism gaps that would still remain after `SIM-REALISM-2F..2J` so Shuma can eventually claim representative attacker pressure for Game Loop and Tuning work without overstating what the adversary sim currently models.
 
+**Status note (2026-03-31):** `SIM-REALISM-3A..3E` are now landed. The remaining gating question for later Game Loop and Tuning work is target-environment readiness through the landed `representativeness_readiness` contract, not missing realism implementation work.
+
 **Architecture:** Reuse the existing planner, realism contract, worker, and observer seams, but extend them with mixed-lane parallel execution, stronger agentic action capability, long-window recurrence, deeper transport realism, and explicit representativeness gating. Preserve the black-box Shuma-blind and public-discovery-only boundaries.
 
 **Tech Stack:** Rust adversary-sim planner and state, Python Scrapling worker, Python LLM runtime worker and adversarial container worker, dashboard and admin control surfaces, existing observer and monitoring read models, Makefile verification, backlog and sequencing docs.

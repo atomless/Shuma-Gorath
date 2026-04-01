@@ -175,9 +175,9 @@ Status update (2026-03-24):
 
 Status update (2026-03-31):
 
-1. The fresh Tuning realignment chain is now explicitly blocked behind the remaining adversary-realism work.
-2. Do not reopen `TUNE-SURFACE-2`, `TUNE-SURFACE-2A`, `TUNE-SURFACE-2B`, `TUNE-BAN-1`, or `TUNE-BAN-2` while `SIM-REALISM-3E` remains open.
-3. The reason is now explicit: Tuning must optimize against representative attacker pressure, and that representation still falls short on richer agentic capability, true long-window dormancy, deeper transport realism, and explicit representativeness gating even though overlapping mixed-lane pressure is now available.
+1. The fresh Tuning realignment chain remains explicitly blocked, but now the blocker is target-environment readiness rather than missing adversary-realism implementation work.
+2. Do not reopen `TUNE-SURFACE-2`, `TUNE-SURFACE-2A`, `TUNE-SURFACE-2B`, `TUNE-BAN-1`, or `TUNE-BAN-2` while the landed representativeness readiness gate still reports partial or degraded hostile-lane backing in the target environment.
+3. The reason is now explicit: Tuning must optimize against representative attacker pressure, and that pressure must be proven through the new gate rather than assumed from lane existence or recent-run visibility.
 
 ## C. Monitoring Overhaul For Operators, Not Contributors
 
@@ -199,8 +199,8 @@ Status update (2026-03-24):
 3. When the operator-surface mainline resumes, the next ownership refinement should introduce a dedicated `Traffic` tab so the current traffic-facing Diagnostics surface does not get forced into Monitoring. After that, `DIAG-CLEANUP-1` can narrow Diagnostics to furniture-operational proof.
 4. That operator-surface cleanup is no longer the immediate mainline. The current execution order now inserts `VERIFY-GATE-1` first so the active mainline has explicit acceptance gates before more closure claims. After that come `STANCE-MODEL-1`, full-power Scrapling in `SIM-SCR-FULL-1`, repeated strict `human_only_private` operational proof in `RSI-GAME-HO-1`, the remaining LLM attacker runtime proof in `SIM-LLM-1C3`, the lane-realism chains in `SIM-REALISM-1` and `SIM-REALISM-2`, a second strict-baseline proof in `RSI-GAME-HO-2`, and only after that the later `humans_plus_verified_only` sweep.
 5. The route-correction-plus-generated-site chain is now landed. It corrected the earlier `/sim/public/*` assumption by making the generated public surface root-hosted and moving Shuma-owned dashboard, admin, health, metrics, and internal routes under `/shuma/*`.
-6. The live next execution priority inside that sequence is now the final realism sufficiency tranche `SIM-REALISM-3E`, because the overlapping mixed-lane concurrency tranche `SIM-REALISM-3A`, the richer agentic action tranche `SIM-REALISM-3B`, the long-window dormancy tranche `SIM-REALISM-3C`, and the deeper transport-realism tranche `SIM-REALISM-3D` are now landed.
-7. No further Game Loop or Tuning implementation should proceed while those remaining realism tranches are still open, because later loop accountability and tuning work would otherwise be calibrated against attacker traffic that still falls short on overlapping mixed-lane pressure, richer agentic capability, longer-window return behavior, deeper transport realism, and explicit representativeness gating.
+6. The full realism sufficiency chain `SIM-REALISM-3A..3E` is now landed, so the remaining gating condition is no longer missing implementation. It is whether the landed representativeness readiness contract reports representative hostile-lane backing in the target environment where later loop and tuning work will run.
+7. No further Game Loop or Tuning implementation should proceed while the target environment still reports only partial or degraded hostile-lane readiness, because later loop accountability and tuning work would otherwise still be calibrated against attacker traffic that the code now truthfully labels as non-representative for that environment.
 8. The current request-native Scrapling and first-working-game-loop proofs remain important, but they are now treated as baseline capability rather than the unlock condition for stance relaxation or later LLM runtime work.
 9. The later LLM attacker runtime remains decomposed as `SIM-LLM-1C1..1C3`, but those slices are now intentionally downstream of `STANCE-MODEL-1`, `SIM-SCR-FULL-1`, and `RSI-GAME-HO-1` rather than the next active backend mainline.
 10. The next adversary-side truth gap is no longer route knowledge or category ownership. It is now the post-`2J` sufficiency chain: overlapping mixed-lane pressure, stronger agentic capability, deeper transport fidelity, campaign-scale return behavior, and explicit representativeness gating.

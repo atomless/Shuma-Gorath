@@ -148,6 +148,57 @@ const adaptCountEntries = (value) => {
     .filter((entry) => entry.label);
 };
 
+const adaptStringArray = (value) => (
+  Array.isArray(value)
+    ? value.map((entry) => String(entry || '').trim()).filter(Boolean)
+    : []
+);
+
+const adaptRepresentativenessLaneReadiness = (value) => {
+  const source = asRecord(value);
+  return {
+    status: String(source.status || ''),
+    summary: String(source.summary || ''),
+    blockers: adaptStringArray(source.blockers)
+  };
+};
+
+const adaptRepresentativenessReadiness = (value) => {
+  const source = asRecord(value);
+  const prerequisites = asRecord(source.prerequisites);
+  const laneStatuses = asRecord(source.lane_statuses);
+  return {
+    status: String(source.status || ''),
+    summary: String(source.summary || ''),
+    blockers: adaptStringArray(source.blockers),
+    representative_hostile_lane_count: Number(source.representative_hostile_lane_count || 0),
+    partially_representative_hostile_lane_count: Number(
+      source.partially_representative_hostile_lane_count || 0
+    ),
+    hostile_lane_count: Number(source.hostile_lane_count || 0),
+    prerequisites: {
+      trusted_ingress_configured: prerequisites.trusted_ingress_configured === true,
+      scrapling_request_proxy_pool_count: Number(
+        prerequisites.scrapling_request_proxy_pool_count || 0
+      ),
+      scrapling_browser_proxy_pool_count: Number(
+        prerequisites.scrapling_browser_proxy_pool_count || 0
+      ),
+      agentic_request_proxy_pool_count: Number(
+        prerequisites.agentic_request_proxy_pool_count || 0
+      ),
+      scrapling_request_proxy_configured: prerequisites.scrapling_request_proxy_configured === true,
+      scrapling_browser_proxy_configured: prerequisites.scrapling_browser_proxy_configured === true
+    },
+    lane_statuses: {
+      synthetic_traffic: adaptRepresentativenessLaneReadiness(laneStatuses.synthetic_traffic),
+      scrapling_traffic: adaptRepresentativenessLaneReadiness(laneStatuses.scrapling_traffic),
+      bot_red_team: adaptRepresentativenessLaneReadiness(laneStatuses.bot_red_team),
+      parallel_mixed_traffic: adaptRepresentativenessLaneReadiness(laneStatuses.parallel_mixed_traffic)
+    }
+  };
+};
+
 /**
  * @param {unknown} value
  */
@@ -1029,6 +1080,9 @@ export const adaptAdversarySimStatus = (payload) => {
   const generationDiagnostics = asRecord(source.generation_diagnostics);
   const persistedEventEvidence = asRecord(source.persisted_event_evidence);
   const supervisor = asRecord(source.supervisor);
+  const representativenessReadiness = adaptRepresentativenessReadiness(
+    source.representativeness_readiness
+  );
   return {
     runtime_environment: String(source.runtime_environment || ''),
     adversary_sim_available: source.adversary_sim_available === true,
@@ -1107,7 +1161,8 @@ export const adaptAdversarySimStatus = (payload) => {
         first_observed_at: Number(persistedEventEvidence.first_observed_at || 0),
         last_observed_at: Number(persistedEventEvidence.last_observed_at || 0),
         truth_basis: String(persistedEventEvidence.truth_basis || '')
-      }
+      },
+    representativeness_readiness: representativenessReadiness
   };
 };
 
