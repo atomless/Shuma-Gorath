@@ -15,7 +15,6 @@ BASE_URL = os.environ.get("SHUMA_BASE_URL", "http://127.0.0.1:3000").rstrip("/")
 API_KEY = os.environ["SHUMA_API_KEY"]
 FORWARDED_SECRET = os.environ["SHUMA_FORWARDED_IP_SECRET"]
 LANE = os.environ.get("SHUMA_LOCAL_CONTRIBUTOR_SIM_LANE", "scrapling_traffic").strip() or "scrapling_traffic"
-MIN_TICK_DELTA = int(os.environ.get("SHUMA_LOCAL_CONTRIBUTOR_SIM_MIN_TICK_DELTA", "7"))
 WAIT_TIMEOUT_SECONDS = int(
     os.environ.get("SHUMA_LOCAL_CONTRIBUTOR_SIM_WAIT_TIMEOUT_SECONDS", "20")
 )
@@ -150,18 +149,50 @@ def assert_trusted_ingress_configured() -> None:
         )
 
 
-def wait_for_tick_delta(start_tick_count: int) -> None:
+def has_generation_progress(start_status: dict, current_status: dict) -> bool:
+    current_generation = current_status.get("generation") or {}
+    current_request_count = int(current_generation.get("request_count") or 0)
+    current_tick_count = int(current_generation.get("tick_count") or 0)
+    current_last_generated_at = int(current_generation.get("last_generated_at") or 0)
+    current_run_id = str(current_status.get("run_id") or "").strip()
+    current_last_successful_beat_at = int(
+        (((current_status.get("lifecycle_diagnostics") or {}).get("supervisor") or {}).get("last_successful_beat_at") or 0)
+    )
+
+    if current_status.get("adversary_sim_enabled") is not True:
+        return False
+    if current_request_count <= 0 and current_tick_count <= 0:
+        return False
+
+    start_generation = start_status.get("generation") or {}
+    start_last_generated_at = int(start_generation.get("last_generated_at") or 0)
+    start_run_id = str(start_status.get("run_id") or "").strip()
+    start_last_successful_beat_at = int(
+        (((start_status.get("lifecycle_diagnostics") or {}).get("supervisor") or {}).get("last_successful_beat_at") or 0)
+    )
+
+    if current_run_id and current_run_id != start_run_id:
+        return True
+    if current_last_generated_at > start_last_generated_at:
+        return True
+    if current_last_successful_beat_at > start_last_successful_beat_at:
+        return True
+    return False
+
+
+def wait_for_generation_progress(start_status: dict) -> None:
     deadline = time.time() + WAIT_TIMEOUT_SECONDS
     while time.time() < deadline:
         status = fetch_status()
-        tick_count = int(((status.get("generation") or {}).get("tick_count") or 0))
-        if tick_count >= start_tick_count + MIN_TICK_DELTA:
+        if has_generation_progress(start_status, status):
             return
         time.sleep(0.5)
-    current_tick_count = int(((fetch_status().get("generation") or {}).get("tick_count") or 0))
+    current_status = fetch_status()
     raise SystemExit(
-        f"timed out waiting for adversary sim tick delta {MIN_TICK_DELTA}; "
-        f"start={start_tick_count} current={current_tick_count}"
+        "timed out waiting for local adversary sim worker activity; "
+        f"start_run_id={start_status.get('run_id')!r} "
+        f"current_run_id={current_status.get('run_id')!r} "
+        f"current_generation={json.dumps(current_status.get('generation') or {}, sort_keys=True)}"
     )
 
 
@@ -182,11 +213,10 @@ def main() -> int:
     assert_root_accessible()
     assert_trusted_ingress_configured()
     start_status = fetch_status()
-    start_tick_count = int(((start_status.get("generation") or {}).get("tick_count") or 0))
     post_control(True, lane=LANE, reason="local_contributor_sim_isolation_start")
     supervisor_process = launch_supervisor_process()
     try:
-        wait_for_tick_delta(start_tick_count)
+        wait_for_generation_progress(start_status)
     finally:
         post_control(False, reason="local_contributor_sim_isolation_stop")
         try:

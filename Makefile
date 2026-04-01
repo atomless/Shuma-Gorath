@@ -3177,6 +3177,7 @@ test-local-contributor-sim-isolation-contract: ## Prove local adversary sim traf
 			exit 1; \
 		fi; \
 		$(MAKE) --no-print-directory test-local-contributor-ingress-contract || exit 1; \
+		python3 -m unittest scripts/tests/test_local_contributor_sim_isolation.py || exit 1; \
 		SHUMA_BASE_URL=$(LOCAL_CONTRIBUTOR_PUBLIC_BASE_URL) SHUMA_API_KEY="$(SHUMA_API_KEY)" SHUMA_FORWARDED_IP_SECRET="$(SHUMA_FORWARDED_IP_SECRET)" \
 			python3 scripts/tests/verify_local_contributor_sim_isolation.py; \
 	else \

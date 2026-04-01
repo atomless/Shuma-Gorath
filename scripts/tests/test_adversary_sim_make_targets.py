@@ -397,6 +397,7 @@ class AdversarySimMakeTargetTests(unittest.TestCase):
         self.assertIsNotNone(match)
         body = match.group(0)
         self.assertIn("test-local-contributor-ingress-contract", body)
+        self.assertIn("python3 -m unittest scripts/tests/test_local_contributor_sim_isolation.py", body)
         self.assertIn("verify_local_contributor_sim_isolation.py", body)
 
     def test_header_transport_realism_target_uses_contract_and_worker_selectors(self) -> None:

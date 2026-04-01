@@ -4,6 +4,22 @@ Moved from active TODO files on 2026-02-14.
 
 ## Additional completions (2026-04-01)
 
+### Local Contributor Sim-Isolation Proof Stabilization
+
+- [x] Fixed the local sim-isolation proof so it observes real new-run worker activity instead of timing out against stale historical `tick_count` values from the previous off-state.
+- [x] What changed:
+  - [`../scripts/tests/verify_local_contributor_sim_isolation.py`](../scripts/tests/verify_local_contributor_sim_isolation.py) now uses current-run activity detection based on run identity and worker generation timestamps/receipts instead of waiting for an impossible monotonic tick delta across runs.
+  - [`../scripts/tests/test_local_contributor_sim_isolation.py`](../scripts/tests/test_local_contributor_sim_isolation.py) now locks the exact regression: a new sim run must count as progress even when current-run tick counters reset below the prior off-state history.
+  - [`../Makefile`](../Makefile) and [`../scripts/tests/test_adversary_sim_make_targets.py`](../scripts/tests/test_adversary_sim_make_targets.py) now require the unit contract before the live `make test-local-contributor-sim-isolation-contract` proof runs.
+- [x] Why:
+  - the runtime isolation fix was working in live local runs, but the proof harness could still fail spuriously because `generation.tick_count` reflects current-run activity while the off-state payload can retain historical values from the prior run.
+- [x] Evidence:
+  - `python3 -m unittest scripts/tests/test_local_contributor_sim_isolation.py`
+  - `python3 -m unittest scripts/tests/test_adversary_sim_make_targets.py`
+  - `make test-local-contributor-sim-isolation-contract`
+  - `make test-local-contributor-root-access-contract`
+  - live repro: after an 8-second local `scrapling_traffic` run, `GET /` still returned `200`, and `/shuma/admin/ban?active=true` remained empty for `127.0.0.1`, `::1`, and `unknown`
+
 ### Local Contributor Sim Isolation From Loopback Bans
 
 - [x] Fixed the local supervisor wrapper so dynamically generated trusted-ingress proxy settings are forwarded into the Spin runtime rather than stopping at the parent shell.
