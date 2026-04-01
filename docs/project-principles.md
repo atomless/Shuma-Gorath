@@ -41,7 +41,7 @@ Shuma-Gorath exists to provide layered, practical bot defense that teams can dep
 ### P3. Simplicity of Setup, Dev, and Deploy
 
 - MUST provide one canonical workflow for setup, run, and test (`Makefile` targets).
-- MUST run setup/build/test verification through `Makefile` targets (`make setup`, `make build`, `make test`/`make test-unit`) so shared workflows fail fast when broken.
+- MUST run setup/build/test verification through `Makefile` targets (`make setup`, `make build`, `make test-code-quality`, `make test`/`make test-unit`) so shared workflows fail fast when broken.
 - MUST treat direct tool invocations (`cargo`, `spin`, script entrypoints) as implementation details behind `make`, not as the default contributor/agent interface.
 - MUST avoid hidden prerequisites.
 - SHOULD keep dev/prod parity high.
@@ -58,6 +58,7 @@ Shuma-Gorath exists to provide layered, practical bot defense that teams can dep
 
 - MUST include tests for behavior changes and regressions.
 - MUST keep <abbr title="Continuous Integration">CI</abbr> as the minimum quality bar for merge.
+- MUST require `make test-code-quality` before any non-doc tranche may be called complete, even when the behavior proof for that slice is otherwise narrower than the full umbrella suite.
 - MUST define explicit acceptance criteria before implementing any non-trivial feature, tranche, architectural change, telemetry/control-plane change, or process/governance change.
 - MUST write those acceptance criteria as observable and measurable pass/fail outcomes rather than intent, effort, or partial progress.
 - MUST identify the proof surface for each non-trivial acceptance criterion (for example runtime behavior, API payload, dashboard rendering, operational artifact, or documentation contract) and the verification command or evidence path used to prove it where applicable.

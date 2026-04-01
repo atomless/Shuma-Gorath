@@ -12,6 +12,7 @@
 - [ ] Change is aligned with `docs/project-principles.md`.
 - [ ] Tests added/updated where needed.
 - [ ] Relevant test suites executed and passing.
+- [ ] `make test-code-quality` executed and passing.
 - [ ] `make test` executed and passing.
 - [ ] Docs updated for behavior/config/deployment/monitoring changes.
 - [ ] Commits are atomic and scoped to logical changes (or rationale provided for batching).

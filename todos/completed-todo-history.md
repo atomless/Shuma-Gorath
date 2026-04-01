@@ -4,6 +4,22 @@ Moved from active TODO files on 2026-02-14.
 
 ## Additional completions (2026-04-01)
 
+### Repo-Wide Code-Quality Completion Gate
+
+- [x] Added a truthful repo-wide code-quality completion gate so every non-doc tranche must now run `make test-code-quality` before it may be called complete.
+- [x] What landed:
+  - [`../Makefile`](../Makefile) now exposes `make test-code-quality` as the mandatory non-doc tranche-closing static gate and `make audit-code-quality-deep` as the broader semantic audit lane, and `make test` now begins with the mandatory gate.
+  - [`../package.json`](../package.json) now exposes the deeper dashboard semantic audit script `test:dashboard:svelte-check:deep`.
+  - [`../scripts/tests/test_code_quality_contract.py`](../scripts/tests/test_code_quality_contract.py) now locks the Makefile, package-script, CI, policy-doc, testing-guide, and PR-template contract.
+  - [`../.github/workflows/ci.yml`](../.github/workflows/ci.yml), [`../CONTRIBUTING.md`](../CONTRIBUTING.md), [`../docs/project-principles.md`](../docs/project-principles.md), [`../AGENTS.md`](../AGENTS.md), [`../docs/testing.md`](../docs/testing.md), and [`../.github/pull_request_template.md`](../.github/pull_request_template.md) now all require or surface the new gate explicitly.
+  - [`../docs/research/2026-04-01-code-quality-gate-and-deep-audit-review.md`](../docs/research/2026-04-01-code-quality-gate-and-deep-audit-review.md), [`../docs/plans/2026-04-01-code-quality-gate-and-deep-audit-plan.md`](../docs/plans/2026-04-01-code-quality-gate-and-deep-audit-plan.md), and [`../todos/blocked-todo.md`](../todos/blocked-todo.md) now record the honest two-tier model: a passing mandatory gate today and a stronger deep audit lane that still exposes baseline repo debt.
+- [x] Why:
+  - the repo had no explicit compulsory tranche-closing code-quality gate for dead-code or broken-import hygiene, and the strongest raw Rust/Svelte semantic tools already exposed real baseline debt, so the clean fix was a truthful two-tier model rather than pretending the deepest audit was already green.
+- [x] Evidence:
+  - `make test-code-quality-contract`
+  - `make test-code-quality`
+  - `make audit-code-quality-deep` currently fails by design on known baseline debt and remains the documented broader audit lane rather than the tranche-closing gate
+
 ### Dashboard Disconnect-Noise Hardening
 
 - [x] Hardened the dashboard disconnect path so local backend outages no longer spray uncaught passive-refresh errors or keep every tab polling as if the backend were still up.

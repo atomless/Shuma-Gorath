@@ -3,6 +3,8 @@
 ## 🐙 Quick Commands (Official)
 
 ```bash
+make test-code-quality # Mandatory non-doc tranche-closing static quality gate (Rust warning hygiene + current dashboard static diagnostics + workflow/doc contract)
+make audit-code-quality-deep # Broader semantic audit (strict Clippy + JS-aware Svelte check); currently deeper than the mandatory gate and may expose known repo debt
 make test             # Full umbrella suite: unit + canonical maze verification gate + Spin integration + adversary runtime-surface gate + mandatory fast adversarial matrix + SIM2 advisory gates + dashboard e2e
 make clear-dev-loopback-bans # Clear local loopback-style bans (127.0.0.1, ::1, unknown) from a running dev server
 make test-local-contributor-root-access-contract # Live proof that loopback-ban cleanup restores root browsing on a running local server
@@ -176,7 +178,7 @@ Use the narrower focused targets when only one seam changed.
 Shuma now treats automated verification as five distinct proof tiers plus optional manual checks:
 
 1. Static and source-contract checks
-   - Examples: `make test-dashboard-svelte-check`, `make test-config-lifecycle`, focused contract or wiring guards
+   - Examples: `make test-code-quality`, `make test-dashboard-svelte-check`, `make test-config-lifecycle`, focused contract or wiring guards
    - Purpose: fail fast on schema drift, source-shape contracts, and static diagnostics
 2. Local behavior tests
    - Examples: `make test-unit`, `make test-gateway-harness`, focused domain/contract targets
@@ -202,8 +204,10 @@ make telemetry-fermyon-edge-evidence # Later gateway-only live telemetry proof
 
 Notes:
 - Use Makefile commands only (avoid running scripts directly)
+- `make test-code-quality` is the mandatory tranche-closing code-quality gate for every non-doc change. Run it even when the behavioral proof for the slice is otherwise narrower than `make test`.
+- `make audit-code-quality-deep` is the broader semantic audit lane. It intentionally runs stronger checks that currently expose known repo debt, so it is not yet the mandatory tranche-closing gate.
 - Integration tests require a running Spin server; targeted integration-only commands can run against `make dev` or `make dev-prod`, but the full umbrella `make test` contract requires `make dev` (`runtime-dev`).
-- `make test` is the canonical local and CI pre-merge suite. It intentionally does not include live hosted or ssh-managed operational proofs.
+- `make test` is the canonical local and CI pre-merge suite. It intentionally begins with `make test-code-quality` and still does not include live hosted or ssh-managed operational proofs.
 - Live hosted/shared-host proof is a separate tier. Use `make test-live-feedback-loop-remote`, `make test-remote-edge-signal-smoke`, or `make test-dashboard-e2e-external` when you need deployment-level evidence.
 - `make test-live-feedback-loop-remote-unit` now proves the verifier's local behavior only. Use `make test-live-feedback-loop-remote-contracts` when you intentionally want the retained wrapper and remote wiring contract lane.
 - `make test-integration` and `make test` now call `make test-integration-cleanup-contract` before the real Spin HTTP integration run, so the retained shell-shape guard stays explicit about being contract proof.

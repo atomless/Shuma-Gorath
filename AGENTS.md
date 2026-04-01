@@ -65,6 +65,7 @@ Planning-first workflow is mandatory unless the user explicitly stipulates a dif
    - only add richer export or curation artifacts when they are clearly derived from observed telemetry and explicitly justified.
 9. Run verification through `Makefile` targets only:
    - for any newly created development branch/worktree, run `make setup` before `make dev`/`make test` so `.env.local`, local tooling, and seeded config are initialized for that workspace,
+   - `make test-code-quality` as the mandatory tranche-closing code-quality gate for every non-doc change,
    - `make test` as the umbrella verification path (unit + integration + dashboard e2e),
    - `make test-unit`, `make test-integration`, and `make test-dashboard-e2e` for focused reruns,
    - `make build` for release build verification,
@@ -76,6 +77,7 @@ Planning-first workflow is mandatory unless the user explicitly stipulates a dif
    For dashboard/browser verification, agents MUST choose the smallest relevant `make` path that proves the changed behavior. Do not default to broad dashboard e2e coverage when a focused `make test-dashboard-e2e PLAYWRIGHT_ARGS='--grep "..."'` run or an existing narrower `make` target can prove the exact rendered contract.
    If the current `Makefile` does not expose a focused path for the affected dashboard behavior, add or refine the target first, then verify through that target instead of falling back to unrelated suite-wide churn.
    Keep `make dev` watch inputs scoped to source-of-truth files and explicitly exclude generated dashboard artifacts (for example `dashboard/.svelte-kit/**` and `dashboard/.vite/**`) to avoid self-triggered restart loops while preserving live reload for `dashboard/src/**`, `dashboard/static/**`, and `dashboard/style.css` edits.
+   For any non-doc tranche, `make test-code-quality` is mandatory even when the slice-specific proof otherwise uses narrower feature targets instead of the full umbrella suite.
    For `make test`, integration and dashboard e2e tests are mandatory and must not be skipped: start Spin first with `make dev` (separate terminal/session), then run `make test`.
    Exception: if a change is documentation-only (`*.md` and no behavior/config/runtime code changes), do not run tests; document that verification was intentionally skipped because the slice is docs-only.
    Non-negotiable anti-churn directive:

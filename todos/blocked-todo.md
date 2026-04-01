@@ -78,6 +78,12 @@ Security finding validity and closure status live in `todos/security-review.md`.
     - [`../docs/research/2026-04-01-contributor-friendly-adversary-proxy-pool-setup-review.md`](../docs/research/2026-04-01-contributor-friendly-adversary-proxy-pool-setup-review.md)
     - [`../docs/plans/2026-04-01-contributor-friendly-adversary-proxy-pool-setup-plan.md`](../docs/plans/2026-04-01-contributor-friendly-adversary-proxy-pool-setup-plan.md)
 
+- [ ] CODE-QUALITY-2 Graduate the broader semantic audit into the mandatory tranche-closing code-quality gate.
+  Blocker: keep blocked until the current baseline debt exposed by `make audit-code-quality-deep` is burned down or deliberately re-scoped. The research baseline for `CODE-QUALITY-1` showed strict `cargo clippy --all-targets --all-features -- -D warnings` surfacing 148 diagnostics and JS-aware `svelte-check --diagnostic-sources "js,svelte"` surfacing 68 errors across 7 files, so do not rename or document the mandatory gate as if those stronger audits were already green.
+  - Reference context:
+    - [`../docs/research/2026-04-01-code-quality-gate-and-deep-audit-review.md`](../docs/research/2026-04-01-code-quality-gate-and-deep-audit-review.md)
+    - [`../docs/plans/2026-04-01-code-quality-gate-and-deep-audit-plan.md`](../docs/plans/2026-04-01-code-quality-gate-and-deep-audit-plan.md)
+
 - [ ] TUNE-BAN-2 If bounded ban-behavior tuning is ratified, surface those controls in `Tuning` with explicit horizon and mutability labeling.
   Blocker: keep blocked with `TUNE-BAN-1`; no later ban-behavior tuning surface should ship until the loop is optimizing against representative adversary pressure and the ratified bounded primitives exist.
 

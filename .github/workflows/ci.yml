@@ -85,6 +85,9 @@ jobs:
       - name: Seed KV tunable config
         run: make config-seed
 
+      - name: Run code-quality completion gate
+        run: make test-code-quality
+
       - name: Start Spin server (background)
         run: |
           nohup make run-prebuilt > /tmp/spin.log 2>&1 &

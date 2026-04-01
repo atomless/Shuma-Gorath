@@ -13,11 +13,13 @@
 
 1. Add/update tests where behavior is affected.
 2. Run verification through `Makefile` targets (do not use direct ad-hoc commands as the canonical path):
+   - `make test-code-quality` as the mandatory tranche-closing static quality gate for every non-doc change,
    - `make test` for the umbrella verification gate (unit + integration + dashboard e2e),
    - `make test-unit`, `make test-integration`, `make test-dashboard-e2e` for focused reruns,
    - `make build` for release build verification,
    - `make setup`/`make verify` when setup/bootstrap tooling changes.
    Notes:
+   - `make test-code-quality` is required before any non-doc tranche may be called complete, even when the behavioral proof for that slice is narrower than `make test`.
    - `make test` requires Spin running (`make dev`) and fails if integration/e2e cannot run.
    - Makefile is the single source of truth for setup/build/test/deploy; avoid direct command paths in normal workflow (`cargo ...`, `corepack pnpm run ...`, `playwright ...`, `node scripts/...`, `spin ...`).
    - If you need a workflow that is not exposed in `Makefile`, add/update the Make target first and then execute it via `make`.
