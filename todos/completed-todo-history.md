@@ -4,6 +4,19 @@ Moved from active TODO files on 2026-02-14.
 
 ## Additional completions (2026-04-01)
 
+### Sim Public Warning-Only Local Startup Hygiene
+
+- [x] Tightened the contributor-site startup contract so ordinary local runtime commands no longer regenerate the generated public site implicitly.
+- [x] What landed:
+  - [`../scripts/build_sim_public_site.py`](../scripts/build_sim_public_site.py) now supports a warning-only stale check mode.
+  - [`../scripts/sim_public_site/build.py`](../scripts/sim_public_site/build.py) now exposes a shared staleness probe so the Makefile does not need to duplicate freshness logic.
+  - [`../Makefile`](../Makefile) now provides `make sim-public-warn-if-stale`, and `make dev`, `make dev-closed`, `make run`, and `make run-prebuilt` now use that warning-only path instead of rebuilding the artifact.
+  - [`../scripts/tests/test_build_sim_public_site.py`](../scripts/tests/test_build_sim_public_site.py) and [`../scripts/tests/test_sim_public_build_flow_contract.py`](../scripts/tests/test_sim_public_build_flow_contract.py) now prove the warning-only contract.
+- [x] Why:
+  - implicit site generation during normal local startup made contributor iteration feel hung and imposed avoidable cost on every restart even when no one wanted to refresh the site artifact.
+- [x] Evidence:
+  - `make test-sim-public-build-flow-contract`
+
 ### Local Contributor Ingress Separation From Degraded Origin Identity
 
 - [x] Landed the local contributor-ingress fix so public local browsing no longer shares the degraded `unknown` identity with direct-origin sim and browser traffic.

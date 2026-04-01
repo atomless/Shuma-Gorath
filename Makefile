@@ -386,7 +386,7 @@ dev: ## Build and run with file watching (auto-rebuild on save)
 	@echo "$(CYAN)👀 Watching src/*.rs, dashboard/*, and spin.toml for changes... (Ctrl+C to stop)$(NC)"
 	@pkill -x spin 2>/dev/null || true
 	@$(MAKE) --no-print-directory config-verify
-	@$(MAKE) --no-print-directory sim-public-refresh-if-stale >/dev/null
+	@$(MAKE) --no-print-directory sim-public-warn-if-stale
 	@DASHBOARD_STAMP="dist/dashboard/_app/version.json"; \
 	if [ "$${DEV_FORCE_REBUILD:-0}" = "1" ] || [ ! -f "$$DASHBOARD_STAMP" ] || \
 	   [ dashboard/style.css -nt "$$DASHBOARD_STAMP" ] || \
@@ -430,6 +430,7 @@ dev-closed: ## Build and run with file watching and SHUMA_KV_STORE_FAIL_OPEN=fal
 	@echo "$(CYAN)👀 Watching src/*.rs, dashboard/*, and spin.toml for changes... (Ctrl+C to stop)$(NC)"
 	@pkill -x spin 2>/dev/null || true
 	@$(MAKE) --no-print-directory config-verify
+	@$(MAKE) --no-print-directory sim-public-warn-if-stale
 	@DASHBOARD_STAMP="dist/dashboard/_app/version.json"; \
 	if [ "$${DEV_FORCE_REBUILD:-0}" = "1" ] || [ ! -f "$$DASHBOARD_STAMP" ] || \
 	   [ dashboard/style.css -nt "$$DASHBOARD_STAMP" ] || \
@@ -466,7 +467,7 @@ run: ## Build once and run (no file watching)
 	@echo "$(YELLOW)🔐 Local admin allowlist override: DEV_ADMIN_IP_ALLOWLIST='$(DEV_ADMIN_IP_ALLOWLIST)' (empty by default)$(NC)"
 	@pkill -x spin 2>/dev/null || true
 	@$(MAKE) --no-print-directory config-verify
-	@$(MAKE) --no-print-directory sim-public-refresh-if-stale >/dev/null
+	@$(MAKE) --no-print-directory sim-public-warn-if-stale
 	@$(MAKE) --no-print-directory dashboard-build >/dev/null
 	@sleep 1
 	@./scripts/set_crate_type.sh cdylib
@@ -486,6 +487,7 @@ run-prebuilt: ## Run Spin using prebuilt wasm (CI helper)
 	@echo "$(CYAN)🚀 Starting prebuilt server...$(NC)"
 	@echo "$(YELLOW)🔐 Local admin allowlist override: DEV_ADMIN_IP_ALLOWLIST='$(DEV_ADMIN_IP_ALLOWLIST)' (empty by default)$(NC)"
 	@$(MAKE) --no-print-directory config-verify
+	@$(MAKE) --no-print-directory sim-public-warn-if-stale
 	@$(MAKE) --no-print-directory dashboard-build >/dev/null
 	@pkill -x spin 2>/dev/null || true
 	@echo "$(YELLOW)📊 Dashboard: http://127.0.0.1:3000/shuma/dashboard/index.html$(NC)"
@@ -1687,6 +1689,14 @@ sim-public-refresh-if-stale: ## Regenerate the contributor sim-public artifact o
 		--corpus-config "$(SIM_PUBLIC_SITE_CORPUS_CONFIG)" \
 		--site-url "http://127.0.0.1:3000" \
 		--if-stale-hours 24
+
+sim-public-warn-if-stale: ## Warn when the contributor sim-public artifact is missing or stale without regenerating it
+	@python3 "$(SIM_PUBLIC_SITE_GENERATOR)" \
+		--repo-root "$(CURDIR)" \
+		--artifact-root "$(SIM_PUBLIC_SITE_ARTIFACT_ROOT)" \
+		--corpus-config "$(SIM_PUBLIC_SITE_CORPUS_CONFIG)" \
+		--site-url "http://127.0.0.1:3000" \
+		--check-stale-hours 24
 
 test-sim-public-build-flow-contract: ## Validate contributor/runtime sim-public refresh-flow wiring and stale-generation discipline
 	@echo "$(CYAN)🧪 Validating sim-public build-flow contract...$(NC)"

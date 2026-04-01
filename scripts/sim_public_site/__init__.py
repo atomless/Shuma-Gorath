@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from .build import build_site, build_site_if_stale
+from .build import build_site, build_site_if_stale, check_site_staleness
 
 
 SITE_DIRNAME = "sim-public-site"
@@ -39,5 +39,6 @@ __all__ = [
     "artifact_root",
     "build_site",
     "build_site_if_stale",
+    "check_site_staleness",
     "canonical_contract_summary",
 ]

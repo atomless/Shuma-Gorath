@@ -474,7 +474,8 @@ These pages are the intended first local public surface for strict-loop developm
 Contributor refresh paths:
 - `make sim-public-refresh` rebuilds the generated artifact explicitly.
 - `make sim-public-refresh-if-stale` rebuilds only when the artifact is missing, source-stale, or older than the bounded freshness window.
-- `make dev` and `make run` reuse the stale-check path so contributors can browse the root-hosted generated public surface locally without running adversary sim first, including when adversary sim is disabled or idle.
+- `make sim-public-warn-if-stale` checks freshness and warns without regenerating.
+- `make dev`, `make dev-closed`, `make run`, and `make run-prebuilt` now use the warning-only path so normal contributor startup stays fast while still surfacing when the generated site is missing or stale.
 - `make build`, `make setup-runtime`, and `make run-prebuilt` do not generate the contributor site artifact.
 Dashboard DOM-class contract for runtime/simulation affordances:
 - `<html>` must include exactly one runtime environment class: `runtime-dev` or `runtime-prod` (derived from trusted runtime config).

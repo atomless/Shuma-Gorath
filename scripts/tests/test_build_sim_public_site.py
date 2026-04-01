@@ -270,6 +270,32 @@ class BuildSimPublicSiteTests(unittest.TestCase):
         second_manifest = json.loads((self.artifact_root / "manifest.json").read_text(encoding="utf-8"))
         self.assertEqual(second_manifest["root_path"], "/")
 
+    def test_check_stale_hours_reports_warning_without_regenerating(self) -> None:
+        result = subprocess.run(
+            [
+                "python3",
+                str(SCRIPT),
+                "--repo-root",
+                str(self.repo_root),
+                "--artifact-root",
+                str(self.artifact_root),
+                "--corpus-config",
+                str(self.repo_root / "config" / "sim_public_site" / "corpus.toml"),
+                "--site-url",
+                "https://example.test",
+                "--check-stale-hours",
+                "24",
+            ],
+            cwd=REPO_ROOT,
+            capture_output=True,
+            text=True,
+            check=False,
+        )
+        self.assertEqual(result.returncode, 0, msg=result.stderr or result.stdout)
+        self.assertFalse((self.artifact_root / "manifest.json").exists())
+        self.assertIn("sim-public: checking freshness", result.stderr)
+        self.assertIn("sim-public: stale; run make sim-public-refresh-if-stale", result.stderr)
+
     def test_build_uses_commonmark_renderer_for_markdown_blocks(self) -> None:
         result = self.run_build()
         self.assertEqual(result.returncode, 0, msg=result.stderr or result.stdout)

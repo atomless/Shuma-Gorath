@@ -13,6 +13,7 @@ from sim_public_site import (
     build_site,
     build_site_if_stale,
     canonical_contract_summary,
+    check_site_staleness,
 )
 
 
@@ -53,6 +54,12 @@ def parse_args() -> argparse.Namespace:
         default=None,
         help="Only rebuild when the artifact is missing, source-stale, or older than this many hours.",
     )
+    parser.add_argument(
+        "--check-stale-hours",
+        type=int,
+        default=None,
+        help="Check whether the artifact is stale and print a warning-only status without rebuilding.",
+    )
     return parser.parse_args()
 
 
@@ -77,7 +84,17 @@ def main() -> int:
         "site_url": args.site_url.rstrip("/"),
         "progress": lambda message: print(message, file=sys.stderr, flush=True),
     }
-    if args.if_stale_hours is None:
+    if args.if_stale_hours is not None and args.check_stale_hours is not None:
+        raise SystemExit("--if-stale-hours and --check-stale-hours are mutually exclusive")
+
+    if args.check_stale_hours is not None:
+        check_site_staleness(
+            repo_root=repo_root,
+            artifact_root=artifact_root_path,
+            if_stale_hours=args.check_stale_hours,
+            progress=build_kwargs["progress"],
+        )
+    elif args.if_stale_hours is None:
         build_site(**build_kwargs)
     else:
         build_site_if_stale(if_stale_hours=args.if_stale_hours, **build_kwargs)

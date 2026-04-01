@@ -182,6 +182,23 @@ def build_site_if_stale(
     )
 
 
+def check_site_staleness(
+    repo_root: Path,
+    artifact_root: Path,
+    if_stale_hours: int,
+    progress: ProgressFn | None = None,
+) -> bool:
+    if if_stale_hours < 0:
+        raise ValueError("if_stale_hours must be zero or greater")
+    emit_progress(progress, "sim-public: checking freshness")
+    stale = refresh_required(repo_root, artifact_root, if_stale_hours)
+    if stale:
+        emit_progress(progress, "sim-public: stale; run make sim-public-refresh-if-stale")
+    else:
+        emit_progress(progress, "sim-public: current")
+    return stale
+
+
 def emit_progress(progress: ProgressFn | None, message: str) -> None:
     if progress is None:
         return
