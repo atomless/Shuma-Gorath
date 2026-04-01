@@ -400,6 +400,27 @@ class AdversarySimMakeTargetTests(unittest.TestCase):
         self.assertIn("python3 -m unittest scripts/tests/test_local_contributor_sim_isolation.py", body)
         self.assertIn("verify_local_contributor_sim_isolation.py", body)
 
+    def test_local_contributor_self_contained_public_site_target_uses_local_gateway_contracts(self) -> None:
+        source = MAKEFILE.read_text(encoding="utf-8")
+        match = re.search(
+            r"^test-local-contributor-self-contained-public-site-contract:.*?(?=^[A-Za-z0-9_.-]+:|\Z)",
+            source,
+            re.MULTILINE | re.DOTALL,
+        )
+        self.assertIsNotNone(match)
+        body = match.group(0)
+        self.assertIn("test-local-contributor-ingress-contract", body)
+        self.assertIn(
+            "cargo test config::tests::local_contributor_ingress_enabled_defaults_false_and_honors_env_override",
+            body,
+        )
+        self.assertIn(
+            "cargo test runtime::sim_public::tests::sim_public_relative_asset_path_claims_unknown_public_paths_for_local_contributor_mode",
+            body,
+        )
+        self.assertIn("python3 -m unittest scripts/tests/test_config_lifecycle.py", body)
+        self.assertIn("verify_local_public_site_self_contained.py", body)
+
     def test_header_transport_realism_target_uses_contract_and_worker_selectors(self) -> None:
         source = MAKEFILE.read_text(encoding="utf-8")
         match = re.search(

@@ -1739,6 +1739,19 @@ fn validate_env_accepts_runtime_prod_local_direct_mode_without_gateway_upstream(
 }
 
 #[test]
+fn local_contributor_ingress_enabled_defaults_false_and_honors_env_override() {
+    let _lock = crate::test_support::lock_env();
+    std::env::remove_var("SHUMA_LOCAL_CONTRIBUTOR_INGRESS_ENABLE");
+
+    assert!(!super::local_contributor_ingress_enabled());
+
+    std::env::set_var("SHUMA_LOCAL_CONTRIBUTOR_INGRESS_ENABLE", "true");
+    assert!(super::local_contributor_ingress_enabled());
+
+    std::env::remove_var("SHUMA_LOCAL_CONTRIBUTOR_INGRESS_ENABLE");
+}
+
+#[test]
 fn validate_env_rejects_insecure_public_http_upstream() {
     let _lock = crate::test_support::lock_env();
     clear_gateway_env();

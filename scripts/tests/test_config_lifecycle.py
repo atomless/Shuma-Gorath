@@ -168,11 +168,11 @@ class ConfigLifecycleTests(unittest.TestCase):
         self.assertNotIn("@$(MAKE) --no-print-directory config-seed >/dev/null", makefile)
         self.assertNotIn("$(MAKE) --no-print-directory config-seed >/dev/null 2>&1", makefile)
         self.assertIn(
-            'config-verify && $(MAKE) --no-print-directory dashboard-build >/dev/null 2>&1 && RUNTIME_INSTANCE_ID="$$(uuidgen)" && SHUMA_API_KEY=',
+            'prepare-scrapling-local >/dev/null 2>&1 && $(MAKE) --no-print-directory config-verify && $(MAKE) --no-print-directory dashboard-build >/dev/null 2>&1 && $(LOCAL_LOOPBACK_BAN_CLEANUP_BACKGROUND) RUNTIME_INSTANCE_ID="$$(uuidgen)" && SHUMA_API_KEY=',
             makefile,
         )
         self.assertIn(
-            "SPIN_DEV_OVERRIDES := --env SHUMA_DEBUG_HEADERS=$(DEV_DEBUG_HEADERS) --env SHUMA_ADMIN_CONFIG_WRITE_ENABLED=$(DEV_ADMIN_CONFIG_WRITE_ENABLED) --env SHUMA_ADMIN_IP_ALLOWLIST=$(DEV_ADMIN_IP_ALLOWLIST) --env SHUMA_RUNTIME_ENV=$(DEV_RUNTIME_ENV) --env SHUMA_ADVERSARY_SIM_AVAILABLE=$(DEV_ADVERSARY_SIM_AVAILABLE) --env SHUMA_LOCAL_PROD_DIRECT_MODE=$(DEV_LOCAL_PROD_DIRECT_MODE) --env SHUMA_GATEWAY_ORIGIN_AUTH_MODE=network_only --env SHUMA_GATEWAY_ORIGIN_AUTH_HEADER_NAME= --env SHUMA_GATEWAY_ORIGIN_AUTH_HEADER_VALUE=",
+            "SPIN_DEV_OVERRIDES := --env SHUMA_DEBUG_HEADERS=$(DEV_DEBUG_HEADERS) --env SHUMA_ADMIN_CONFIG_WRITE_ENABLED=$(DEV_ADMIN_CONFIG_WRITE_ENABLED) --env SHUMA_ADMIN_IP_ALLOWLIST=$(DEV_ADMIN_IP_ALLOWLIST) --env SHUMA_RUNTIME_ENV=$(DEV_RUNTIME_ENV) --env SHUMA_ADVERSARY_SIM_AVAILABLE=$(DEV_ADVERSARY_SIM_AVAILABLE) --env SHUMA_LOCAL_PROD_DIRECT_MODE=$(DEV_LOCAL_PROD_DIRECT_MODE) --env SHUMA_LOCAL_CONTRIBUTOR_INGRESS_ENABLE=$(DEV_LOCAL_CONTRIBUTOR_INGRESS_ENABLE) --env SHUMA_GATEWAY_ORIGIN_AUTH_MODE=network_only --env SHUMA_GATEWAY_ORIGIN_AUTH_HEADER_NAME= --env SHUMA_GATEWAY_ORIGIN_AUTH_HEADER_VALUE=",
             makefile,
         )
         self.assertIn(

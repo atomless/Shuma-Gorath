@@ -4,6 +4,23 @@ Moved from active TODO files on 2026-02-14.
 
 ## Additional completions (2026-04-01)
 
+### Local Contributor Self-Contained Public Site Routing
+
+- [x] Fixed local contributor runtime behavior so a deployed `SHUMA_GATEWAY_UPSTREAM_ORIGIN` can remain in `.env.local` without causing local public-site misses to try remote gateway forwarding.
+- [x] What changed:
+  - [`../src/runtime/sim_public.rs`](../src/runtime/sim_public.rs) now supports an explicit local contributor-ingress mode that claims non-`/shuma/*` public-root paths and keeps unknown public-path misses local.
+  - [`../src/runtime/request_flow.rs`](../src/runtime/request_flow.rs) now gives static-bypass requests the same local sim-public claim path before they can fall through to gateway forwarding.
+  - [`../src/config/mod.rs`](../src/config/mod.rs), [`../src/config/tests.rs`](../src/config/tests.rs), [`../config/defaults.env`](../config/defaults.env), [`../scripts/bootstrap/setup.sh`](../scripts/bootstrap/setup.sh), [`../scripts/bootstrap/setup-runtime.sh`](../scripts/bootstrap/setup-runtime.sh), and [`../Makefile`](../Makefile) now make `SHUMA_LOCAL_CONTRIBUTOR_INGRESS_ENABLE` a first-class env-only local runtime switch.
+  - [`../scripts/tests/verify_local_public_site_self_contained.py`](../scripts/tests/verify_local_public_site_self_contained.py), [`../scripts/tests/test_config_lifecycle.py`](../scripts/tests/test_config_lifecycle.py), and [`../scripts/tests/test_adversary_sim_make_targets.py`](../scripts/tests/test_adversary_sim_make_targets.py) now lock the self-contained local routing proof and target wiring.
+  - [`../docs/configuration.md`](../docs/configuration.md), [`../docs/quick-reference.md`](../docs/quick-reference.md), and [`../docs/testing.md`](../docs/testing.md) now document that local contributor ingress keeps public-path misses self-contained even when a remote upstream origin remains configured locally.
+- [x] Why:
+  - local contributor runs legitimately keep the deployed gateway upstream origin in `.env.local`, but local public-path misses must not try to forward to the live remote host just because that env value is present.
+- [x] Evidence:
+  - `make test-local-contributor-self-contained-public-site-contract`
+  - `make test-local-contributor-sim-isolation-contract`
+  - live spot-check: `GET /favicon.ico` returned a local `404 Not Found`
+  - live spot-check: `GET /totally-unlisted/` stayed local and did not return the `Gateway forwarding unavailable` fallback
+
 ### Local Contributor Sim-Isolation Proof Stabilization
 
 - [x] Fixed the local sim-isolation proof so it observes real new-run worker activity instead of timing out against stale historical `tick_count` values from the previous off-state.

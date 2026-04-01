@@ -63,12 +63,26 @@ pub(crate) fn maybe_handle(req: &Request, path: &str, cfg: &Config) -> Option<Re
     maybe_handle_with_availability(req, path, availability_from_runtime(cfg))
 }
 
+pub(crate) fn maybe_handle_without_config(req: &Request, path: &str) -> Option<Response> {
+    maybe_handle_with_availability(
+        req,
+        path,
+        SimPublicAvailability {
+            runtime_environment: crate::config::runtime_environment(),
+            artifact_available: sim_public_site_artifact_available(),
+        },
+    )
+}
+
 pub(crate) fn maybe_handle_with_availability(
     req: &Request,
     path: &str,
     availability: SimPublicAvailability,
 ) -> Option<Response> {
-    let Some(relative_asset_path) = sim_public_relative_asset_path(path) else {
+    let Some(relative_asset_path) = sim_public_relative_asset_path_for_mode(
+        path,
+        crate::config::local_contributor_ingress_enabled(),
+    ) else {
         return None;
     };
     if !availability.is_enabled() {
@@ -92,9 +106,12 @@ pub(crate) fn maybe_handle_with_availability(
     }
 }
 
-fn sim_public_relative_asset_path(path: &str) -> Option<PathBuf> {
+fn sim_public_relative_asset_path_for_mode(
+    path: &str,
+    local_contributor_ingress_enabled: bool,
+) -> Option<PathBuf> {
     let normalized_path = normalize_request_path(path);
-    if !http_route_namespace::is_generated_public_site_path(normalized_path) {
+    if !should_claim_public_root_path(normalized_path, local_contributor_ingress_enabled) {
         return None;
     }
 
@@ -119,6 +136,16 @@ fn sim_public_relative_asset_path(path: &str) -> Option<PathBuf> {
     }
 
     Some(relative)
+}
+
+fn should_claim_public_root_path(path: &str, local_contributor_ingress_enabled: bool) -> bool {
+    if http_route_namespace::is_generated_public_site_path(path) {
+        return true;
+    }
+    if !local_contributor_ingress_enabled {
+        return false;
+    }
+    !path.starts_with(http_route_namespace::SHUMA_PREFIX)
 }
 
 fn normalize_request_path(path: &str) -> &str {
@@ -215,38 +242,61 @@ mod tests {
     #[test]
     fn sim_public_relative_asset_path_maps_root_hosted_routes() {
         assert_eq!(
-            sim_public_relative_asset_path("/"),
+            sim_public_relative_asset_path_for_mode("/", false),
             Some(PathBuf::from("index.html"))
         );
         assert_eq!(
-            sim_public_relative_asset_path("/about/"),
+            sim_public_relative_asset_path_for_mode("/about/", false),
             Some(PathBuf::from("about").join("index.html"))
         );
         assert_eq!(
-            sim_public_relative_asset_path("/about"),
+            sim_public_relative_asset_path_for_mode("/about", false),
             Some(PathBuf::from("about").join("index.html"))
         );
         assert_eq!(
-            sim_public_relative_asset_path("/atom.xml"),
+            sim_public_relative_asset_path_for_mode("/atom.xml", false),
             Some(PathBuf::from("atom.xml"))
         );
         assert_eq!(
-            sim_public_relative_asset_path("/robots.txt"),
+            sim_public_relative_asset_path_for_mode("/robots.txt", false),
             Some(PathBuf::from("robots.txt"))
         );
         assert_eq!(
-            sim_public_relative_asset_path("/sitemap.xml"),
+            sim_public_relative_asset_path_for_mode("/sitemap.xml", false),
             Some(PathBuf::from("sitemap.xml"))
         );
         assert_eq!(
-            sim_public_relative_asset_path("/research/alpha/"),
+            sim_public_relative_asset_path_for_mode("/research/alpha/", false),
             Some(PathBuf::from("research").join("alpha").join("index.html"))
         );
     }
 
     #[test]
     fn sim_public_relative_asset_path_rejects_shuma_control_paths() {
-        assert_eq!(sim_public_relative_asset_path("/shuma/health"), None);
+        assert_eq!(
+            sim_public_relative_asset_path_for_mode("/shuma/health", false),
+            None
+        );
+        assert_eq!(
+            sim_public_relative_asset_path_for_mode("/shuma/health", true),
+            None
+        );
+    }
+
+    #[test]
+    fn sim_public_relative_asset_path_claims_unknown_public_paths_for_local_contributor_mode() {
+        assert_eq!(
+            sim_public_relative_asset_path_for_mode("/favicon.ico", true),
+            Some(PathBuf::from("favicon.ico"))
+        );
+        assert_eq!(
+            sim_public_relative_asset_path_for_mode("/totally-unlisted", true),
+            Some(PathBuf::from("totally-unlisted").join("index.html"))
+        );
+        assert_eq!(
+            sim_public_relative_asset_path_for_mode("/totally-unlisted", false),
+            None
+        );
     }
 
     #[test]
@@ -274,6 +324,23 @@ mod tests {
         };
         let resp = maybe_handle_with_availability(&req, "/", availability)
             .expect("sim route should be handled");
+        assert_eq!(*resp.status(), 404u16);
+    }
+
+    #[test]
+    fn maybe_handle_returns_local_not_found_for_unknown_public_paths_in_local_contributor_mode() {
+        let _lock = crate::test_support::lock_env();
+        std::env::set_var("SHUMA_LOCAL_CONTRIBUTOR_INGRESS_ENABLE", "true");
+
+        let req = request(Method::Get, "/favicon.ico");
+        let availability = SimPublicAvailability {
+            runtime_environment: RuntimeEnvironment::RuntimeDev,
+            artifact_available: false,
+        };
+        let resp = maybe_handle_with_availability(&req, "/favicon.ico", availability)
+            .expect("local contributor mode should claim public paths");
+
+        std::env::remove_var("SHUMA_LOCAL_CONTRIBUTOR_INGRESS_ENABLE");
         assert_eq!(*resp.status(), 404u16);
     }
 

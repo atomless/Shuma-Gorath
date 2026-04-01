@@ -150,6 +150,9 @@ pub(crate) fn handle_request(req: &Request) -> Response {
     let static_bypass = crate::should_bypass_expensive_bot_checks_for_static(req, path);
     let ip = crate::extract_client_ip(req);
     if static_bypass {
+        if let Some(response) = crate::runtime::sim_public::maybe_handle_without_config(req, path) {
+            return response;
+        }
         return crate::runtime::upstream_proxy::forward_allow_request(
             crate::runtime::upstream_proxy::ForwardRequestContext { req, ip: &ip },
             "static_asset_bypass",

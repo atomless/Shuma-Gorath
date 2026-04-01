@@ -1670,6 +1670,7 @@ fn validate_env_only_impl() -> Result<(), String> {
     validate_optional_runtime_environment_var("SHUMA_RUNTIME_ENV")?;
     validate_optional_u64_var("SHUMA_RUNTIME_DEV_OVERSIGHT_WATCH_WINDOW_SECONDS")?;
     validate_optional_bool_like_var("SHUMA_LOCAL_PROD_DIRECT_MODE")?;
+    validate_optional_bool_like_var("SHUMA_LOCAL_CONTRIBUTOR_INGRESS_ENABLE")?;
     validate_optional_bool_like_var("SHUMA_ADVERSARY_SIM_AVAILABLE")?;
     validate_optional_secret_var("SHUMA_ADVERSARY_SIM_EDGE_CRON_SECRET")?;
     validate_optional_secret_var("SHUMA_SIM_TELEMETRY_SECRET")?;
@@ -2491,6 +2492,13 @@ pub fn local_prod_direct_mode() -> bool {
     env_bool_optional(
         "SHUMA_LOCAL_PROD_DIRECT_MODE",
         defaults_bool("SHUMA_LOCAL_PROD_DIRECT_MODE"),
+    )
+}
+
+pub fn local_contributor_ingress_enabled() -> bool {
+    env_bool_optional(
+        "SHUMA_LOCAL_CONTRIBUTOR_INGRESS_ENABLE",
+        defaults_bool("SHUMA_LOCAL_CONTRIBUTOR_INGRESS_ENABLE"),
     )
 }
 

@@ -919,6 +919,7 @@ echo ""
 
 - `make dev`, `make run`, and `make run-prebuilt` now boot a local trusted ingress on `http://127.0.0.1:3000` and move the internal Spin origin to `http://127.0.0.1:3001`.
 - Contributor browsing on the public local path now reaches Shuma through that ingress, so ordinary local browser requests are observed as `127.0.0.1` rather than collapsing to `unknown`.
+- Even if `.env.local` still carries a deployed `SHUMA_GATEWAY_UPSTREAM_ORIGIN`, that local contributor-ingress mode keeps unknown public-root misses self-contained and returns local `404`s rather than trying to forward to the remote host.
 - Direct origin traffic to `http://127.0.0.1:3001` without trusted forwarding still collapses to `unknown`; the local root-access proof uses that internal origin path intentionally to prove the public contributor path stays browseable even while `unknown` is banned.
 - `make dev`, `make run`, and `make run-prebuilt` still schedule loopback-ban cleanup after the local server comes up, so stale `unknown` or loopback bans from earlier local browser automation should not strand contributor browsing at `/`.
 - The dashboard Playwright wrapper now clears loopback-style bans before and after local browser runs for the same reason.
