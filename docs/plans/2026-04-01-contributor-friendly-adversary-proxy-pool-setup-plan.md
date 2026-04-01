@@ -4,6 +4,8 @@
 
 **Architecture:** Keep the current runtime trust boundary intact, treat real hostile egress as an external dependency, and add a Shuma-owned local workflow that can intake provider credentials, materialize normalized request/browser/agentic pool artifacts under local generated state, validate them, and expose exact readiness truth through `make` targets.
 
+**Target posture refinement:** When Shuma is running on the canonical Linode shared-host remote, the protected target is the root-hosted Shuma site at the remote receipt `runtime.public_base_url`. This chain must make proxy-pool setup and readiness remote-aware; it must not introduce or depend on a second public target site.
+
 Related context:
 
 - [`../research/2026-04-01-contributor-friendly-adversary-proxy-pool-setup-review.md`](../research/2026-04-01-contributor-friendly-adversary-proxy-pool-setup-review.md)
@@ -28,7 +30,8 @@ Explicitly not included here:
 1. creating proxy vendors or external hostile egress out of thin air,
 2. generic hosted BaaS as the default path,
 3. automatic daily regeneration during ordinary `make dev`,
-4. or widening attacker-plane worker privileges.
+4. widening attacker-plane worker privileges,
+5. or building a separate public protected target when the Linode shared-host deployment already provides one.
 
 ## Acceptance Criteria
 
@@ -39,6 +42,7 @@ Explicitly not included here:
 5. The trusted-ingress boundary stays unchanged: workers still must not emit `x-shuma-forwarded-secret`.
 6. An optional agent-facing runbook or skill adapter may assist setup, but the canonical workflow remains repo-owned `make` targets plus docs.
 7. A shared hosted broker remains explicitly deferred until the local path is landed and proven useful.
+8. When an active Linode shared-host remote exists, the workflow consumes that remote `public_base_url` as the canonical protected target rather than requiring a second target hostname or tunnel.
 
 ## Task 1: `SIM-REALISM-ENV-1A` Freeze The Setup Contract And Artifact Layout
 
@@ -51,11 +55,13 @@ Explicitly not included here:
 2. Freeze the generated local artifact location under `.shuma/`.
 3. Freeze lane-specific artifact boundaries for Scrapling request, Scrapling browser, and Agentic request pools.
 4. Keep secrets, generated pool manifests, and health receipts out of tracked source files.
+5. Freeze the protected-target contract so the canonical Linode shared-host remote `public_base_url` is preferred whenever an active remote receipt exists.
 
 **Acceptance criteria:**
 1. Contributors have one canonical place to put provider-backed setup inputs.
 2. Generated artifacts are clearly separated from source and documentation.
 3. Lane-specific pool artifacts are explicit rather than one undifferentiated proxy list.
+4. The setup contract does not imply that contributors must create or maintain a second public target to exercise representative hostile traffic.
 
 **Proof:**
 1. Add and pass `make test-adversary-sim-proxy-setup-contract`.
@@ -70,11 +76,13 @@ Explicitly not included here:
 1. Add canonical setup and validation targets for hostile proxy-pool readiness.
 2. Support explicit refresh and refresh-if-stale behavior rather than automatic regeneration on every normal dev/build cycle.
 3. Surface exact validation failures when provider inputs or generated pools are missing or invalid.
+4. Resolve the protected target from the active Linode shared-host remote receipt when present, falling back to local-only topology only when no remote target is configured.
 
 **Acceptance criteria:**
 1. Contributors can bootstrap hostile-pool readiness through documented `make` targets.
 2. The workflow is explicit and repeatable.
 3. Normal `make dev` remains fast and reuses validated artifacts.
+4. Shared-host contributors can point hostile lanes at the already-deployed root-hosted Shuma site without inventing another public target.
 
 **Proof:**
 1. Add and pass `make test-adversary-sim-proxy-setup-flow`.
@@ -89,11 +97,13 @@ Explicitly not included here:
 1. Add a narrow local helper or broker process that can transform provider-backed inputs into normalized lane pool artifacts.
 2. Validate proxy reachability and identity metadata before lanes consume the pools.
 3. Expose compact redacted health and readiness output without leaking raw secrets into dashboards or worker plans.
+4. Keep that broker focused on pool normalization and validation; the protected target remains the existing remote Shuma site when shared-host receipts exist.
 
 **Acceptance criteria:**
 1. Contributors do not need to hand-maintain raw lane pool JSON.
 2. Broken provider inputs fail during setup validation rather than during later lane execution.
 3. Pool health state is available without turning the broker into a generic platform dependency.
+4. The broker does not grow into a second site-hosting or target-creation layer.
 
 **Proof:**
 1. Add and pass `make test-adversary-sim-proxy-broker-contract`.
@@ -108,11 +118,13 @@ Explicitly not included here:
 1. Add contributor-facing docs that explain local prerequisites, exact setup steps, and degraded-versus-representative outcomes.
 2. Add an optional agent-facing runbook or skill adapter that wraps the canonical repo workflow.
 3. Keep that adapter as a convenience layer rather than the only supported path.
+4. Make the remote-target story explicit: when Linode shared-host is active, the hostile lanes attack the root-hosted Shuma site already deployed there.
 
 **Acceptance criteria:**
 1. A contributor can go from provider credentials to validated local readiness without reverse-engineering internal env names.
 2. Any runbook or skill adapter uses the same `make` workflow and generated artifacts as manual contributors.
 3. Docs explain clearly which parts remain external infrastructure.
+4. Docs explain clearly that the canonical protected target on shared-host is the deployed Shuma site itself, not a second synthetic host.
 
 **Proof:**
 1. Add and pass `make test-adversary-sim-proxy-setup-docs-contract`.

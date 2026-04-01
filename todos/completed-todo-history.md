@@ -4,6 +4,23 @@ Moved from active TODO files on 2026-02-14.
 
 ## Additional completions (2026-04-01)
 
+### Shared-Host Protected-Target Clarification For Adversary Realism
+
+- [x] Tightened the active adversary-readiness planning chain so it now states explicitly that the canonical Linode shared-host deployment already provides the protected target: the hostile lanes should attack the deployed root-hosted Shuma site itself rather than inventing a second public target.
+- [x] Updated the related environment-readiness review and plan in:
+  - [`../docs/research/2026-04-01-contributor-friendly-adversary-proxy-pool-setup-review.md`](../docs/research/2026-04-01-contributor-friendly-adversary-proxy-pool-setup-review.md)
+  - [`../docs/plans/2026-04-01-contributor-friendly-adversary-proxy-pool-setup-plan.md`](../docs/plans/2026-04-01-contributor-friendly-adversary-proxy-pool-setup-plan.md)
+  - [`../todos/todo.md`](../todos/todo.md)
+  - [`../todos/blocked-todo.md`](../todos/blocked-todo.md)
+  - [`../docs/plans/2026-03-20-mature-adversary-sim-evolution-roadmap.md`](../docs/plans/2026-03-20-mature-adversary-sim-evolution-roadmap.md)
+  - [`../docs/plans/2026-03-16-pre-launch-roadmap-gap-capture-and-sequencing.md`](../docs/plans/2026-03-16-pre-launch-roadmap-gap-capture-and-sequencing.md)
+- [x] What landed:
+  - the contributor-friendly hostile-proxy setup chain is now explicitly remote-aware rather than target-creation-oriented,
+  - the backlog closure gates now require the active Linode shared-host remote `public_base_url` to be preferred as the canonical protected target when present,
+  - and the roadmap/blocker language now says plainly that the remaining realism work is proxy-pool setup, trusted-ingress compatibility, and readiness validation against the already-deployed Shuma site.
+- [x] Evidence:
+  - `git diff --check`
+
 ### Adversary Proxy-Pool Setup Planning
 
 - [x] Added a focused environment-readiness planning chain in:

@@ -42,6 +42,8 @@ What is still missing is a contributor-owned setup workflow. The repo does not y
 3. validating health and readiness,
 4. and surfacing a compact local status that tells a contributor whether the hostile lanes are truly representative.
 
+Shuma also already has a canonical remote shared-host target shape. The Linode shared-host deploy flow provisions a real public base URL, serves the protected site from the host root, and fronts runtime traffic with a Shuma-owned reverse proxy that injects the forwarded-secret trust hop. That means the environment-readiness chain does **not** need to invent a second protected target when Shuma is already running remotely on Linode. In that topology, the Linode-hosted Shuma site itself is the canonical protected target the hostile lanes should begin from.
+
 ## What Must Remain External
 
 Shuma cannot create real hostile identities from localhost.
@@ -130,6 +132,12 @@ Adopt a two-layer contract:
 1. canonical path: repo-owned `make` workflow plus local sidecar processes,
 2. optional convenience path: an agent-facing runbook or skill adapter that wraps the same repo workflow.
 
+Refinement for shared-host reality:
+
+1. when Shuma is running on the canonical Linode shared-host remote, the root-hosted Shuma site is the protected target,
+2. contributors should point hostile egress and readiness validation at that remote `public_base_url`,
+3. and the remaining realism work should focus on remote-aware proxy-pool setup, trusted-ingress compatibility, and readiness validation rather than constructing a separate public target site.
+
 That runbook or skill adapter should not be the only path because:
 
 1. contributors must be able to use the workflow without any specific assistant runtime,
@@ -158,6 +166,16 @@ The first-class local topology should be:
 4. feeding normalized pool entries to Scrapling request, Scrapling browser, and Agentic request lanes,
 5. while leaving the actual egress IP inventory external through provider-backed proxies.
 
+### Remote Shared-Host Topology
+
+The first-class production-like topology should be:
+
+1. running Shuma on the Linode shared-host remote with the generated public site served at `/`,
+2. using the remote receipt `runtime.public_base_url` as the canonical protected target,
+3. preserving Shuma-owned control surfaces under `/shuma/*`,
+4. feeding provider-backed hostile egress through request/browser/agentic pools toward that remote target,
+5. and treating remote reachability as solved by the existing shared-host deploy rather than by a separate tunnel or second public target.
+
 ### Optional Agent-Facing Runbook Or Skill Adapter
 
 The optional runbook or skill adapter should:
@@ -175,6 +193,7 @@ The optional runbook or skill adapter should:
 4. Do not make `make dev` regenerate hostile-pool artifacts on every run.
 5. Do not make an agent-facing runbook or skill adapter the only supported setup path.
 6. Do not treat a generic BaaS as the required first implementation.
+7. Do not build or document a second public protected target when the canonical Linode shared-host deployment already exposes the root-hosted Shuma site.
 
 ## Consequence For The Roadmap
 

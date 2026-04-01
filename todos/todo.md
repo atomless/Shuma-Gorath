@@ -1,6 +1,6 @@
 # TODO Roadmap
 
-Last updated: 2026-03-31
+Last updated: 2026-04-01
 
 This is the active execution-ready work queue.
 Blocked or contingent work lives in `todos/blocked-todo.md`.
@@ -191,38 +191,44 @@ Current stance:
 - The canonical path should be repo-owned `make` targets plus local sidecars and generated local artifacts under `.shuma/`; an optional agent-facing runbook or skill adapter may wrap that workflow later, but must not replace it.
 - Real hostile egress still remains an external dependency: the repo can orchestrate and validate it, but cannot manufacture residential, mobile, or datacenter IP space locally.
 - Do not make normal `make dev` or `make build` regenerate hostile-pool artifacts continuously; setup and refresh must stay explicit or stale-checked.
+- When Shuma is running on the canonical Linode shared-host remote, that root-hosted Shuma site is the protected target the hostile lanes should attack. Do not build or plan around a second public target in that topology.
+- The environment-readiness chain is therefore remote-aware proxy-pool setup and validation work: consume the active remote receipt `public_base_url`, wire hostile pools toward it, and keep the protected-site story identical to the real hosted deployment.
 
 - [ ] SIM-REALISM-ENV-1A Freeze the contributor-local hostile proxy-pool setup contract and generated artifact layout.
   - Closure gate:
     - contract truth: Shuma must have one exact provider-profile input contract and one exact generated local-state layout for hostile proxy pools rather than ad hoc env sprawl or hand-authored JSON blobs
     - separation truth: generated artifacts must live under `.shuma/` and must not be checked into `src/`, `docs/`, or tracked config files
     - lane truth: Scrapling request, Scrapling browser, and Agentic request pools must remain distinct rather than collapsing into one undifferentiated proxy list
+    - target truth: the contract must explicitly prefer the active Linode shared-host remote `public_base_url` as the canonical protected target when present, rather than implying a second public target
     - proof: add and pass `make test-adversary-sim-proxy-setup-contract`
-    - insufficient: undocumented env variables, checked-in proxy artifacts, or one shared pool that ignores browser/request distinctions
+    - insufficient: undocumented env variables, checked-in proxy artifacts, one shared pool that ignores browser/request distinctions, or any setup story that assumes contributors must create a second public target while shared-host is already deployed
 
 - [ ] SIM-REALISM-ENV-1B Add make-driven setup, refresh, and validation commands for provider-backed hostile pools and trusted ingress.
   - Closure gate:
     - contributor truth: a contributor must be able to bootstrap hostile-pool readiness through documented `make` commands without hand-editing raw lane pool JSON
     - build-hygiene truth: normal `make dev` must reuse validated artifacts and must not regenerate hostile-pool state on every run
     - validation truth: setup failures must explain exactly which provider, pool, or trusted-ingress prerequisite is missing or malformed
+    - remote-target truth: when an active shared-host remote receipt exists, the setup flow must resolve and validate against that deployed root-hosted Shuma site instead of a second target hostname
     - proof: add and pass `make test-adversary-sim-proxy-setup-flow`
-    - insufficient: manual copy-paste workflows, hidden refresh steps, or build-time regeneration on every run
+    - insufficient: manual copy-paste workflows, hidden refresh steps, build-time regeneration on every run, or a remote-host workflow that still asks the contributor to build a separate public target
 
 - [ ] SIM-REALISM-ENV-1C Add a narrow local broker/helper process that materializes lane pools and validates health.
   - Closure gate:
     - materialization truth: Shuma must be able to turn provider-backed inputs into normalized request/browser/agentic pool artifacts without contributors maintaining raw pool JSON directly
     - health truth: broken or unreachable proxy entries must fail during setup validation rather than during later adversary execution
     - trust-boundary truth: workers must still not receive `x-shuma-forwarded-secret` or any equivalent trusted-ingress privilege
+    - scope truth: the helper may normalize pool artifacts and health, but it must not become a second protected-target hosting layer when shared-host is already available
     - proof: add and pass `make test-adversary-sim-proxy-broker-contract`
-    - insufficient: a generic platform service, secrets leaking into worker-visible artifacts, or health truth that only appears after a failed sim run
+    - insufficient: a generic platform service, secrets leaking into worker-visible artifacts, health truth that only appears after a failed sim run, or helper behavior that duplicates site-hosting responsibility
 
 - [ ] SIM-REALISM-ENV-1D Add contributor docs and an optional agent-facing runbook or skill adapter over the canonical repo workflow.
   - Closure gate:
     - docs truth: contributors must have a clear runbook from provider credentials to representative readiness, including what remains external infrastructure
     - adapter truth: any optional runbook or skill adapter must call the same `make` workflow and surface the same readiness truth rather than becoming a hidden parallel implementation
     - adoption truth: contributors without any particular assistant runtime must still be fully supported
+    - topology truth: docs must say plainly that on Linode shared-host the protected target is the deployed Shuma root site, while local-only topologies may still need separate reachability arrangements
     - proof: add and pass `make test-adversary-sim-proxy-setup-docs-contract`
-    - insufficient: assistant-only setup, undocumented manual steps, or guidance that implies the repo itself can create real hostile IP space
+    - insufficient: assistant-only setup, undocumented manual steps, guidance that implies the repo itself can create real hostile IP space, or docs that leave the shared-host target story ambiguous
 
 ## P1 Verified Bot Identity And Web Bot Auth Foundation
 

@@ -149,6 +149,12 @@ This should happen before:
 2. later bounded auto-apply,
 3. and code-evolution PR generation.
 
+Shared-host execution refinement:
+
+1. when Shuma is running on the canonical Linode shared-host remote, the protected target for emergent hostile lanes should be the deployed root-hosted Shuma site itself,
+2. not a second synthetic public target,
+3. and environment-readiness work should therefore focus on remote-aware hostile egress setup, trusted-ingress compatibility, and representativeness validation against that real hosted surface.
+
 ## Sequencing Consequences
 
 ### 1. Deterministic lane stays important
