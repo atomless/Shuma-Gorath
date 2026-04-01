@@ -1,6 +1,6 @@
 # Blocked TODO Roadmap
 
-Last updated: 2026-03-31
+Last updated: 2026-04-01
 
 This file holds gated, contingent, or explicitly deferred work that is not execution-ready.
 Move an item back into `todos/todo.md` only when its blocking condition is cleared.
@@ -10,7 +10,7 @@ Security finding validity and closure status live in `todos/security-review.md`.
 ## P0 Blocked by Remaining Adversary Realism and Mixed-Attacker Readiness
 
 - [ ] RSI-GAME-HO-2 Re-run the strict `human_only_private` Game Loop under combined Scrapling plus LLM attacker pressure.
-  Blocker: `SIM-LLM-1C3` and the full adversary-realism chain are now landed, so missing lane runtime or missing representativeness gating is no longer the blocker. Keep this tranche blocked until the combined-attacker architecture frozen in [`../docs/research/2026-03-28-rsi-game-ho-2-combined-attacker-architecture-gap-review.md`](../docs/research/2026-03-28-rsi-game-ho-2-combined-attacker-architecture-gap-review.md) and [`../docs/plans/2026-03-28-rsi-game-ho-2-combined-attacker-orchestration-plan.md`](../docs/plans/2026-03-28-rsi-game-ho-2-combined-attacker-orchestration-plan.md) is approved and landed, and until the target environment reports representative hostile readiness rather than partial or degraded readiness through the new gate. The real blocker is now:
+  Blocker: `SIM-LLM-1C3` and the full adversary-realism chain are now landed, so missing lane runtime or missing representativeness gating is no longer the blocker. Keep this tranche blocked until the combined-attacker architecture frozen in [`../docs/research/2026-03-28-rsi-game-ho-2-combined-attacker-architecture-gap-review.md`](../docs/research/2026-03-28-rsi-game-ho-2-combined-attacker-architecture-gap-review.md) and [`../docs/plans/2026-03-28-rsi-game-ho-2-combined-attacker-orchestration-plan.md`](../docs/plans/2026-03-28-rsi-game-ho-2-combined-attacker-orchestration-plan.md) is approved and landed, and until the target environment reports representative hostile readiness rather than partial or degraded readiness through the new gate. The immediate readiness work for that blocker is now `SIM-REALISM-ENV-1A..1D`. The real blocker is now:
   - controller-grade restriction scoring is still mostly Scrapling-native,
   - LLM runtime receipts are visible but not yet board-locus or restriction-grade breach receipts,
   - mixed-attacker pressure in the target environment is not yet representative while the landed readiness gate still reports partial or degraded hostile-lane backing there,
@@ -52,13 +52,13 @@ Security finding validity and closure status live in `todos/security-review.md`.
 ## P1 Blocked by Adversary Realism Or Roadmap Reprioritisation After Deployment Baseline
 
 - [ ] TUNE-SURFACE-2 Write a fresh Tuning-tab research and implementation plan around editable cost-shaping controls only.
-  Blocker: keep blocked until the strict mixed-attacker Game Loop proof resumes and the target environment proves representative hostile readiness through the landed gate, because `Tuning` must be planned against representative adversary pressure rather than partial or degraded readiness.
+  Blocker: keep blocked until the strict mixed-attacker Game Loop proof resumes and the target environment proves representative hostile readiness through the landed gate, because `Tuning` must be planned against representative adversary pressure rather than partial or degraded readiness. The next readiness chain toward that condition is `SIM-REALISM-ENV-1A..1D`.
   - Reference context:
     - [`../docs/dashboard-tabs/tuning.md`](../docs/dashboard-tabs/tuning.md)
     - [`../docs/research/2026-03-24-controller-tunable-config-surface-and-hard-boundaries-review.md`](../docs/research/2026-03-24-controller-tunable-config-surface-and-hard-boundaries-review.md)
 
 - [ ] TUNE-SURFACE-2A Expand `Tuning` to the full currently ratified editable controller-tunable ring.
-  Blocker: keep blocked until the Game Loop can truthfully optimize against representative attacker evidence in a target environment that actually reports representative hostile readiness. Do not widen loop-editable controls while the attacker model is still only partial or degraded in the environment that will drive tuning.
+  Blocker: keep blocked until the Game Loop can truthfully optimize against representative attacker evidence in a target environment that actually reports representative hostile readiness. Do not widen loop-editable controls while the attacker model is still only partial or degraded in the environment that will drive tuning. The next readiness chain toward that condition is `SIM-REALISM-ENV-1A..1D`.
   - Reference context:
     - [`../docs/dashboard-tabs/tuning.md`](../docs/dashboard-tabs/tuning.md)
     - [`../docs/research/2026-03-24-controller-tunable-config-surface-and-hard-boundaries-review.md`](../docs/research/2026-03-24-controller-tunable-config-surface-and-hard-boundaries-review.md)
@@ -70,10 +70,13 @@ Security finding validity and closure status live in `todos/security-review.md`.
     - [`../docs/research/2026-03-24-controller-tunable-config-surface-and-hard-boundaries-review.md`](../docs/research/2026-03-24-controller-tunable-config-surface-and-hard-boundaries-review.md)
 
 - [ ] TUNE-BAN-1 Design bounded ban-behavior tuning primitives for recurrence, re-entry, and longer-window cost shaping.
-  Blocker: keep blocked until the remaining realism chain closes, because ban-behavior tuning should be designed against representative recurrence, re-entry, traversal, trusted-ingress identity evidence, and long-window campaign-return behavior rather than today’s still-degraded attacker model.
+  Blocker: keep blocked until target-environment readiness is representative rather than partial or degraded, because ban-behavior tuning should be designed against representative recurrence, re-entry, traversal, trusted-ingress identity evidence, and long-window campaign-return behavior rather than today’s still-degraded attacker model. The immediate readiness work is `SIM-REALISM-ENV-1A..1D`.
+
+- [ ] SIM-REALISM-ENV-1E Evaluate a Shuma-owned shared hostile-proxy broker only after the local contributor setup chain lands.
+  Blocker: keep blocked until `SIM-REALISM-ENV-1A..1D` are landed and proven useful. Do not jump to a generic BaaS or a shared hosted broker before the repo-owned local workflow, local generated-state contract, and local sidecar validation path exist and are demonstrably insufficient for team staging needs.
   - Reference context:
-    - [`../docs/research/2026-03-16-agentic-era-ban-jitter-recidive-and-central-intelligence-research-synthesis.md`](../docs/research/2026-03-16-agentic-era-ban-jitter-recidive-and-central-intelligence-research-synthesis.md)
-    - [`../docs/research/2026-03-24-controller-tunable-config-surface-and-hard-boundaries-review.md`](../docs/research/2026-03-24-controller-tunable-config-surface-and-hard-boundaries-review.md)
+    - [`../docs/research/2026-04-01-contributor-friendly-adversary-proxy-pool-setup-review.md`](../docs/research/2026-04-01-contributor-friendly-adversary-proxy-pool-setup-review.md)
+    - [`../docs/plans/2026-04-01-contributor-friendly-adversary-proxy-pool-setup-plan.md`](../docs/plans/2026-04-01-contributor-friendly-adversary-proxy-pool-setup-plan.md)
 
 - [ ] TUNE-BAN-2 If bounded ban-behavior tuning is ratified, surface those controls in `Tuning` with explicit horizon and mutability labeling.
   Blocker: keep blocked with `TUNE-BAN-1`; no later ban-behavior tuning surface should ship until the loop is optimizing against representative adversary pressure and the ratified bounded primitives exist.

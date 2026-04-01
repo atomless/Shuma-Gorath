@@ -247,6 +247,8 @@ The adopted execution order on this roadmap is therefore:
 
 At the current point in that order, `SIM-REALISM-3E` is now landed as well, so the adversary-realism implementation chain is complete. No further Game Loop or Tuning execution should proceed until the landed representativeness readiness gate reports representative hostile-lane backing in the target environment, because later loop and tuning work would otherwise optimize against attacker traffic that is still only partially or degradedly representative there even though the code path now fails closed truthfully.
 
+The next execution-ready work is therefore no longer another core lane-realism tranche. It is the contributor-facing environment-readiness chain frozen in [`2026-04-01-contributor-friendly-adversary-proxy-pool-setup-plan.md`](2026-04-01-contributor-friendly-adversary-proxy-pool-setup-plan.md): repo-owned hostile proxy-pool setup, local sidecar orchestration, exact readiness validation, and optional skill-assisted setup on top of that canonical workflow.
+
 Before Shuma should describe Scrapling or Agentic Traffic as representative tuning evidence, it should:
 
 1. freeze explicit per-lane or per-mode realism profiles for cadence, burst shape, dwell, identity rotation, JavaScript or browser propensity, and retry ceilings,

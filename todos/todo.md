@@ -167,6 +167,7 @@ Current note:
 - The landed adversary-realism chain now inherits the shared acceptance and envelope-governance contract in [`../docs/plans/2026-03-31-adversary-realism-acceptance-and-envelope-governance-plan.md`](../docs/plans/2026-03-31-adversary-realism-acceptance-and-envelope-governance-plan.md): no tranche closed from “more bans” alone, every envelope was required to map to a hostile persona model rather than simulator comfort limits, and every tranche had to prove measurable baseline-to-post-tranche realism escalation in its relevant scorecard dimensions.
 - Do not treat mere lane execution or recent-run visibility as characteristic attacker pressure unless the landed `representativeness_readiness` gate is currently reporting representative hostile-lane readiness for the target environment.
 - The adversary-realism implementation chain is now landed, but later Game Loop and Tuning work remain blocked until the target environment proves representative hostile readiness through the new gate and the mixed-attacker judged-episode proof resumes.
+- The next execution-ready work is no longer another core realism lane tranche. It is the contributor-friendly environment-readiness chain in [`../docs/plans/2026-04-01-contributor-friendly-adversary-proxy-pool-setup-plan.md`](../docs/plans/2026-04-01-contributor-friendly-adversary-proxy-pool-setup-plan.md): repo-owned hostile proxy-pool setup, local sidecars, exact readiness validation, and an optional skill wrapper over that canonical workflow.
 - Do not open `humans_plus_verified_only` until a later second strict-baseline proof has shown retained config-change improvement under both Scrapling and LLM attacker pressure.
 - `DIAG-CLEANUP-1`, `MON-OVERHAUL-1C`, and `SIM-LLM-1C3` are now all landed, so the later combined-attacker strict-baseline proof is no longer blocked by missing LLM runtime visibility.
 - The real `RSI-GAME-HO-2` blocker is now architectural and explicit:
@@ -174,6 +175,54 @@ Current note:
   - `bot_red_team` runtime receipts now contribute restriction-grade board loci,
   - and the next remaining blocker is projection truth: operator/admin and dashboard surfaces still need to distinguish judged mixed-attacker episodes from mere lane visibility.
 - Do not claim mixed-attacker strict-baseline proof from the new score spine alone; mixed-attacker proof projection and repeated retained improvement under mixed pressure still remain required.
+
+## P0 Adversary Realism Environment Readiness
+
+Reference context:
+- [`../docs/research/2026-04-01-contributor-friendly-adversary-proxy-pool-setup-review.md`](../docs/research/2026-04-01-contributor-friendly-adversary-proxy-pool-setup-review.md)
+- [`../docs/research/2026-03-31-current-ip-collapse-topology-and-trusted-ingress-review.md`](../docs/research/2026-03-31-current-ip-collapse-topology-and-trusted-ingress-review.md)
+- [`../docs/plans/2026-04-01-contributor-friendly-adversary-proxy-pool-setup-plan.md`](../docs/plans/2026-04-01-contributor-friendly-adversary-proxy-pool-setup-plan.md)
+- [`../docs/plans/2026-03-31-current-ip-collapse-topology-and-trusted-ingress-plan.md`](../docs/plans/2026-03-31-current-ip-collapse-topology-and-trusted-ingress-plan.md)
+- [`../docs/adversarial-operator-guide.md`](../docs/adversarial-operator-guide.md)
+
+Current stance:
+- The adversary-realism implementation chain is landed, but representative hostile readiness is still an environment-operability problem.
+- Shuma must own the contributor workflow for hostile proxy-pool setup, trusted-ingress orchestration, validation, and readiness reporting instead of leaving those steps to undocumented external operator improvisation.
+- The canonical path should be repo-owned `make` targets plus local sidecars and generated local artifacts under `.shuma/`; an optional Codex skill may wrap that workflow later, but must not replace it.
+- Real hostile egress still remains an external dependency: the repo can orchestrate and validate it, but cannot manufacture residential, mobile, or datacenter IP space locally.
+- Do not make normal `make dev` or `make build` regenerate hostile-pool artifacts continuously; setup and refresh must stay explicit or stale-checked.
+
+- [ ] SIM-REALISM-ENV-1A Freeze the contributor-local hostile proxy-pool setup contract and generated artifact layout.
+  - Closure gate:
+    - contract truth: Shuma must have one exact provider-profile input contract and one exact generated local-state layout for hostile proxy pools rather than ad hoc env sprawl or hand-authored JSON blobs
+    - separation truth: generated artifacts must live under `.shuma/` and must not be checked into `src/`, `docs/`, or tracked config files
+    - lane truth: Scrapling request, Scrapling browser, and Agentic request pools must remain distinct rather than collapsing into one undifferentiated proxy list
+    - proof: add and pass `make test-adversary-sim-proxy-setup-contract`
+    - insufficient: undocumented env variables, checked-in proxy artifacts, or one shared pool that ignores browser/request distinctions
+
+- [ ] SIM-REALISM-ENV-1B Add make-driven setup, refresh, and validation commands for provider-backed hostile pools and trusted ingress.
+  - Closure gate:
+    - contributor truth: a contributor must be able to bootstrap hostile-pool readiness through documented `make` commands without hand-editing raw lane pool JSON
+    - build-hygiene truth: normal `make dev` must reuse validated artifacts and must not regenerate hostile-pool state on every run
+    - validation truth: setup failures must explain exactly which provider, pool, or trusted-ingress prerequisite is missing or malformed
+    - proof: add and pass `make test-adversary-sim-proxy-setup-flow`
+    - insufficient: manual copy-paste workflows, hidden refresh steps, or build-time regeneration on every run
+
+- [ ] SIM-REALISM-ENV-1C Add a narrow local broker/helper process that materializes lane pools and validates health.
+  - Closure gate:
+    - materialization truth: Shuma must be able to turn provider-backed inputs into normalized request/browser/agentic pool artifacts without contributors maintaining raw pool JSON directly
+    - health truth: broken or unreachable proxy entries must fail during setup validation rather than during later adversary execution
+    - trust-boundary truth: workers must still not receive `x-shuma-forwarded-secret` or any equivalent trusted-ingress privilege
+    - proof: add and pass `make test-adversary-sim-proxy-broker-contract`
+    - insufficient: a generic platform service, secrets leaking into worker-visible artifacts, or health truth that only appears after a failed sim run
+
+- [ ] SIM-REALISM-ENV-1D Add contributor docs and an optional Codex skill over the canonical repo workflow.
+  - Closure gate:
+    - docs truth: contributors must have a clear runbook from provider credentials to representative readiness, including what remains external infrastructure
+    - skill truth: any optional Codex skill must call the same `make` workflow and surface the same readiness truth rather than becoming a hidden parallel implementation
+    - adoption truth: contributors without Codex must still be fully supported
+    - proof: add and pass `make test-adversary-sim-proxy-setup-docs-contract`
+    - insufficient: skill-only setup, undocumented manual steps, or guidance that implies the repo itself can create real hostile IP space
 
 ## P1 Verified Bot Identity And Web Bot Auth Foundation
 

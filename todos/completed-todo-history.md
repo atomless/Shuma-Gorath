@@ -2,6 +2,26 @@
 
 Moved from active TODO files on 2026-02-14.
 
+## Additional completions (2026-04-01)
+
+### Adversary Proxy-Pool Setup Planning
+
+- [x] Added a focused environment-readiness planning chain in:
+  - [`../docs/research/2026-04-01-contributor-friendly-adversary-proxy-pool-setup-review.md`](../docs/research/2026-04-01-contributor-friendly-adversary-proxy-pool-setup-review.md)
+  - [`../docs/plans/2026-04-01-contributor-friendly-adversary-proxy-pool-setup-plan.md`](../docs/plans/2026-04-01-contributor-friendly-adversary-proxy-pool-setup-plan.md)
+  - [`../todos/todo.md`](../todos/todo.md)
+  - [`../todos/blocked-todo.md`](../todos/blocked-todo.md)
+  - [`../docs/research/README.md`](../docs/research/README.md)
+  - [`../docs/plans/README.md`](../docs/plans/README.md)
+  - [`../docs/plans/2026-03-20-mature-adversary-sim-evolution-roadmap.md`](../docs/plans/2026-03-20-mature-adversary-sim-evolution-roadmap.md)
+  - [`../docs/plans/2026-03-16-pre-launch-roadmap-gap-capture-and-sequencing.md`](../docs/plans/2026-03-16-pre-launch-roadmap-gap-capture-and-sequencing.md)
+- [x] What landed:
+  - The repo now has an explicit research and implementation chain for turning representative hostile readiness into a contributor-operable workflow rather than an ad hoc external operator chore.
+  - The new chain freezes the intended architecture as repo-owned `make` targets plus local sidecars and generated local state under `.shuma/`, with an optional Codex skill layered on top rather than replacing the canonical contributor path.
+  - A later shared hosted broker is now explicitly deferred behind the local workflow instead of being treated as the default answer.
+- [x] Evidence:
+  - `git diff --check`
+
 ## Additional completions (2026-03-31)
 
 ### SIM-REALISM-3E Representativeness Infrastructure Gating
