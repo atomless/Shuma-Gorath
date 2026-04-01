@@ -10,12 +10,13 @@ from pathlib import Path
 import re
 import shutil
 import subprocess
-from typing import Iterable
+from typing import Callable, Iterable
 
 FRESHNESS_FILENAME = "freshness.json"
 MANIFEST_FILENAME = "manifest.json"
 SITE_CONTENT_DIRNAME = "site"
 LISTING_PAGE_SIZE = 20
+ProgressFn = Callable[[str], None]
 
 SECTION_ORDER = ("research", "plans", "work")
 SECTION_LABELS = {
@@ -55,16 +56,20 @@ def build_site(
     artifact_root: Path,
     corpus_config_path: Path,
     site_url: str,
+    progress: ProgressFn | None = None,
 ) -> dict[str, object]:
     corpus = load_corpus_config(corpus_config_path)
     root_prefix = normalize_root_prefix(corpus["site"]["root_prefix"])
     sections = load_sections(corpus)
-    rendered_entries = render_entries(repo_root, root_prefix, sections)
+    emit_progress(progress, "sim-public: scanning corpus")
+    rendered_entries = render_entries(repo_root, root_prefix, sections, progress=progress)
+    emit_progress(progress, f"sim-public: rendering {len(rendered_entries)} entries")
     about_html = render_markdown((repo_root / corpus["site"]["about_source"]).read_text(encoding="utf-8"))
 
     site_root = artifact_root / SITE_CONTENT_DIRNAME
     reset_artifact_root(artifact_root)
     site_root.mkdir(parents=True, exist_ok=True)
+    emit_progress(progress, "sim-public: writing site artifact")
 
     generated_at = timestamp_utc()
     page_routes: list[str] = []
@@ -147,6 +152,10 @@ def build_site(
     }
     write_json(artifact_root / MANIFEST_FILENAME, manifest)
     write_json(artifact_root / FRESHNESS_FILENAME, freshness)
+    emit_progress(
+        progress,
+        f"sim-public: refreshed {len(rendered_entries)} entries into {artifact_root}",
+    )
     return manifest
 
 
@@ -156,17 +165,27 @@ def build_site_if_stale(
     corpus_config_path: Path,
     site_url: str,
     if_stale_hours: int,
+    progress: ProgressFn | None = None,
 ) -> dict[str, object] | None:
     if if_stale_hours < 0:
         raise ValueError("if_stale_hours must be zero or greater")
+    emit_progress(progress, "sim-public: checking freshness")
     if not refresh_required(repo_root, artifact_root, if_stale_hours):
+        emit_progress(progress, "sim-public: current; skipping refresh")
         return None
     return build_site(
         repo_root=repo_root,
         artifact_root=artifact_root,
         corpus_config_path=corpus_config_path,
         site_url=site_url,
+        progress=progress,
     )
+
+
+def emit_progress(progress: ProgressFn | None, message: str) -> None:
+    if progress is None:
+        return
+    progress(message)
 
 
 def refresh_required(repo_root: Path, artifact_root: Path, if_stale_hours: int) -> bool:
@@ -306,13 +325,25 @@ def load_sections(corpus: dict[str, object]) -> list[SectionConfig]:
     return sections
 
 
-def render_entries(repo_root: Path, root_prefix: str, sections: Iterable[SectionConfig]) -> list[Entry]:
+def render_entries(
+    repo_root: Path,
+    root_prefix: str,
+    sections: Iterable[SectionConfig],
+    *,
+    progress: ProgressFn | None = None,
+) -> list[Entry]:
     entries: list[Entry] = []
     for section in sections:
+        emit_progress(progress, f"sim-public: rendering {section.key} entries")
+        before_count = len(entries)
         if section.source_glob:
             entries.extend(load_markdown_entries(repo_root, root_prefix, section))
         elif section.source_file:
             entries.extend(load_completed_work_entries(repo_root, root_prefix, section))
+        emit_progress(
+            progress,
+            f"sim-public: rendered {len(entries) - before_count} {section.key} entries",
+        )
     entries.sort(key=lambda entry: (entry.date_iso, entry.title.lower()), reverse=True)
     return entries
 

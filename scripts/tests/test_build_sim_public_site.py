@@ -198,6 +198,8 @@ class BuildSimPublicSiteTests(unittest.TestCase):
     def test_if_stale_hours_skips_fresh_rebuilds(self) -> None:
         first = self.run_build()
         self.assertEqual(first.returncode, 0, msg=first.stderr or first.stdout)
+        self.assertIn("sim-public: scanning corpus", first.stderr)
+        self.assertIn("sim-public: refreshed", first.stderr)
 
         freshness_path = self.artifact_root / "freshness.json"
         first_freshness = freshness_path.read_text(encoding="utf-8")
@@ -224,6 +226,8 @@ class BuildSimPublicSiteTests(unittest.TestCase):
         )
         self.assertEqual(second.returncode, 0, msg=second.stderr or second.stdout)
         self.assertEqual(freshness_path.read_text(encoding="utf-8"), first_freshness)
+        self.assertIn("sim-public: checking freshness", second.stderr)
+        self.assertIn("sim-public: current; skipping refresh", second.stderr)
 
     def test_if_stale_hours_rebuilds_when_corpus_config_changes(self) -> None:
         corpus_config = self.repo_root / "config" / "sim_public_site" / "corpus.toml"
@@ -288,6 +292,14 @@ class BuildSimPublicSiteTests(unittest.TestCase):
         self.assertIn("<ul>", research_html)
         self.assertIn("<li>first signal</li>", research_html)
         self.assertIn("<pre><code class=\"language-rust\">", plan_html)
+
+    def test_build_emits_minimal_progress_messages(self) -> None:
+        result = self.run_build()
+        self.assertEqual(result.returncode, 0, msg=result.stderr or result.stdout)
+        self.assertIn("sim-public: scanning corpus", result.stderr)
+        self.assertIn("sim-public: rendering", result.stderr)
+        self.assertIn("sim-public: writing site artifact", result.stderr)
+        self.assertIn("sim-public: refreshed", result.stderr)
 
 
 if __name__ == "__main__":

@@ -6,6 +6,7 @@ from __future__ import annotations
 import argparse
 import json
 from pathlib import Path
+import sys
 
 from sim_public_site import (
     artifact_root,
@@ -74,6 +75,7 @@ def main() -> int:
         "artifact_root": artifact_root_path,
         "corpus_config_path": corpus_config,
         "site_url": args.site_url.rstrip("/"),
+        "progress": lambda message: print(message, file=sys.stderr, flush=True),
     }
     if args.if_stale_hours is None:
         build_site(**build_kwargs)
