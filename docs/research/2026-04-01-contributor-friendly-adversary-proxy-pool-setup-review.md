@@ -24,7 +24,7 @@ This review narrows the remaining problem:
 1. what should stay outside the repo,
 2. what Shuma should own directly,
 3. whether that workflow should run locally or through a generic hosted backend,
-4. and how a Codex skill should relate to the canonical contributor path.
+4. and how an optional agent-facing runbook or skill adapter should relate to the canonical contributor path.
 
 ## Current State
 
@@ -128,11 +128,11 @@ Why:
 Adopt a two-layer contract:
 
 1. canonical path: repo-owned `make` workflow plus local sidecar processes,
-2. optional convenience path: a Codex skill that wraps the same repo workflow.
+2. optional convenience path: an agent-facing runbook or skill adapter that wraps the same repo workflow.
 
-The Codex skill should not be the only path because:
+That runbook or skill adapter should not be the only path because:
 
-1. contributors must be able to use the workflow without Codex,
+1. contributors must be able to use the workflow without any specific assistant runtime,
 2. `make` targets remain the canonical proof and documentation surface,
 3. and the skill should be a guided wrapper over those targets rather than a separate hidden implementation.
 
@@ -158,9 +158,9 @@ The first-class local topology should be:
 4. feeding normalized pool entries to Scrapling request, Scrapling browser, and Agentic request lanes,
 5. while leaving the actual egress IP inventory external through provider-backed proxies.
 
-### Optional Codex Skill
+### Optional Agent-Facing Runbook Or Skill Adapter
 
-The optional skill should:
+The optional runbook or skill adapter should:
 
 1. collect the required inputs,
 2. call the repo-owned `make` targets,
@@ -173,7 +173,7 @@ The optional skill should:
 2. Do not teach workers any privileged client-IP shortcut.
 3. Do not check generated pool artifacts into the repo.
 4. Do not make `make dev` regenerate hostile-pool artifacts on every run.
-5. Do not make a Codex skill the only supported setup path.
+5. Do not make an agent-facing runbook or skill adapter the only supported setup path.
 6. Do not treat a generic BaaS as the required first implementation.
 
 ## Consequence For The Roadmap

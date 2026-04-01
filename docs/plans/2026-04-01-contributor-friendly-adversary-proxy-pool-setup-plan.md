@@ -21,7 +21,7 @@ Included here:
 2. generated local artifact layout and validation,
 3. local sidecar or broker orchestration,
 4. exact readiness reporting for request/browser/agentic pools,
-5. and an optional Codex skill that wraps the repo-owned workflow.
+5. and an optional agent-facing runbook or skill adapter that wraps the repo-owned workflow.
 
 Explicitly not included here:
 
@@ -37,7 +37,7 @@ Explicitly not included here:
 3. Generated proxy-pool artifacts live under local generated state, not under `src/`, `docs/`, or checked-in config.
 4. Request, browser, and agentic hostile pools are validated separately, and readiness failures explain exactly which lane is still partial or degraded.
 5. The trusted-ingress boundary stays unchanged: workers still must not emit `x-shuma-forwarded-secret`.
-6. A Codex skill may assist setup, but the canonical workflow remains repo-owned `make` targets plus docs.
+6. An optional agent-facing runbook or skill adapter may assist setup, but the canonical workflow remains repo-owned `make` targets plus docs.
 7. A shared hosted broker remains explicitly deferred until the local path is landed and proven useful.
 
 ## Task 1: `SIM-REALISM-ENV-1A` Freeze The Setup Contract And Artifact Layout
@@ -98,20 +98,20 @@ Explicitly not included here:
 **Proof:**
 1. Add and pass `make test-adversary-sim-proxy-broker-contract`.
 
-## Task 4: `SIM-REALISM-ENV-1D` Add Contributor Docs And An Optional Codex Skill
+## Task 4: `SIM-REALISM-ENV-1D` Add Contributor Docs And An Optional Agent-Facing Runbook Or Skill Adapter
 
 **Files:**
-- Later code targets: operator docs, testing docs, setup docs, optional Codex skill assets
-- Later proof targets: docs contract and optional skill verification
+- Later code targets: operator docs, testing docs, setup docs, optional agent-facing runbook or skill assets
+- Later proof targets: docs contract and optional runbook or skill verification
 
 **Work:**
 1. Add contributor-facing docs that explain local prerequisites, exact setup steps, and degraded-versus-representative outcomes.
-2. Add an optional Codex skill that wraps the canonical repo workflow.
-3. Keep the skill as a convenience wrapper rather than the only supported path.
+2. Add an optional agent-facing runbook or skill adapter that wraps the canonical repo workflow.
+3. Keep that adapter as a convenience layer rather than the only supported path.
 
 **Acceptance criteria:**
 1. A contributor can go from provider credentials to validated local readiness without reverse-engineering internal env names.
-2. The skill uses the same `make` workflow and generated artifacts as manual contributors.
+2. Any runbook or skill adapter uses the same `make` workflow and generated artifacts as manual contributors.
 3. Docs explain clearly which parts remain external infrastructure.
 
 **Proof:**
@@ -130,4 +130,4 @@ If later needed for team staging or production-like rehearsals, a Shuma-owned sh
 3. `SIM-REALISM-ENV-1C`
 4. `SIM-REALISM-ENV-1D`
 
-Do not start with the Codex skill, and do not jump straight to a shared hosted broker. The canonical repo workflow and local generated-state contract must exist first.
+Do not start with the optional runbook or skill adapter, and do not jump straight to a shared hosted broker. The canonical repo workflow and local generated-state contract must exist first.

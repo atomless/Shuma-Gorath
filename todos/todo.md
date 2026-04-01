@@ -167,7 +167,7 @@ Current note:
 - The landed adversary-realism chain now inherits the shared acceptance and envelope-governance contract in [`../docs/plans/2026-03-31-adversary-realism-acceptance-and-envelope-governance-plan.md`](../docs/plans/2026-03-31-adversary-realism-acceptance-and-envelope-governance-plan.md): no tranche closed from “more bans” alone, every envelope was required to map to a hostile persona model rather than simulator comfort limits, and every tranche had to prove measurable baseline-to-post-tranche realism escalation in its relevant scorecard dimensions.
 - Do not treat mere lane execution or recent-run visibility as characteristic attacker pressure unless the landed `representativeness_readiness` gate is currently reporting representative hostile-lane readiness for the target environment.
 - The adversary-realism implementation chain is now landed, but later Game Loop and Tuning work remain blocked until the target environment proves representative hostile readiness through the new gate and the mixed-attacker judged-episode proof resumes.
-- The next execution-ready work is no longer another core realism lane tranche. It is the contributor-friendly environment-readiness chain in [`../docs/plans/2026-04-01-contributor-friendly-adversary-proxy-pool-setup-plan.md`](../docs/plans/2026-04-01-contributor-friendly-adversary-proxy-pool-setup-plan.md): repo-owned hostile proxy-pool setup, local sidecars, exact readiness validation, and an optional skill wrapper over that canonical workflow.
+- The next execution-ready work is no longer another core realism lane tranche. It is the contributor-friendly environment-readiness chain in [`../docs/plans/2026-04-01-contributor-friendly-adversary-proxy-pool-setup-plan.md`](../docs/plans/2026-04-01-contributor-friendly-adversary-proxy-pool-setup-plan.md): repo-owned hostile proxy-pool setup, local sidecars, exact readiness validation, and an optional agent-facing runbook or skill adapter over that canonical workflow.
 - Do not open `humans_plus_verified_only` until a later second strict-baseline proof has shown retained config-change improvement under both Scrapling and LLM attacker pressure.
 - `DIAG-CLEANUP-1`, `MON-OVERHAUL-1C`, and `SIM-LLM-1C3` are now all landed, so the later combined-attacker strict-baseline proof is no longer blocked by missing LLM runtime visibility.
 - The real `RSI-GAME-HO-2` blocker is now architectural and explicit:
@@ -188,7 +188,7 @@ Reference context:
 Current stance:
 - The adversary-realism implementation chain is landed, but representative hostile readiness is still an environment-operability problem.
 - Shuma must own the contributor workflow for hostile proxy-pool setup, trusted-ingress orchestration, validation, and readiness reporting instead of leaving those steps to undocumented external operator improvisation.
-- The canonical path should be repo-owned `make` targets plus local sidecars and generated local artifacts under `.shuma/`; an optional Codex skill may wrap that workflow later, but must not replace it.
+- The canonical path should be repo-owned `make` targets plus local sidecars and generated local artifacts under `.shuma/`; an optional agent-facing runbook or skill adapter may wrap that workflow later, but must not replace it.
 - Real hostile egress still remains an external dependency: the repo can orchestrate and validate it, but cannot manufacture residential, mobile, or datacenter IP space locally.
 - Do not make normal `make dev` or `make build` regenerate hostile-pool artifacts continuously; setup and refresh must stay explicit or stale-checked.
 
@@ -216,13 +216,13 @@ Current stance:
     - proof: add and pass `make test-adversary-sim-proxy-broker-contract`
     - insufficient: a generic platform service, secrets leaking into worker-visible artifacts, or health truth that only appears after a failed sim run
 
-- [ ] SIM-REALISM-ENV-1D Add contributor docs and an optional Codex skill over the canonical repo workflow.
+- [ ] SIM-REALISM-ENV-1D Add contributor docs and an optional agent-facing runbook or skill adapter over the canonical repo workflow.
   - Closure gate:
     - docs truth: contributors must have a clear runbook from provider credentials to representative readiness, including what remains external infrastructure
-    - skill truth: any optional Codex skill must call the same `make` workflow and surface the same readiness truth rather than becoming a hidden parallel implementation
-    - adoption truth: contributors without Codex must still be fully supported
+    - adapter truth: any optional runbook or skill adapter must call the same `make` workflow and surface the same readiness truth rather than becoming a hidden parallel implementation
+    - adoption truth: contributors without any particular assistant runtime must still be fully supported
     - proof: add and pass `make test-adversary-sim-proxy-setup-docs-contract`
-    - insufficient: skill-only setup, undocumented manual steps, or guidance that implies the repo itself can create real hostile IP space
+    - insufficient: assistant-only setup, undocumented manual steps, or guidance that implies the repo itself can create real hostile IP space
 
 ## P1 Verified Bot Identity And Web Bot Auth Foundation
 
