@@ -54,6 +54,7 @@ class TrustedIngressProxyTests(unittest.TestCase):
             origin_base_url = f"http://127.0.0.1:{origin.server_port}"
             config = TrustedIngressProxyConfig(
                 origin_base_url=origin_base_url,
+                public_base_url=origin_base_url,
                 auth_token="trusted-token",
                 forwarded_secret="forwarded-secret",
             )
@@ -85,6 +86,7 @@ class TrustedIngressProxyTests(unittest.TestCase):
             origin_base_url = f"http://127.0.0.1:{origin.server_port}"
             config = TrustedIngressProxyConfig(
                 origin_base_url=origin_base_url,
+                public_base_url=origin_base_url,
                 auth_token="trusted-token",
                 forwarded_secret="forwarded-secret",
             )
@@ -97,11 +99,35 @@ class TrustedIngressProxyTests(unittest.TestCase):
                     opener.open(request, timeout=5.0)
                 self.assertEqual(exc.exception.code, 403)
 
+    def test_proxy_rewrites_public_targets_to_the_internal_origin(self):
+        with _serve(_RecordingOriginHandler) as origin:
+            origin_base_url = f"http://127.0.0.1:{origin.server_port}"
+            config = TrustedIngressProxyConfig(
+                origin_base_url=origin_base_url,
+                public_base_url="http://public.example",
+                auth_token="trusted-token",
+                forwarded_secret="forwarded-secret",
+            )
+            with _serve(build_proxy_handler(config)) as proxy:
+                opener = self._proxy_opener(
+                    f"http://198.51.100.44:trusted-token@127.0.0.1:{proxy.server_port}"
+                )
+                request = urllib.request.Request("http://public.example/research/?page=2", method="GET")
+                with opener.open(request, timeout=5.0) as response:
+                    body = response.read().decode("utf-8")
+
+                self.assertEqual(response.status, 200)
+                self.assertEqual(body, "origin-ok")
+                recorded = origin.last_request  # type: ignore[attr-defined]
+                self.assertEqual(recorded["path"], "/research/?page=2")
+                self.assertEqual(recorded["headers"]["x-forwarded-for"], "198.51.100.44")
+
     def test_proxy_rejects_cross_origin_targets(self):
         with _serve(_RecordingOriginHandler) as origin:
             origin_base_url = f"http://127.0.0.1:{origin.server_port}"
             config = TrustedIngressProxyConfig(
                 origin_base_url=origin_base_url,
+                public_base_url="http://public.example",
                 auth_token="trusted-token",
                 forwarded_secret="forwarded-secret",
             )
@@ -113,6 +139,66 @@ class TrustedIngressProxyTests(unittest.TestCase):
                 with self.assertRaises(urllib.error.HTTPError) as exc:
                     opener.open(request, timeout=5.0)
                 self.assertEqual(exc.exception.code, 403)
+
+    def test_proxy_can_forward_direct_browser_requests_with_loopback_identity(self):
+        with _serve(_RecordingOriginHandler) as origin:
+            origin_base_url = f"http://127.0.0.1:{origin.server_port}"
+            config = TrustedIngressProxyConfig(
+                origin_base_url=origin_base_url,
+                auth_token="trusted-token",
+                forwarded_secret="forwarded-secret",
+                allow_direct_browser_requests=True,
+                direct_browser_client_ip="127.0.0.1",
+            )
+            with _serve(build_proxy_handler(config)) as proxy:
+                with urllib.request.urlopen(
+                    f"http://127.0.0.1:{proxy.server_port}/about/", timeout=5.0
+                ) as response:
+                    body = response.read().decode("utf-8")
+
+                self.assertEqual(response.status, 200)
+                self.assertEqual(body, "origin-ok")
+                recorded = origin.last_request  # type: ignore[attr-defined]
+                self.assertEqual(recorded["path"], "/about/")
+                self.assertEqual(recorded["headers"]["x-forwarded-for"], "127.0.0.1")
+                self.assertEqual(recorded["headers"]["x-forwarded-proto"], "https")
+                self.assertEqual(
+                    recorded["headers"]["x-shuma-forwarded-secret"],
+                    "forwarded-secret",
+                )
+
+    def test_proxy_can_preserve_local_trusted_forwarded_headers_for_direct_requests(self):
+        with _serve(_RecordingOriginHandler) as origin:
+            origin_base_url = f"http://127.0.0.1:{origin.server_port}"
+            config = TrustedIngressProxyConfig(
+                origin_base_url=origin_base_url,
+                auth_token="trusted-token",
+                forwarded_secret="forwarded-secret",
+                allow_direct_browser_requests=True,
+                direct_browser_client_ip="127.0.0.1",
+                allow_local_trusted_forwarded_passthrough=True,
+            )
+            with _serve(build_proxy_handler(config)) as proxy:
+                request = urllib.request.Request(
+                    f"http://127.0.0.1:{proxy.server_port}/research/?page=2",
+                    method="GET",
+                )
+                request.add_header("X-Forwarded-For", "10.0.0.88")
+                request.add_header("X-Forwarded-Proto", "https")
+                request.add_header("X-Shuma-Forwarded-Secret", "forwarded-secret")
+                with urllib.request.urlopen(request, timeout=5.0) as response:
+                    body = response.read().decode("utf-8")
+
+                self.assertEqual(response.status, 200)
+                self.assertEqual(body, "origin-ok")
+                recorded = origin.last_request  # type: ignore[attr-defined]
+                self.assertEqual(recorded["path"], "/research/?page=2")
+                self.assertEqual(recorded["headers"]["x-forwarded-for"], "10.0.0.88")
+                self.assertEqual(recorded["headers"]["x-forwarded-proto"], "https")
+                self.assertEqual(
+                    recorded["headers"]["x-shuma-forwarded-secret"],
+                    "forwarded-secret",
+                )
 
 
 if __name__ == "__main__":

@@ -915,13 +915,16 @@ echo ""
 
 ## 🐙 Local Testing Notes
 
-- `make dev`, `make run`, and `make run-prebuilt` now schedule loopback-ban cleanup after the local server comes up, so stale `unknown` or loopback bans from earlier local browser automation should not strand contributor browsing at `/`.
+- `make dev`, `make run`, and `make run-prebuilt` now boot a local trusted ingress on `http://127.0.0.1:3000` and move the internal Spin origin to `http://127.0.0.1:3001`.
+- Contributor browsing on the public local path now reaches Shuma through that ingress, so ordinary local browser requests are observed as `127.0.0.1` rather than collapsing to `unknown`.
+- Direct origin traffic to `http://127.0.0.1:3001` without trusted forwarding still collapses to `unknown`; the local root-access proof uses that internal origin path intentionally to prove the public contributor path stays browseable even while `unknown` is banned.
+- `make dev`, `make run`, and `make run-prebuilt` still schedule loopback-ban cleanup after the local server comes up, so stale `unknown` or loopback bans from earlier local browser automation should not strand contributor browsing at `/`.
 - The dashboard Playwright wrapper now clears loopback-style bans before and after local browser runs for the same reason.
-- If you visit `/instaban` in a browser without `X-Forwarded-For`, your <abbr title="Internet Protocol">IP</abbr> is detected as `unknown`.
+- If you visit `/instaban` in a browser through `http://127.0.0.1:3000`, your local contributor identity is observed as `127.0.0.1`.
+- If you hit the internal origin directly at `http://127.0.0.1:3001` without trusted forwarding, your <abbr title="Internet Protocol">IP</abbr> still collapses to `unknown`.
 - To unban yourself locally:
 ```bash
-curl -X POST -H "Authorization: Bearer $SHUMA_API_KEY" \
-  "http://127.0.0.1:3000/shuma/admin/unban?ip=unknown"
+make clear-dev-loopback-bans
 ```
 
 ## 🐙 Additional Manual Checks

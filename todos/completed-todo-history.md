@@ -4,6 +4,25 @@ Moved from active TODO files on 2026-02-14.
 
 ## Additional completions (2026-04-01)
 
+### Local Contributor Ingress Separation From Degraded Origin Identity
+
+- [x] Landed the local contributor-ingress fix so public local browsing no longer shares the degraded `unknown` identity with direct-origin sim and browser traffic.
+- [x] What changed:
+  - [`../scripts/supervisor/trusted_ingress_proxy.py`](../scripts/supervisor/trusted_ingress_proxy.py) now supports a distinct public base URL and internal origin base URL, can forward direct local browser traffic with a stable loopback identity, and can preserve already-trusted forwarded headers for local loopback callers.
+  - [`../scripts/run_with_adversary_sim_supervisor.sh`](../scripts/run_with_adversary_sim_supervisor.sh) now supports local contributor-ingress mode, boots the trusted ingress as the public `:3000` boundary, rewrites to the internal origin, and fails fast if the required forwarded-secret trust boundary is missing.
+  - [`../Makefile`](../Makefile) now starts local contributor flows (`make dev`, `make dev-closed`, `make run`, `make run-prebuilt`) with the public ingress on `http://127.0.0.1:3000` and the internal Spin origin on `http://127.0.0.1:3001`.
+  - [`../scripts/tests/verify_local_root_access_cleanup.py`](../scripts/tests/verify_local_root_access_cleanup.py) now proves the public local root stays accessible while `unknown` is banned at the internal origin instead of proving a cleanup-only recovery path.
+- [x] Proof surface:
+  - proxy contract coverage in [`../scripts/tests/test_trusted_ingress_proxy.py`](../scripts/tests/test_trusted_ingress_proxy.py)
+  - supervisor and Make wiring coverage in [`../scripts/tests/test_adversary_sim_supervisor.py`](../scripts/tests/test_adversary_sim_supervisor.py), [`../scripts/tests/test_integration_cleanup.py`](../scripts/tests/test_integration_cleanup.py), and [`../scripts/tests/test_adversary_sim_make_targets.py`](../scripts/tests/test_adversary_sim_make_targets.py)
+  - live local proof in `make test-local-contributor-root-access-contract`
+- [x] Evidence:
+  - `make test-local-contributor-ingress-contract`
+  - `make test-adversary-sim-make-target-contract`
+  - `make run-prebuilt`
+  - `make test-local-contributor-root-access-contract`
+  - live spot-check: `curl -i http://127.0.0.1:3000/` returned `200 OK`, and `GET /shuma/admin/ban?active=true` returned an empty ban list after the proof run
+
 ### Shared-Host Protected-Target Clarification For Adversary Realism
 
 - [x] Tightened the active adversary-readiness planning chain so it now states explicitly that the canonical Linode shared-host deployment already provides the protected target: the hostile lanes should attack the deployed root-hosted Shuma site itself rather than inventing a second public target.

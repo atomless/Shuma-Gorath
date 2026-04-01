@@ -9,11 +9,13 @@ from typing import Optional, Tuple
 
 
 BASE_URL = os.environ.get("SHUMA_BASE_URL", "http://127.0.0.1:3000").rstrip("/")
+ORIGIN_BASE_URL = os.environ.get("SHUMA_LOCAL_CONTRIBUTOR_ORIGIN_BASE_URL", BASE_URL).rstrip("/")
 API_KEY = os.environ["SHUMA_API_KEY"]
 FORWARDED_SECRET = os.environ["SHUMA_FORWARDED_IP_SECRET"]
 
 
 def request(
+    base_url: str,
     path: str,
     *,
     method: str = "GET",
@@ -21,7 +23,7 @@ def request(
     auth: bool = False,
     trusted_forward: bool = False,
 ) -> Tuple[int, str]:
-    req = urllib.request.Request(f"{BASE_URL}{path}", data=body, method=method)
+    req = urllib.request.Request(f"{base_url}{path}", data=body, method=method)
     if body is not None:
         req.add_header("Content-Type", "application/json")
     if auth:
@@ -38,6 +40,7 @@ def request(
 
 def honeypot_path() -> str:
     status, body = request(
+        BASE_URL,
         "/shuma/admin/config",
         auth=True,
         trusted_forward=True,
@@ -50,13 +53,14 @@ def honeypot_path() -> str:
 
 
 def trigger_unknown_ban() -> None:
-    status, _ = request(honeypot_path())
+    status, _ = request(ORIGIN_BASE_URL, honeypot_path())
     if status != 403:
         raise SystemExit(f"expected honeypot request to block while setting up proof, got status={status}")
 
 
 def unban_unknown() -> None:
     status, body = request(
+        BASE_URL,
         "/shuma/admin/unban?ip=unknown",
         method="POST",
         auth=True,
@@ -66,16 +70,16 @@ def unban_unknown() -> None:
         raise SystemExit(f"failed to unban unknown during cleanup: status={status} body={body}")
 
 
-def assert_root_blocked() -> None:
-    status, body = request("/")
+def assert_origin_root_blocked() -> None:
+    status, body = request(ORIGIN_BASE_URL, "/")
     if status != 403 or "Access Blocked" not in body:
         raise SystemExit(
-            f"expected blocked root while unknown is banned, got status={status} body={body[:300]!r}"
+            f"expected blocked origin root while unknown is banned, got status={status} body={body[:300]!r}"
         )
 
 
 def assert_root_accessible() -> None:
-    status, body = request("/")
+    status, body = request(BASE_URL, "/")
     if status == 403 or "Access Blocked" in body:
         raise SystemExit(
             f"expected accessible root after cleanup, got status={status} body={body[:300]!r}"
@@ -102,8 +106,10 @@ def main() -> int:
         unban_unknown()
     except SystemExit:
         pass
+    assert_root_accessible()
     trigger_unknown_ban()
-    assert_root_blocked()
+    assert_origin_root_blocked()
+    assert_root_accessible()
     run_cleanup_target()
     assert_root_accessible()
     unban_unknown()

@@ -87,6 +87,29 @@ class IntegrationCleanupContractTests(unittest.TestCase):
             target_body = source[target_start:target_end]
             self.assertIn("LOCAL_LOOPBACK_BAN_CLEANUP_BACKGROUND", target_body)
 
+    def test_dev_and_run_flows_route_local_browsering_through_contributor_ingress(self):
+        source = MAKEFILE.read_text(encoding="utf-8")
+        self.assertIn(
+            "LOCAL_CONTRIBUTOR_INGRESS_ENV := SHUMA_LOCAL_CONTRIBUTOR_INGRESS_ENABLE=1",
+            source,
+        )
+        self.assertIn(
+            "SHUMA_LOCAL_CONTRIBUTOR_ORIGIN_BASE_URL=$(LOCAL_CONTRIBUTOR_ORIGIN_BASE_URL)",
+            source,
+        )
+        self.assertIn("LOCAL_CONTRIBUTOR_ORIGIN_BASE_URL ?= http://127.0.0.1:3001", source)
+        self.assertIn("LOCAL_CONTRIBUTOR_ORIGIN_LISTEN ?= 127.0.0.1:3001", source)
+        for target_name, next_target_name in [
+            ("dev: ## Build and run with file watching (auto-rebuild on save)", "\ndev-prod:"),
+            ("run: ## Build once and run (no file watching)", "\nrun-prebuilt:"),
+            ("run-prebuilt: ## Run Spin using prebuilt wasm (CI helper)", "\n\n#--------------------------"),
+        ]:
+            target_start = source.index(target_name)
+            target_end = source.index(next_target_name, target_start)
+            target_body = source[target_start:target_end]
+            self.assertIn("$(LOCAL_CONTRIBUTOR_INGRESS_ENV)", target_body)
+            self.assertIn("--listen $(LOCAL_CONTRIBUTOR_ORIGIN_LISTEN)", target_body)
+
 
 if __name__ == "__main__":
     unittest.main()

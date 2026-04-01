@@ -59,6 +59,14 @@ class AdversarySimSupervisorContractTests(unittest.TestCase):
         self.assertIn("ADVERSARY_SIM_TRUSTED_INGRESS_PROXY_URL", script)
         self.assertIn("ADVERSARY_SIM_TRUSTED_INGRESS_AUTH_TOKEN", script)
 
+    def test_supervisor_manager_supports_local_contributor_ingress_with_public_to_origin_rewrite(self) -> None:
+        script = SUPERVISOR_MANAGER_SCRIPT.read_text(encoding="utf-8")
+        self.assertIn("SHUMA_LOCAL_CONTRIBUTOR_INGRESS_ENABLE", script)
+        self.assertIn("SHUMA_LOCAL_CONTRIBUTOR_ORIGIN_BASE_URL", script)
+        self.assertIn("--public-base-url", script)
+        self.assertIn("--allow-direct-browser-requests", script)
+        self.assertIn("--allow-local-trusted-forwarded-passthrough", script)
+
 
 if __name__ == "__main__":
     unittest.main()

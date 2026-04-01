@@ -39,7 +39,8 @@ make reset-local-state # Wipe local .spin runtime/test state while preserving du
 ```
 
 Notes:
-- `make dev`, `make run`, and `make run-prebuilt` now schedule loopback-ban cleanup after local boot so stale `unknown` or loopback bans from earlier local browser automation do not keep the root-hosted site blocked for contributors.
+- `make dev`, `make run`, and `make run-prebuilt` now put a local trusted ingress on `http://127.0.0.1:3000` and move the internal Spin origin to `http://127.0.0.1:3001`, so contributor browsing stays on the public path while degraded origin traffic remains separable.
+- Those commands still schedule loopback-ban cleanup after local boot so stale `unknown` or loopback bans from earlier local browser automation do not keep the root-hosted site blocked for contributors.
 - Use `make clear-dev-loopback-bans` for a manual reset against a running local server.
 
 ### 🐙 Build & Run: Remote

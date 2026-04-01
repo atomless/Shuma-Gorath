@@ -41,7 +41,17 @@ class NoRedirectHandler(urllib.request.HTTPRedirectHandler):
 
 
 class TrustedIngressProxyConfig:
-    def __init__(self, *, origin_base_url: str, auth_token: str, forwarded_secret: str):
+    def __init__(
+        self,
+        *,
+        origin_base_url: str,
+        public_base_url: str | None = None,
+        auth_token: str,
+        forwarded_secret: str,
+        allow_direct_browser_requests: bool = False,
+        direct_browser_client_ip: str | None = None,
+        allow_local_trusted_forwarded_passthrough: bool = False,
+    ):
         parsed = urllib.parse.urlparse(str(origin_base_url or "").strip())
         if not parsed.scheme or parsed.scheme not in {"http", "https"} or not parsed.netloc:
             raise ValueError("origin_base_url must be an absolute http or https URL")
@@ -49,13 +59,37 @@ class TrustedIngressProxyConfig:
             raise ValueError("auth_token must not be empty")
         if not str(forwarded_secret or "").strip():
             raise ValueError("forwarded_secret must not be empty")
+        direct_ip = str(direct_browser_client_ip or "").strip()
+        if allow_direct_browser_requests and not _parse_client_ip(direct_ip):
+            raise ValueError(
+                "direct_browser_client_ip must be a parseable IP when direct browser requests are enabled"
+            )
+        public_parsed = urllib.parse.urlparse(
+            str(public_base_url or origin_base_url or "").strip()
+        )
+        if (
+            not public_parsed.scheme
+            or public_parsed.scheme not in {"http", "https"}
+            or not public_parsed.netloc
+        ):
+            raise ValueError("public_base_url must be an absolute http or https URL")
         self.origin_scheme = parsed.scheme
         self.origin_netloc = parsed.netloc
         self.origin_base_url = urllib.parse.urlunparse(
             (parsed.scheme, parsed.netloc, "", "", "", "")
         ).rstrip("/")
+        self.public_scheme = public_parsed.scheme
+        self.public_netloc = public_parsed.netloc
+        self.public_base_url = urllib.parse.urlunparse(
+            (public_parsed.scheme, public_parsed.netloc, "", "", "", "")
+        ).rstrip("/")
         self.auth_token = str(auth_token).strip()
         self.forwarded_secret = str(forwarded_secret).strip()
+        self.allow_direct_browser_requests = bool(allow_direct_browser_requests)
+        self.direct_browser_client_ip = direct_ip or "127.0.0.1"
+        self.allow_local_trusted_forwarded_passthrough = bool(
+            allow_local_trusted_forwarded_passthrough
+        )
 
     def target_url_for_proxy_path(self, raw_target: str) -> str:
         target = str(raw_target or "").strip()
@@ -63,7 +97,9 @@ class TrustedIngressProxyConfig:
             raise ValueError("proxy target missing")
         parsed = urllib.parse.urlparse(target)
         if parsed.scheme and parsed.netloc:
-            if parsed.scheme != self.origin_scheme or parsed.netloc != self.origin_netloc:
+            allowed_schemes = {self.origin_scheme, self.public_scheme}
+            allowed_netlocs = {self.origin_netloc, self.public_netloc}
+            if parsed.scheme not in allowed_schemes or parsed.netloc not in allowed_netlocs:
                 raise PermissionError("proxy target must stay same-origin")
             path = parsed.path or "/"
             return urllib.parse.urlunparse(
@@ -101,13 +137,20 @@ def _parse_client_ip(raw_value: str) -> str | None:
         return None
 
 
-def _forward_headers(headers: Iterable[tuple[str, str]]) -> dict[str, str]:
+def _forward_headers(
+    headers: Iterable[tuple[str, str]], *, preserve_forwarding: bool = False
+) -> dict[str, str]:
     forwarded: dict[str, str] = {}
     for key, value in headers:
         lowered = str(key or "").strip().lower()
         if not lowered or lowered in HOP_BY_HOP_HEADERS:
             continue
-        if lowered in {"host", "x-forwarded-for", "x-forwarded-proto", "x-shuma-forwarded-secret"}:
+        if lowered == "host":
+            continue
+        if (
+            not preserve_forwarding
+            and lowered in {"x-forwarded-for", "x-forwarded-proto", "x-shuma-forwarded-secret", "x-real-ip"}
+        ):
             continue
         forwarded[str(key)] = str(value)
     return forwarded
@@ -134,20 +177,39 @@ def build_proxy_handler(config: TrustedIngressProxyConfig):
         def _proxy_auth(self) -> tuple[str, str] | None:
             return _decode_proxy_authorization(self.headers.get("Proxy-Authorization", ""))
 
+        def _request_originates_from_loopback(self) -> bool:
+            try:
+                return ipaddress.ip_address(str(self.client_address[0])).is_loopback
+            except Exception:
+                return False
+
         def _forward(self) -> None:
             auth = self._proxy_auth()
+            preserve_forwarding = False
             if auth is None:
-                self.send_response(HTTPStatus.PROXY_AUTHENTICATION_REQUIRED.value)
-                self.send_header("Proxy-Authenticate", 'Basic realm="shuma-trusted-ingress"')
-                self.send_header("Content-Length", "0")
-                self.send_header("Connection", "close")
-                self.end_headers()
-                return
-            username, password = auth
-            client_ip = _parse_client_ip(username)
-            if client_ip is None or password != config.auth_token:
-                self._reject(HTTPStatus.FORBIDDEN, "trusted_ingress_auth_failed")
-                return
+                if not config.allow_direct_browser_requests:
+                    self.send_response(HTTPStatus.PROXY_AUTHENTICATION_REQUIRED.value)
+                    self.send_header("Proxy-Authenticate", 'Basic realm="shuma-trusted-ingress"')
+                    self.send_header("Content-Length", "0")
+                    self.send_header("Connection", "close")
+                    self.end_headers()
+                    return
+                if urllib.parse.urlparse(self.path).scheme:
+                    self._reject(HTTPStatus.FORBIDDEN, "trusted_ingress_direct_absolute_target_forbidden")
+                    return
+                client_ip = config.direct_browser_client_ip
+                preserve_forwarding = (
+                    config.allow_local_trusted_forwarded_passthrough
+                    and self._request_originates_from_loopback()
+                    and self.headers.get("X-Shuma-Forwarded-Secret", "").strip()
+                    == config.forwarded_secret
+                )
+            else:
+                username, password = auth
+                client_ip = _parse_client_ip(username)
+                if client_ip is None or password != config.auth_token:
+                    self._reject(HTTPStatus.FORBIDDEN, "trusted_ingress_auth_failed")
+                    return
             try:
                 target_url = config.target_url_for_proxy_path(self.path)
             except PermissionError:
@@ -157,10 +219,16 @@ def build_proxy_handler(config: TrustedIngressProxyConfig):
                 self._reject(HTTPStatus.BAD_REQUEST, "trusted_ingress_target_invalid")
                 return
 
-            request_headers = _forward_headers(self.headers.items())
-            request_headers["X-Forwarded-For"] = client_ip
-            request_headers["X-Forwarded-Proto"] = "https"
-            request_headers["X-Shuma-Forwarded-Secret"] = config.forwarded_secret
+            request_headers = _forward_headers(
+                self.headers.items(), preserve_forwarding=preserve_forwarding
+            )
+            if not preserve_forwarding:
+                request_headers["X-Forwarded-For"] = client_ip
+                request_headers["X-Forwarded-Proto"] = "https"
+                request_headers["X-Shuma-Forwarded-Secret"] = config.forwarded_secret
+            else:
+                request_headers.setdefault("X-Forwarded-Proto", "https")
+                request_headers.setdefault("X-Shuma-Forwarded-Secret", config.forwarded_secret)
 
             body = None
             content_length = int(self.headers.get("Content-Length", "0") or 0)
@@ -248,6 +316,13 @@ def main() -> int:
         default=os.environ.get("ADVERSARY_SIM_TRUSTED_INGRESS_ORIGIN_BASE_URL", "http://127.0.0.1:3000"),
     )
     parser.add_argument(
+        "--public-base-url",
+        default=os.environ.get(
+            "ADVERSARY_SIM_TRUSTED_INGRESS_PUBLIC_BASE_URL",
+            os.environ.get("SHUMA_ADVERSARY_SIM_SUPERVISOR_BASE_URL", ""),
+        ),
+    )
+    parser.add_argument(
         "--auth-token",
         default=os.environ.get("ADVERSARY_SIM_TRUSTED_INGRESS_AUTH_TOKEN", ""),
     )
@@ -255,12 +330,38 @@ def main() -> int:
         "--forwarded-secret",
         default=os.environ.get("SHUMA_FORWARDED_IP_SECRET", ""),
     )
+    parser.add_argument(
+        "--allow-direct-browser-requests",
+        action="store_true",
+        default=str(
+            os.environ.get("SHUMA_LOCAL_CONTRIBUTOR_INGRESS_ENABLE", "")
+        ).strip().lower()
+        in {"1", "true", "yes", "on"},
+    )
+    parser.add_argument(
+        "--direct-browser-client-ip",
+        default=os.environ.get("SHUMA_LOCAL_CONTRIBUTOR_DIRECT_CLIENT_IP", "127.0.0.1"),
+    )
+    parser.add_argument(
+        "--allow-local-trusted-forwarded-passthrough",
+        action="store_true",
+        default=str(
+            os.environ.get("SHUMA_LOCAL_CONTRIBUTOR_ALLOW_TRUSTED_FORWARDING", "")
+        ).strip().lower()
+        in {"1", "true", "yes", "on"},
+    )
     args = parser.parse_args()
     try:
         config = TrustedIngressProxyConfig(
             origin_base_url=args.origin_base_url,
+            public_base_url=args.public_base_url or args.origin_base_url,
             auth_token=args.auth_token,
             forwarded_secret=args.forwarded_secret,
+            allow_direct_browser_requests=bool(args.allow_direct_browser_requests),
+            direct_browser_client_ip=args.direct_browser_client_ip,
+            allow_local_trusted_forwarded_passthrough=bool(
+                args.allow_local_trusted_forwarded_passthrough
+            ),
         )
     except ValueError as error:
         raise SystemExit(str(error))

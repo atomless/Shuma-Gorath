@@ -24,6 +24,12 @@ TRUSTED_INGRESS_PROXY_URL="${ADVERSARY_SIM_TRUSTED_INGRESS_PROXY_URL:-}"
 TRUSTED_INGRESS_AUTH_TOKEN="${ADVERSARY_SIM_TRUSTED_INGRESS_AUTH_TOKEN:-}"
 TRUSTED_INGRESS_LISTEN_HOST="${ADVERSARY_SIM_TRUSTED_INGRESS_LISTEN_HOST:-127.0.0.1}"
 TRUSTED_INGRESS_LISTEN_PORT="${ADVERSARY_SIM_TRUSTED_INGRESS_LISTEN_PORT:-3871}"
+LOCAL_CONTRIBUTOR_INGRESS_RAW="${SHUMA_LOCAL_CONTRIBUTOR_INGRESS_ENABLE:-0}"
+LOCAL_CONTRIBUTOR_INGRESS_ENABLED="$(printf '%s' "${LOCAL_CONTRIBUTOR_INGRESS_RAW}" | tr '[:upper:]' '[:lower:]')"
+LOCAL_CONTRIBUTOR_ORIGIN_BASE_URL="${SHUMA_LOCAL_CONTRIBUTOR_ORIGIN_BASE_URL:-${BASE_URL}}"
+LOCAL_CONTRIBUTOR_ALLOW_TRUSTED_FORWARDING_RAW="${SHUMA_LOCAL_CONTRIBUTOR_ALLOW_TRUSTED_FORWARDING:-0}"
+LOCAL_CONTRIBUTOR_ALLOW_TRUSTED_FORWARDING="$(printf '%s' "${LOCAL_CONTRIBUTOR_ALLOW_TRUSTED_FORWARDING_RAW}" | tr '[:upper:]' '[:lower:]')"
+LOCAL_CONTRIBUTOR_DIRECT_CLIENT_IP="${SHUMA_LOCAL_CONTRIBUTOR_DIRECT_CLIENT_IP:-127.0.0.1}"
 
 supervisor_attention_required() {
   if [[ -z "${ADMIN_API_KEY}" ]]; then
@@ -68,10 +74,19 @@ cleanup_trusted_ingress_proxy() {
 }
 
 start_trusted_ingress_proxy_if_needed() {
+  local contributor_ingress_enabled=0
+  if [[ "${LOCAL_CONTRIBUTOR_INGRESS_ENABLED}" == "1" || "${LOCAL_CONTRIBUTOR_INGRESS_ENABLED}" == "true" || "${LOCAL_CONTRIBUTOR_INGRESS_ENABLED}" == "yes" || "${LOCAL_CONTRIBUTOR_INGRESS_ENABLED}" == "on" ]]; then
+    contributor_ingress_enabled=1
+  fi
+
   if [[ -z "${FORWARDED_SECRET}" ]]; then
+    if [[ "${contributor_ingress_enabled}" == "1" ]]; then
+      echo "[adversary-sim-supervisor-manager] local contributor ingress requires SHUMA_FORWARDED_IP_SECRET" >&2
+      exit 1
+    fi
     return 0
   fi
-  if [[ -n "${TRUSTED_INGRESS_PROXY_URL}" && -n "${TRUSTED_INGRESS_AUTH_TOKEN}" ]]; then
+  if [[ "${contributor_ingress_enabled}" != "1" && -n "${TRUSTED_INGRESS_PROXY_URL}" && -n "${TRUSTED_INGRESS_AUTH_TOKEN}" ]]; then
     export ADVERSARY_SIM_TRUSTED_INGRESS_PROXY_URL="${TRUSTED_INGRESS_PROXY_URL}"
     export ADVERSARY_SIM_TRUSTED_INGRESS_AUTH_TOKEN="${TRUSTED_INGRESS_AUTH_TOKEN}"
     return 0
@@ -83,25 +98,54 @@ import secrets
 print(secrets.token_urlsafe(18))
 PY
   )"
-  TRUSTED_INGRESS_PROXY_URL="http://${TRUSTED_INGRESS_LISTEN_HOST}:${TRUSTED_INGRESS_LISTEN_PORT}"
+  local trusted_ingress_origin_base_url="${BASE_URL}"
+  if [[ "${contributor_ingress_enabled}" == "1" ]]; then
+    TRUSTED_INGRESS_PROXY_URL="${BASE_URL}"
+    trusted_ingress_origin_base_url="${LOCAL_CONTRIBUTOR_ORIGIN_BASE_URL}"
+  else
+    TRUSTED_INGRESS_PROXY_URL="http://${TRUSTED_INGRESS_LISTEN_HOST}:${TRUSTED_INGRESS_LISTEN_PORT}"
+  fi
 
   if ! command -v python3 >/dev/null 2>&1; then
+    if [[ "${contributor_ingress_enabled}" == "1" ]]; then
+      echo "[adversary-sim-supervisor-manager] local contributor ingress requires python3" >&2
+      exit 1
+    fi
     echo "[adversary-sim-supervisor-manager] trusted ingress disabled: python3 unavailable; sim worker IP realism will remain degraded" >&2
     TRUSTED_INGRESS_PROXY_URL=""
     TRUSTED_INGRESS_AUTH_TOKEN=""
     return 0
   fi
 
-  python3 "${ROOT_DIR}/scripts/supervisor/trusted_ingress_proxy.py" \
-    --listen-host "${TRUSTED_INGRESS_LISTEN_HOST}" \
-    --listen-port "${TRUSTED_INGRESS_LISTEN_PORT}" \
-    --origin-base-url "${BASE_URL}" \
-    --auth-token "${TRUSTED_INGRESS_AUTH_TOKEN}" \
-    --forwarded-secret "${FORWARDED_SECRET}" &
+  local proxy_args=(
+    python3 "${ROOT_DIR}/scripts/supervisor/trusted_ingress_proxy.py"
+    --listen-host "${TRUSTED_INGRESS_LISTEN_HOST}"
+    --listen-port "${TRUSTED_INGRESS_LISTEN_PORT}"
+    --public-base-url "${BASE_URL}"
+    --origin-base-url "${trusted_ingress_origin_base_url}"
+    --auth-token "${TRUSTED_INGRESS_AUTH_TOKEN}"
+    --forwarded-secret "${FORWARDED_SECRET}"
+  )
+  if [[ "${contributor_ingress_enabled}" == "1" ]]; then
+    proxy_args+=(
+      --allow-direct-browser-requests
+      --direct-browser-client-ip "${LOCAL_CONTRIBUTOR_DIRECT_CLIENT_IP}"
+    )
+    if [[ "${LOCAL_CONTRIBUTOR_ALLOW_TRUSTED_FORWARDING}" == "1" || "${LOCAL_CONTRIBUTOR_ALLOW_TRUSTED_FORWARDING}" == "true" || "${LOCAL_CONTRIBUTOR_ALLOW_TRUSTED_FORWARDING}" == "yes" || "${LOCAL_CONTRIBUTOR_ALLOW_TRUSTED_FORWARDING}" == "on" ]]; then
+      proxy_args+=(--allow-local-trusted-forwarded-passthrough)
+    fi
+  fi
+
+  "${proxy_args[@]}" &
   TRUSTED_INGRESS_PROXY_PID=$!
 
   sleep 0.2
   if ! kill -0 "${TRUSTED_INGRESS_PROXY_PID}" 2>/dev/null; then
+    if [[ "${contributor_ingress_enabled}" == "1" ]]; then
+      echo "[adversary-sim-supervisor-manager] local contributor ingress failed to start" >&2
+      cleanup_trusted_ingress_proxy
+      exit 1
+    fi
     echo "[adversary-sim-supervisor-manager] trusted ingress disabled: local proxy failed to start; sim worker IP realism will remain degraded" >&2
     cleanup_trusted_ingress_proxy
     TRUSTED_INGRESS_PROXY_URL=""
