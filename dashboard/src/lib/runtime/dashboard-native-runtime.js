@@ -20,6 +20,7 @@ const DASHBOARD_TABS = Object.freeze(['traffic', 'ip-bans', 'red-team', 'game-lo
 const CONNECTION_HEARTBEAT_PATH = '/shuma/admin/session';
 const CONNECTION_HEARTBEAT_METHOD = 'GET';
 const CONNECTION_HEARTBEAT_INTERVAL_MS = 1000;
+const CONNECTION_HEARTBEAT_BACKOFF_MAX_MS = 15000;
 const CONNECTION_HEARTBEAT_TIMEOUT_MS = 2500;
 
 const DASHBOARD_STATE_REQUIRED_METHODS = Object.freeze([
@@ -116,6 +117,7 @@ let dashboardRefreshRuntime = null;
 let connectionHeartbeatTimer = null;
 let connectionHeartbeatInFlight = null;
 let connectionHeartbeatSequence = 0;
+let connectionHeartbeatConsecutiveFailures = 0;
 
 const sessionState = {
   authenticated: false,
@@ -136,6 +138,17 @@ function hasRuntimeEnvironment() {
   return sessionState.runtimeEnvironment === 'runtime-dev' || sessionState.runtimeEnvironment === 'runtime-prod';
 }
 
+export function deriveConnectionHeartbeatRetryDelayMs(consecutiveFailures = 0) {
+  const normalizedFailures = Math.max(0, Math.floor(Number(consecutiveFailures || 0)));
+  if (normalizedFailures <= 0) {
+    return CONNECTION_HEARTBEAT_INTERVAL_MS;
+  }
+  return Math.min(
+    CONNECTION_HEARTBEAT_BACKOFF_MAX_MS,
+    CONNECTION_HEARTBEAT_INTERVAL_MS * (2 ** Math.min(normalizedFailures, 4))
+  );
+}
+
 function setSessionState(authenticated, csrfToken = '', expiresAt = 0, runtimeEnvironment = '') {
   const parsedExpiry = Number(expiresAt);
   sessionState.authenticated = authenticated === true;
@@ -154,6 +167,7 @@ function setSessionState(authenticated, csrfToken = '', expiresAt = 0, runtimeEn
       runtimeEnvironment: sessionState.runtimeEnvironment
     });
     if (sessionState.authenticated !== true) {
+      connectionHeartbeatConsecutiveFailures = 0;
       resetHeartbeatConnectionState('session_cleared');
     }
   }
@@ -202,6 +216,7 @@ function stopConnectionHeartbeat() {
     inFlightController.abort();
   }
   connectionHeartbeatInFlight = null;
+  connectionHeartbeatConsecutiveFailures = 0;
 }
 
 function syncConnectionHeartbeatLoop(_reason = 'sync') {
@@ -282,6 +297,7 @@ async function runConnectionHeartbeat(reason = 'manual') {
           transitionReason: 'heartbeat_ok'
         });
       }
+      connectionHeartbeatConsecutiveFailures = 0;
     } catch (error) {
       const statusCode = Number(error && typeof error === 'object' ? error.status || 0 : 0);
       const failureClass = classifyRequestFailure(error, { didTimeout, statusCode });
@@ -315,12 +331,17 @@ async function runConnectionHeartbeat(reason = 'manual') {
           error: errorMessage
         });
       }
+      if (failureClass !== REQUEST_FAILURE_CLASSES.cancelled) {
+        connectionHeartbeatConsecutiveFailures += 1;
+      }
     } finally {
       if (timeoutId !== null) {
         clearTimeout(timeoutId);
       }
       connectionHeartbeatInFlight = null;
-      scheduleConnectionHeartbeat(CONNECTION_HEARTBEAT_INTERVAL_MS);
+      scheduleConnectionHeartbeat(
+        deriveConnectionHeartbeatRetryDelayMs(connectionHeartbeatConsecutiveFailures)
+      );
     }
   })();
   connectionHeartbeatInFlight = {

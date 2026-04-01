@@ -481,6 +481,7 @@ Contributor refresh paths:
 Dashboard DOM-class contract for runtime/simulation affordances:
 - `<html>` must include exactly one runtime environment class: `runtime-dev` or `runtime-prod` (derived from trusted runtime config).
 - `<html>` connection state classes are heartbeat-owned: runtime boots in `disconnected`, flips to `connected` after successful heartbeat, enters `degraded` on heartbeat failures, and transitions to `disconnected` after configured hysteresis threshold (`N`) of consecutive heartbeat failures.
+- When the heartbeat-owned connection state is `disconnected`, passive dashboard polling must pause and heartbeat retries must back off instead of continuing one-second background churn. Manual refresh remains allowed, and passive polling resumes only after the heartbeat observes a restored backend connection.
 - `<html>` must include `adversary-sim` only when backend truth reports `adversary_sim_enabled=true`.
 - These classes are presentational hooks only and must not alter defence/auth behavior directly.
 

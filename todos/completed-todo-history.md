@@ -4,6 +4,20 @@ Moved from active TODO files on 2026-02-14.
 
 ## Additional completions (2026-04-01)
 
+### Dashboard Disconnect-Noise Hardening
+
+- [x] Hardened the dashboard disconnect path so local backend outages no longer spray uncaught passive-refresh errors or keep every tab polling as if the backend were still up.
+- [x] What landed:
+  - [`../dashboard/src/lib/runtime/dashboard-red-team-controller.js`](../dashboard/src/lib/runtime/dashboard-red-team-controller.js) now routes passive tab-activation and visibility-resume refreshes through a settled helper so transport failures do not escape as uncaught promise rejections.
+  - [`../dashboard/src/lib/runtime/dashboard-route-controller.js`](../dashboard/src/lib/runtime/dashboard-route-controller.js) now accepts `isBackgroundPollingAllowed` and pauses auto-refresh cycles when the heartbeat-owned backend connection state is `disconnected`.
+  - [`../dashboard/src/lib/runtime/dashboard-native-runtime.js`](../dashboard/src/lib/runtime/dashboard-native-runtime.js) now applies bounded exponential retry backoff to `/shuma/admin/session` heartbeat failures instead of retrying every second forever.
+  - [`../dashboard/src/routes/+page.svelte`](../dashboard/src/routes/+page.svelte) now wires route polling and Red Team passive polling to the heartbeat-owned connection state and explicitly resumes passive polling on `connection-restored`.
+  - [`../e2e/dashboard.modules.unit.test.js`](../e2e/dashboard.modules.unit.test.js), [`../Makefile`](../Makefile), and [`../docs/testing.md`](../docs/testing.md) now lock the disconnect-noise contract behind `make test-dashboard-disconnect-behavior-contract`.
+- [x] Why:
+  - when the local runtime went down, the dashboard kept retrying too eagerly and let passive Red Team refreshes reject uncaught promises, which made the browser console noisy and sloppy even though the heartbeat was already the canonical owner of backend connectivity.
+- [x] Evidence:
+  - `make test-dashboard-disconnect-behavior-contract`
+
 ### Local Contributor Self-Contained Public Site Routing
 
 - [x] Fixed local contributor runtime behavior so a deployed `SHUMA_GATEWAY_UPSTREAM_ORIGIN` can remain in `.env.local` without causing local public-site misses to try remote gateway forwarding.

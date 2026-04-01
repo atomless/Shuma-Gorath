@@ -142,6 +142,7 @@
   const tabLinks = {};
   let rootRuntimeClassHint = '';
   let redTeamTabActive = false;
+  let previousBackendConnectionState = 'disconnected';
 
   function normalizeRuntimeClassHint(value) {
     const normalized = String(value || '').trim().toLowerCase();
@@ -379,6 +380,22 @@
     }
     redTeamTabActive = nextRedTeamActive;
   }
+  $: {
+    const nextConnectionState = backendConnectionState;
+    const runtimeMounted = routeController.getRuntimeMounted() === true;
+    if (
+      runtimeReady === true &&
+      runtimeMounted &&
+      previousBackendConnectionState === 'disconnected' &&
+      nextConnectionState !== 'disconnected'
+    ) {
+      routeController.schedulePolling('connection-restored', 0);
+      if (redTeamTabActive) {
+        void adversarySimController.handleVisibilityResume();
+      }
+    }
+    previousBackendConnectionState = nextConnectionState;
+  }
 
   function registerTabLink(node, tab) {
     let key = normalizeTab(tab);
@@ -510,6 +527,7 @@
     },
     isAutoRefreshEnabled: () => autoRefreshEnabled === true,
     isAutoRefreshTab: (tab) => AUTO_REFRESH_TABS.has(normalizeTab(tab)),
+    isBackgroundPollingAllowed: () => backendConnectionState !== 'disconnected',
     shouldRefreshOnActivate: ({ tab }) => {
       const normalized = normalizeTab(tab);
       if (AUTO_REFRESH_TABS.has(normalized)) return true;
@@ -524,7 +542,10 @@
   const adversarySimController = createDashboardRedTeamController({
     initialStatus: {},
     pollIntervalMs: 1000,
-    isPollingAllowed: () => routeController.getRuntimeMounted() && runtimeReady === true,
+    isPollingAllowed: () =>
+      routeController.getRuntimeMounted() &&
+      runtimeReady === true &&
+      backendConnectionState !== 'disconnected',
     resolveConvergenceTimeoutMs: (desiredEnabled) =>
       desiredEnabled === true
         ? dashboardRequestBudgets.adversarySimEnableTimeoutMs

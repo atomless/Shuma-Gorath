@@ -199,6 +199,13 @@ export function createDashboardRedTeamController(options = {}) {
     }, delayMs);
   };
 
+  const refreshStatusSilently = async (reason = 'manual') => {
+    try {
+      await refreshStatus(reason);
+    } catch (_error) {}
+    return snapshot();
+  };
+
   const maybeAdvance = async () => {
     if (state.inFlightDesiredEnabled !== null) {
       if (stateMatchesDesired(state.backendStatus, state.inFlightDesiredEnabled)) {
@@ -372,13 +379,15 @@ export function createDashboardRedTeamController(options = {}) {
     },
     handleTabActivated() {
       if (state.statusPrimed !== true || !shouldPoll()) {
-        void refreshStatus('tab-activated');
+        return refreshStatusSilently('tab-activated');
       }
+      return Promise.resolve(snapshot());
     },
     handleVisibilityResume() {
       if (isPollingAllowed()) {
-        void refreshStatus('visibility-resume');
+        return refreshStatusSilently('visibility-resume');
       }
+      return Promise.resolve(snapshot());
     },
     dispose() {
       clearDebounceTimer();

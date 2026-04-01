@@ -143,6 +143,10 @@ export function createDashboardRouteController(options = {}) {
     typeof options.shouldRefreshOnActivate === 'function'
       ? options.shouldRefreshOnActivate
       : () => true;
+  const isBackgroundPollingAllowed =
+    typeof options.isBackgroundPollingAllowed === 'function'
+      ? options.isBackgroundPollingAllowed
+      : () => true;
 
   let mounted = false;
   let runtimeMounted = false;
@@ -264,6 +268,11 @@ export function createDashboardRouteController(options = {}) {
       pollingPaused = true;
       return;
     }
+    if (!isBackgroundPollingAllowed()) {
+      recordPollingSkip('backend-disconnected', activeTab, intervalMs);
+      pollingPaused = true;
+      return;
+    }
 
     if (pollingPaused) {
       recordPollingResume(resumeReason, activeTab, intervalMs);
@@ -279,7 +288,8 @@ export function createDashboardRouteController(options = {}) {
         !isAuthenticated() ||
         !isPageVisible() ||
         !isAutoRefreshEnabled() ||
-        !isAutoRefreshTab(currentTab)
+        !isAutoRefreshTab(currentTab) ||
+        !isBackgroundPollingAllowed()
       ) {
         if (!mounted) {
           recordPollingSkip('not-mounted', currentTab, currentInterval);
@@ -289,6 +299,8 @@ export function createDashboardRouteController(options = {}) {
           recordPollingSkip('page-hidden', currentTab, currentInterval);
         } else if (!isAutoRefreshEnabled()) {
           recordPollingSkip('auto-refresh-disabled', currentTab, currentInterval);
+        } else if (!isBackgroundPollingAllowed()) {
+          recordPollingSkip('backend-disconnected', currentTab, currentInterval);
         } else {
           recordPollingSkip('tab-not-auto-refreshable', currentTab, currentInterval);
         }

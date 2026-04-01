@@ -5016,6 +5016,84 @@ test('dashboard red team controller can replace backend status after lane-only c
   });
 });
 
+test('dashboard red team controller returns settled promises for passive refresh triggers when status fetch fails', { concurrency: false }, async () => {
+  await withBrowserGlobals({}, async () => {
+    const controllerModule = await importBrowserModule('dashboard/src/lib/runtime/dashboard-red-team-controller.js');
+
+    const controller = controllerModule.createDashboardRedTeamController({
+      initialStatus: {
+        adversary_sim_enabled: true,
+        generation_active: true,
+        phase: 'running'
+      },
+      isPollingAllowed: () => true,
+      fetchStatus: async () => {
+        throw new Error('backend offline');
+      }
+    });
+
+    const tabActivatedResult = controller.handleTabActivated();
+    assert.equal(typeof tabActivatedResult?.then, 'function');
+    await assert.doesNotReject(() => tabActivatedResult);
+
+    const visibilityResumeResult = controller.handleVisibilityResume();
+    assert.equal(typeof visibilityResumeResult?.then, 'function');
+    await assert.doesNotReject(() => visibilityResumeResult);
+  });
+});
+
+test('dashboard route controller suppresses auto polling while backend connection is disconnected', { concurrency: false }, async () => {
+  await withBrowserGlobals({}, async () => {
+    const routeControllerModule = await importBrowserModule('dashboard/src/lib/runtime/dashboard-route-controller.js');
+    const storeModule = await importBrowserModule('dashboard/src/lib/state/dashboard-store.js');
+
+    const store = storeModule.createDashboardStore({ initialTab: 'game-loop' });
+    store.setSession({
+      authenticated: true,
+      csrfToken: 'csrf-123',
+      runtimeEnvironment: 'runtime-dev'
+    });
+
+    const refreshCalls = [];
+    const pollingSkips = [];
+    let backendConnected = false;
+
+    const controller = routeControllerModule.createDashboardRouteController({
+      tabs: ['game-loop'],
+      normalizeTab: (value) => String(value || ''),
+      store,
+      refreshDashboardTab: async (tab, reason) => {
+        refreshCalls.push({ tab, reason });
+      },
+      selectRefreshInterval: () => 1,
+      isAuthenticated: () => true,
+      isPageVisible: () => true,
+      isAutoRefreshEnabled: () => true,
+      isAutoRefreshTab: () => true,
+      isBackgroundPollingAllowed: () => backendConnected,
+      recordPollingSkip: (reason) => {
+        pollingSkips.push(reason);
+      }
+    });
+
+    controller.setMounted(true);
+    controller.setRuntimeMounted(true);
+
+    controller.schedulePolling('disconnect-test', 0);
+    await new Promise((resolve) => setTimeout(resolve, 10));
+
+    assert.deepEqual(refreshCalls, []);
+    assert.ok(pollingSkips.includes('backend-disconnected'));
+
+    backendConnected = true;
+    controller.schedulePolling('connection-restored', 0);
+    await new Promise((resolve) => setTimeout(resolve, 20));
+
+    assert.equal(refreshCalls.length > 0, true);
+    controller.dispose();
+  });
+});
+
 test('dashboard global control helper enables authenticated writable controls before monitoring hydration completes', { concurrency: false }, async () => {
   await withBrowserGlobals({}, async () => {
     const controlModule = await importBrowserModule('dashboard/src/lib/runtime/dashboard-global-controls.js');
@@ -6721,6 +6799,18 @@ test('dashboard native runtime restores session, normalizes tabs, and invalidate
   });
 });
 
+test('dashboard native runtime derives bounded heartbeat retry backoff from consecutive failures', { concurrency: false }, async () => {
+  await withBrowserGlobals({}, async () => {
+    const runtimeModule = await importBrowserModule('dashboard/src/lib/runtime/dashboard-native-runtime.js');
+
+    assert.equal(runtimeModule.deriveConnectionHeartbeatRetryDelayMs(0), 1000);
+    assert.equal(runtimeModule.deriveConnectionHeartbeatRetryDelayMs(1), 2000);
+    assert.equal(runtimeModule.deriveConnectionHeartbeatRetryDelayMs(2), 4000);
+    assert.equal(runtimeModule.deriveConnectionHeartbeatRetryDelayMs(3), 8000);
+    assert.equal(runtimeModule.deriveConnectionHeartbeatRetryDelayMs(8), 15000);
+  });
+});
+
 test('dashboard refresh runtime clears caches and resets freshness snapshots through behavior', { concurrency: false }, async () => {
   await withBrowserGlobals({}, async () => {
     const refreshModule = await importBrowserModule('dashboard/src/lib/runtime/dashboard-runtime-refresh.js');
@@ -7580,10 +7670,27 @@ test('dashboard route controller gates polling to auto-enabled eligible tabs', (
   assert.match(source, /const isAutoRefreshTab =/);
   assert.match(source, /recordPollingSkip\('auto-refresh-disabled'/);
   assert.match(source, /recordPollingSkip\('tab-not-auto-refreshable'/);
+  assert.match(source, /recordPollingSkip\('backend-disconnected'/);
   assert.match(source, /const shouldRefreshOnActivate =/);
   assert.match(source, /runtimeEnvironmentRaw/);
   assert.match(source, /runtimeEnvironment/);
   assert.match(source, /if \(authenticated && !runtimeEnvironment\)/);
+});
+
+test('dashboard route wires backend disconnect polling guards and reconnect resume through the heartbeat-owned connection state', () => {
+  const routeSource = fs.readFileSync(
+    path.join(DASHBOARD_ROOT, 'src/routes/+page.svelte'),
+    'utf8'
+  );
+  const runtimeSource = fs.readFileSync(
+    path.join(DASHBOARD_ROOT, 'src/lib/runtime/dashboard-native-runtime.js'),
+    'utf8'
+  );
+
+  assert.match(routeSource, /isBackgroundPollingAllowed:\s*\(\)\s*=>\s*backendConnectionState !== 'disconnected'/);
+  assert.match(routeSource, /connection-restored/);
+  assert.match(runtimeSource, /deriveConnectionHeartbeatRetryDelayMs/);
+  assert.match(runtimeSource, /connectionHeartbeatConsecutiveFailures/);
 });
 
 test('dashboard module graph is layered with no cycles', () => {
