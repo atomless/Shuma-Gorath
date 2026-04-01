@@ -44,6 +44,8 @@ Notes:
 - `make dev`, `make dev-closed`, `make run`, and `make run-prebuilt` no longer regenerate the contributor site implicitly; they only warn if it is missing or stale.
 - Use `make sim-public-refresh` or `make sim-public-refresh-if-stale` when you actually want to rebuild it.
 - Use `make clear-dev-loopback-bans` for a manual reset against a running local server.
+- Use `make test-local-contributor-root-access-contract` to prove degraded-origin `unknown` bans do not strand the public local root.
+- Use `make test-local-contributor-sim-isolation-contract` to prove local adversary sim traffic does not leave `127.0.0.1`, `::1`, or `unknown` actively banning contributor browsing at `/`.
 
 ### 🐙 Build & Run: Remote
 ```bash

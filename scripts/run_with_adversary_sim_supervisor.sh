@@ -73,6 +73,46 @@ cleanup_trusted_ingress_proxy() {
   fi
 }
 
+spin_command_has_env_binding() {
+  local env_name="$1"
+  shift
+  local expect_binding=0
+  local arg=""
+  for arg in "$@"; do
+    if [[ "${expect_binding}" == "1" ]]; then
+      if [[ "${arg}" == "${env_name}="* ]]; then
+        return 0
+      fi
+      expect_binding=0
+      continue
+    fi
+    if [[ "${arg}" == "--env" ]]; then
+      expect_binding=1
+    fi
+  done
+  return 1
+}
+
+launch_app_command() {
+  local app_command=("$@")
+
+  if [[ $# -ge 2 && "$1" == "spin" && "$2" == "up" ]]; then
+    if [[ -n "${ADVERSARY_SIM_TRUSTED_INGRESS_PROXY_URL:-}" ]] && ! spin_command_has_env_binding "ADVERSARY_SIM_TRUSTED_INGRESS_PROXY_URL" "${app_command[@]}"; then
+      app_command+=(
+        --env "ADVERSARY_SIM_TRUSTED_INGRESS_PROXY_URL=${ADVERSARY_SIM_TRUSTED_INGRESS_PROXY_URL}"
+      )
+    fi
+    if [[ -n "${ADVERSARY_SIM_TRUSTED_INGRESS_AUTH_TOKEN:-}" ]] && ! spin_command_has_env_binding "ADVERSARY_SIM_TRUSTED_INGRESS_AUTH_TOKEN" "${app_command[@]}"; then
+      app_command+=(
+        --env "ADVERSARY_SIM_TRUSTED_INGRESS_AUTH_TOKEN=${ADVERSARY_SIM_TRUSTED_INGRESS_AUTH_TOKEN}"
+      )
+    fi
+  fi
+
+  "${app_command[@]}" &
+  APP_PID=$!
+}
+
 start_trusted_ingress_proxy_if_needed() {
   local contributor_ingress_enabled=0
   if [[ "${LOCAL_CONTRIBUTOR_INGRESS_ENABLED}" == "1" || "${LOCAL_CONTRIBUTOR_INGRESS_ENABLED}" == "true" || "${LOCAL_CONTRIBUTOR_INGRESS_ENABLED}" == "yes" || "${LOCAL_CONTRIBUTOR_INGRESS_ENABLED}" == "on" ]]; then
@@ -191,8 +231,7 @@ trap cleanup EXIT INT TERM
 
 start_trusted_ingress_proxy_if_needed
 
-"$@" &
-APP_PID=$!
+launch_app_command "$@"
 
 if [[ "${SIM_AVAILABLE}" == "true" || "${SIM_AVAILABLE}" == "1" || "${SIM_AVAILABLE}" == "yes" || "${SIM_AVAILABLE}" == "on" ]]; then
   if [[ "${SUPERVISOR_ENABLED}" == "1" || "${SUPERVISOR_ENABLED}" == "true" || "${SUPERVISOR_ENABLED}" == "yes" || "${SUPERVISOR_ENABLED}" == "on" ]]; then

@@ -387,6 +387,18 @@ class AdversarySimMakeTargetTests(unittest.TestCase):
         self.assertIn("scripts/tests/test_integration_cleanup.py", body)
         self.assertIn("scripts/tests/test_adversary_sim_supervisor.py", body)
 
+    def test_local_contributor_sim_isolation_target_uses_live_proof_script(self) -> None:
+        source = MAKEFILE.read_text(encoding="utf-8")
+        match = re.search(
+            r"^test-local-contributor-sim-isolation-contract:.*?(?=^[A-Za-z0-9_.-]+:|\Z)",
+            source,
+            re.MULTILINE | re.DOTALL,
+        )
+        self.assertIsNotNone(match)
+        body = match.group(0)
+        self.assertIn("test-local-contributor-ingress-contract", body)
+        self.assertIn("verify_local_contributor_sim_isolation.py", body)
+
     def test_header_transport_realism_target_uses_contract_and_worker_selectors(self) -> None:
         source = MAKEFILE.read_text(encoding="utf-8")
         match = re.search(

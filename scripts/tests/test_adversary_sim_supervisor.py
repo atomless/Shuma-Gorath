@@ -67,6 +67,26 @@ class AdversarySimSupervisorContractTests(unittest.TestCase):
         self.assertIn("--allow-direct-browser-requests", script)
         self.assertIn("--allow-local-trusted-forwarded-passthrough", script)
 
+    def test_supervisor_manager_forwards_generated_trusted_ingress_env_into_spin_runtime(self) -> None:
+        script = SUPERVISOR_MANAGER_SCRIPT.read_text(encoding="utf-8")
+        self.assertIn('if [[ $# -ge 2 && "$1" == "spin" && "$2" == "up" ]]; then', script)
+        self.assertIn(
+            'spin_command_has_env_binding "ADVERSARY_SIM_TRUSTED_INGRESS_PROXY_URL"',
+            script,
+        )
+        self.assertIn(
+            'spin_command_has_env_binding "ADVERSARY_SIM_TRUSTED_INGRESS_AUTH_TOKEN"',
+            script,
+        )
+        self.assertIn(
+            '--env "ADVERSARY_SIM_TRUSTED_INGRESS_PROXY_URL=${ADVERSARY_SIM_TRUSTED_INGRESS_PROXY_URL}"',
+            script,
+        )
+        self.assertIn(
+            '--env "ADVERSARY_SIM_TRUSTED_INGRESS_AUTH_TOKEN=${ADVERSARY_SIM_TRUSTED_INGRESS_AUTH_TOKEN}"',
+            script,
+        )
+
 
 if __name__ == "__main__":
     unittest.main()
