@@ -4,6 +4,19 @@ Moved from active TODO files on 2026-02-14.
 
 ## Additional completions (2026-04-02)
 
+### Dashboard Sim-Lane Canonical Labeling For Legacy History
+
+- [x] Collapsed the retained legacy `deterministic_black_box` lane label onto the canonical operator term `Synthetic Traffic` at the shared dashboard formatter layer so recent-run history and other lane-rendering surfaces use one consistent vocabulary.
+- [x] What landed:
+  - [`../dashboard/src/lib/domain/adversary-sim.js`](../dashboard/src/lib/domain/adversary-sim.js) now maps the legacy retained lane id `deterministic_black_box` to the canonical label `Synthetic Traffic`.
+  - [`../e2e/dashboard.modules.unit.test.js`](../e2e/dashboard.modules.unit.test.js) now proves that both the modern lane id `synthetic_traffic` and the legacy retained lane id `deterministic_black_box` render as `Synthetic Traffic`.
+  - [`../Makefile`](../Makefile) now keeps that terminology contract inside the focused `make test-dashboard-adversary-sim-lane-contract` gate.
+- [x] Why:
+  - the dashboard was truthfully rendering old retained `recent_sim_runs` evidence, but because the shared formatter did not recognize `deterministic_black_box`, operators saw `Deterministic Black Box` in history while the live lane selector used `Synthetic Traffic` for the same conceptual lane.
+- [x] Evidence:
+  - `make test-dashboard-adversary-sim-lane-contract`
+  - `make test-code-quality`
+
 ### Dashboard Adversary-Sim Auto-Start Reason Surfacing
 
 - [x] Surfaced the backend-known adversary-sim start/stop transition reason in the Red Team lifecycle copy so operators can immediately distinguish manual runs from oversight-driven auto-follow-on runs.

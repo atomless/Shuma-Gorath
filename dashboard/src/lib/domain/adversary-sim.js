@@ -1,5 +1,6 @@
 const ADVERSARY_SIM_LANE_LABELS = Object.freeze({
   synthetic_traffic: 'Synthetic Traffic',
+  deterministic_black_box: 'Synthetic Traffic',
   scrapling_traffic: 'Scrapling Traffic',
   bot_red_team: 'Agentic Traffic',
   parallel_mixed_traffic: 'Scrapling + Agentic'

@@ -4539,6 +4539,21 @@ test('dashboard adversary-sim desired-state matcher tolerates eventual-consisten
   });
 });
 
+test('dashboard adversary-sim lane labels collapse legacy deterministic alias to synthetic traffic', { concurrency: false }, async () => {
+  await withBrowserGlobals({}, async () => {
+    const adversaryDomain = await importBrowserModule('dashboard/src/lib/domain/adversary-sim.js');
+
+    assert.equal(
+      adversaryDomain.formatAdversarySimLaneLabel('synthetic_traffic'),
+      'Synthetic Traffic'
+    );
+    assert.equal(
+      adversaryDomain.formatAdversarySimLaneLabel('deterministic_black_box'),
+      'Synthetic Traffic'
+    );
+  });
+});
+
 test('dashboard adversary-sim lifecycle copy prioritizes controller convergence over steady-state backend copy', { concurrency: false }, async () => {
   await withBrowserGlobals({}, async () => {
     const adversaryModule = await importBrowserModule('dashboard/src/lib/runtime/dashboard-adversary-sim.js');
