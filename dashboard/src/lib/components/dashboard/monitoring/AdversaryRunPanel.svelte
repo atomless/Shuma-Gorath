@@ -115,10 +115,10 @@
     const receipt = row?.latestScraplingRealismReceipt && typeof row.latestScraplingRealismReceipt === 'object'
       ? row.latestScraplingRealismReceipt
       : null;
-    if (!receipt) return 'Not materialized';
+    if (!receipt && !row?.scraplingActivityCount) return 'Not materialized';
     const parts = [];
-    const activityCount = Number(receipt.activityCount || 0);
-    if (activityCount > 0) parts.push(`${formatCompactNumber(activityCount, '0')} activities observed`);
+    const activityCount = Number(row?.scraplingActivityCount || receipt?.activityCount || 0);
+    if (activityCount > 0) parts.push(`${formatCompactNumber(activityCount, '0')} activities executed`);
     return joinSummaryParts(parts);
   };
   const formatIdentitySummary = (row = {}) => {

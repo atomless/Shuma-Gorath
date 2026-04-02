@@ -4,6 +4,22 @@ Moved from active TODO files on 2026-02-14.
 
 ## Additional completions (2026-04-02)
 
+### Dashboard Recent Red Team Runs Scrapling Execution Aggregation
+
+- [x] Fixed the semantic mismatch where Scrapling `Execution` volume in Recent Red Team Runs was being read from only the latest realism receipt while `Modes` and `Categories` were whole-run unions.
+- [x] What landed:
+  - [`../src/observability/hot_read_documents.rs`](../src/observability/hot_read_documents.rs) now exposes an additive optional `scrapling_activity_count` field on recent-run summaries so whole-run execution volume is modeled directly instead of inferred from the latest realism receipt.
+  - [`../src/admin/api.rs`](../src/admin/api.rs) now accumulates Scrapling activity counts across all realism receipts in a run while still preserving only the newest receipt for identity and transport realism.
+  - [`../dashboard/src/lib/components/dashboard/monitoring-view-model.js`](../dashboard/src/lib/components/dashboard/monitoring-view-model.js) now shapes the aggregated Scrapling execution count into the dashboard row model.
+  - [`../dashboard/src/lib/components/dashboard/monitoring/AdversaryRunPanel.svelte`](../dashboard/src/lib/components/dashboard/monitoring/AdversaryRunPanel.svelte) now prefers the aggregated run-level Scrapling activity total for `Execution` and labels it as activities executed, while continuing to use the latest receipt only for `Identity` and `Transport`.
+  - [`../e2e/dashboard.modules.unit.test.js`](../e2e/dashboard.modules.unit.test.js) now proves the aggregated activity count survives dashboard shaping and that the panel formatter references the run-level value.
+- [x] Why:
+  - rows like “5 modes, 4 categories, 2 activities” were internally inconsistent because they mixed whole-run coverage with latest-receipt-only execution volume, which made the operator-facing execution summary materially misleading.
+- [x] Evidence:
+  - `make test-adversary-sim-scrapling-realism`
+  - `make test-dashboard-adversary-sim-lane-contract`
+  - `make test-code-quality`
+
 ### Dashboard Recent Red Team Runs Identity And Transport Column Split
 
 - [x] Replaced the still-overloaded `Realism` column in Recent Red Team Runs with separate `Identity` and `Transport` columns so the table no longer crams two different realism dimensions into one operator-facing cell.

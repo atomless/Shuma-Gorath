@@ -914,6 +914,9 @@ export const deriveAdversaryRunRowsFromSummaries = (summaries = [], bans = []) =
       profile: String(summary?.profile || 'unknown').trim() || 'unknown',
       firstTs: Number(summary?.first_ts || 0),
       lastTs: Number(summary?.last_ts || 0),
+      scraplingActivityCount: Number(
+        summary?.scraplingActivityCount || summary?.scrapling_activity_count || 0
+      ),
       monitoringEventCount: Number(summary?.monitoring_event_count || 0),
       defenseDeltaCount: Number(summary?.defense_delta_count || 0),
       defenseRows: [],

@@ -2107,94 +2107,129 @@ mod tests {
         let now = now_ts();
         let run_started_at = now.saturating_sub(60);
 
-        persist_event_record(
-            &store,
-            EventLogRecord {
-                entry: EventLogEntry {
-                    ts: run_started_at,
-                    event: EventType::AdminAction,
-                    ip: None,
-                    reason: Some("scrapling_worker_receipt".to_string()),
-                    outcome: Some("realism".to_string()),
-                    admin: Some("internal".to_string()),
-                },
-                taxonomy: None,
-                outcome_code: None,
-                botness_score: None,
-                sim_run_id: Some("simrun-scrapling-realism-proof".to_string()),
-                sim_profile: Some("scrapling_runtime_lane.bulk_scraper".to_string()),
-                sim_lane: Some("scrapling_traffic".to_string()),
-                is_simulation: true,
-                scrapling_surface_receipts: Vec::new(),
-                scrapling_category_targets: vec!["ai_scraper_bot".to_string()],
-                llm_runtime_summary: None,
-                execution: EventExecutionMetadata {
-                    scrapling_realism_receipt: Some(
-                        crate::admin::adversary_sim::ScraplingRealismReceipt {
-                            schema_version: "sim-lane-realism-receipt.v1".to_string(),
-                            profile_id: "scrapling.bulk_scraper.v1".to_string(),
-                            activity_unit: "request".to_string(),
-                            planned_activity_budget: 24,
-                            effective_activity_budget: 24,
-                            planned_burst_size: 3,
-                            effective_burst_size: 3,
-                            activity_count: 7,
-                            burst_count: Some(3),
-                            burst_sizes: vec![3, 3, 1],
-                            inter_activity_gaps_ms: vec![220, 410, 1200, 240, 330, 1500],
-                            transport_profile: "curl_impersonate".to_string(),
-                            transport_realism_class: "impersonated_request_stack"
-                                .to_string(),
-                            transport_emission_basis: "curl_cffi_impersonate"
-                                .to_string(),
-                            transport_degraded_reason: String::new(),
-                            observed_user_agent_families: vec!["chrome_android".to_string()],
-                            observed_accept_languages: vec!["en-US,en;q=0.9".to_string()],
-                            identity_realism_status: "degraded_local".to_string(),
-                            identity_provenance_mode: "degraded_local".to_string(),
-                            identity_envelope_classes: vec![
-                                "residential".to_string(),
-                                "mobile".to_string(),
-                            ],
-                            geo_affinity_mode: "pool_aligned".to_string(),
-                            session_stickiness: "stable_per_identity".to_string(),
-                            observed_country_codes: Vec::new(),
-                            top_level_action_count: None,
-                            action_types_attempted: Vec::new(),
-                            capability_state: String::new(),
-                            targeting_strategy: String::new(),
-                            dwell_intervals_ms: Vec::new(),
-                            observed_browser_locales: Vec::new(),
-                            secondary_capture_mode: String::new(),
-                            secondary_request_count: None,
-                            background_request_count: None,
-                            subresource_request_count: None,
-                            identity_handles: vec![
-                                "request-session-1".to_string(),
-                                "request-session-2".to_string(),
-                            ],
-                            session_handles: Vec::new(),
-                            identity_rotation_count: 1,
-                            recurrence_strategy: "bounded_campaign_return".to_string(),
-                            reentry_scope: "cross_window_campaign".to_string(),
-                            dormancy_truth_mode: "accelerated_local_proof".to_string(),
-                            session_index: Some(1),
-                            reentry_count: Some(0),
-                            max_reentries_per_run: Some(3),
-                            planned_dormant_gap_seconds: Some(3),
-                            representative_dormant_gap_seconds: Some(14_400),
-                            visited_url_count: Some(7),
-                            discovered_url_count: Some(9),
-                            deepest_depth_reached: Some(4),
-                            sitemap_documents_seen: Some(1),
-                            frontier_remaining_count: Some(2),
-                            canonical_public_pages_reached: Some(5),
-                            stop_reason: "activity_sequence_exhausted".to_string(),
+        let persist_scrapling_receipt =
+            |ts: u64,
+             sim_profile: &str,
+             profile_id: &str,
+             activity_count: u64,
+             transport_realism_class: &str,
+             identity_provenance_mode: &str,
+             identity_handles: Vec<&str>| {
+                persist_event_record(
+                    &store,
+                    EventLogRecord {
+                        entry: EventLogEntry {
+                            ts,
+                            event: EventType::AdminAction,
+                            ip: None,
+                            reason: Some("scrapling_worker_receipt".to_string()),
+                            outcome: Some("realism".to_string()),
+                            admin: Some("internal".to_string()),
                         },
-                    ),
-                    ..EventExecutionMetadata::default()
-                },
-            },
+                        taxonomy: None,
+                        outcome_code: None,
+                        botness_score: None,
+                        sim_run_id: Some("simrun-scrapling-realism-proof".to_string()),
+                        sim_profile: Some(sim_profile.to_string()),
+                        sim_lane: Some("scrapling_traffic".to_string()),
+                        is_simulation: true,
+                        scrapling_surface_receipts: Vec::new(),
+                        scrapling_category_targets: vec!["ai_scraper_bot".to_string()],
+                        llm_runtime_summary: None,
+                        execution: EventExecutionMetadata {
+                            scrapling_realism_receipt: Some(
+                                crate::admin::adversary_sim::ScraplingRealismReceipt {
+                                    schema_version: "sim-lane-realism-receipt.v1".to_string(),
+                                    profile_id: profile_id.to_string(),
+                                    activity_unit: "request".to_string(),
+                                    planned_activity_budget: 24,
+                                    effective_activity_budget: 24,
+                                    planned_burst_size: 3,
+                                    effective_burst_size: 3,
+                                    activity_count,
+                                    burst_count: Some(3),
+                                    burst_sizes: vec![3, 3, 1],
+                                    inter_activity_gaps_ms: vec![
+                                        220, 410, 1200, 240, 330, 1500,
+                                    ],
+                                    transport_profile: "curl_impersonate".to_string(),
+                                    transport_realism_class: transport_realism_class.to_string(),
+                                    transport_emission_basis: "curl_cffi_impersonate"
+                                        .to_string(),
+                                    transport_degraded_reason: String::new(),
+                                    observed_user_agent_families: vec![
+                                        "chrome_android".to_string(),
+                                    ],
+                                    observed_accept_languages: vec![
+                                        "en-US,en;q=0.9".to_string(),
+                                    ],
+                                    identity_realism_status: identity_provenance_mode.to_string(),
+                                    identity_provenance_mode: identity_provenance_mode.to_string(),
+                                    identity_envelope_classes: vec![
+                                        "residential".to_string(),
+                                        "mobile".to_string(),
+                                    ],
+                                    geo_affinity_mode: "pool_aligned".to_string(),
+                                    session_stickiness: "stable_per_identity".to_string(),
+                                    observed_country_codes: Vec::new(),
+                                    top_level_action_count: None,
+                                    action_types_attempted: Vec::new(),
+                                    capability_state: String::new(),
+                                    targeting_strategy: String::new(),
+                                    dwell_intervals_ms: Vec::new(),
+                                    observed_browser_locales: Vec::new(),
+                                    secondary_capture_mode: String::new(),
+                                    secondary_request_count: None,
+                                    background_request_count: None,
+                                    subresource_request_count: None,
+                                    identity_handles: identity_handles
+                                        .into_iter()
+                                        .map(str::to_string)
+                                        .collect(),
+                                    session_handles: Vec::new(),
+                                    identity_rotation_count: 1,
+                                    recurrence_strategy: "bounded_campaign_return"
+                                        .to_string(),
+                                    reentry_scope: "cross_window_campaign".to_string(),
+                                    dormancy_truth_mode: "accelerated_local_proof"
+                                        .to_string(),
+                                    session_index: Some(1),
+                                    reentry_count: Some(0),
+                                    max_reentries_per_run: Some(3),
+                                    planned_dormant_gap_seconds: Some(3),
+                                    representative_dormant_gap_seconds: Some(14_400),
+                                    visited_url_count: Some(activity_count),
+                                    discovered_url_count: Some(activity_count.saturating_add(2)),
+                                    deepest_depth_reached: Some(4),
+                                    sitemap_documents_seen: Some(1),
+                                    frontier_remaining_count: Some(2),
+                                    canonical_public_pages_reached: Some(5),
+                                    stop_reason: "activity_sequence_exhausted".to_string(),
+                                },
+                            ),
+                            ..EventExecutionMetadata::default()
+                        },
+                    },
+                );
+            };
+
+        persist_scrapling_receipt(
+            run_started_at,
+            "scrapling_runtime_lane.bulk_scraper",
+            "scrapling.bulk_scraper.v1",
+            2,
+            "impersonated_request_stack",
+            "degraded_local",
+            vec!["request-session-0"],
+        );
+        persist_scrapling_receipt(
+            run_started_at.saturating_add(1),
+            "scrapling_runtime_lane.http_agent",
+            "scrapling.http_agent.v1",
+            7,
+            "impersonated_request_stack",
+            "degraded_local",
+            vec!["request-session-1", "request-session-2"],
         );
 
         let recent_runs = monitoring_recent_sim_run_summaries(&store, now, 24, 10);
@@ -2202,11 +2237,12 @@ mod tests {
             .iter()
             .find(|value| value.run_id == "simrun-scrapling-realism-proof")
             .expect("scrapling realism row");
+        assert_eq!(row.scrapling_activity_count, Some(9));
         let receipt = row
             .latest_scrapling_realism_receipt
             .as_ref()
             .expect("latest scrapling realism receipt");
-        assert_eq!(receipt.profile_id, "scrapling.bulk_scraper.v1");
+        assert_eq!(receipt.profile_id, "scrapling.http_agent.v1");
         assert_eq!(receipt.transport_realism_class, "impersonated_request_stack");
         assert_eq!(receipt.identity_provenance_mode, "degraded_local");
         assert_eq!(receipt.activity_count, 7);
@@ -15941,6 +15977,7 @@ struct MonitoringRecentSimRunAccumulator {
     first_ts: u64,
     last_ts: u64,
     monitoring_event_count: u64,
+    scrapling_activity_count: u64,
     defense_keys: HashSet<String>,
     ban_outcome_count: u64,
     surface_observations:
@@ -16141,6 +16178,7 @@ fn monitoring_recent_sim_run_summaries_filtered<S: crate::challenge::KeyValueSto
                     first_ts: ts,
                     last_ts: ts,
                     monitoring_event_count: 0,
+                    scrapling_activity_count: 0,
                     defense_keys: HashSet::new(),
                     ban_outcome_count: 0,
                     surface_observations: Vec::new(),
@@ -16183,6 +16221,9 @@ fn monitoring_recent_sim_run_summaries_filtered<S: crate::challenge::KeyValueSto
             .surface_observations
             .extend(stored.record.scrapling_surface_receipts.iter().cloned());
         if let Some(receipt) = stored.record.execution.scrapling_realism_receipt.as_ref() {
+            accumulator.scrapling_activity_count = accumulator
+                .scrapling_activity_count
+                .saturating_add(receipt.activity_count);
             if ts >= accumulator.latest_scrapling_realism_receipt_ts {
                 accumulator.latest_scrapling_realism_receipt = Some(receipt.clone());
                 accumulator.latest_scrapling_realism_receipt_ts = ts;
@@ -16219,6 +16260,8 @@ fn monitoring_recent_sim_run_summaries_filtered<S: crate::challenge::KeyValueSto
                     first_ts: row.first_ts,
                     last_ts: row.last_ts,
                     monitoring_event_count: row.monitoring_event_count,
+                    scrapling_activity_count: (row.scrapling_activity_count > 0)
+                        .then_some(row.scrapling_activity_count),
                     defense_delta_count: row.defense_keys.len() as u64,
                     ban_outcome_count: row.ban_outcome_count,
                     owned_surface_coverage,

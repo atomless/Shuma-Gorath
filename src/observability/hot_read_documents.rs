@@ -173,6 +173,8 @@ pub(crate) struct MonitoringRecentSimRunSummary {
     pub first_ts: u64,
     pub last_ts: u64,
     pub monitoring_event_count: u64,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub scrapling_activity_count: Option<u64>,
     pub defense_delta_count: u64,
     pub ban_outcome_count: u64,
     #[serde(default, skip_serializing_if = "Option::is_none")]

@@ -3431,6 +3431,7 @@ test('monitoring view model and status module remain pure snapshot transforms', 
         profile: 'scrapling_runtime_lane',
         first_ts: 1710000100,
         last_ts: 1710000200,
+        scrapling_activity_count: 8,
         monitoring_event_count: 11,
         defense_delta_count: 2,
         ban_outcome_count: 1,
@@ -3655,6 +3656,7 @@ test('monitoring view model and status module remain pure snapshot transforms', 
       summarizedRuns.runRows[1].ownedSurfaceCoverage?.overallStatus,
       'partial'
     );
+    assert.equal(summarizedRuns.runRows[1].scraplingActivityCount, 8);
     assert.equal(
       summarizedRuns.runRows[2].latestScraplingRealismReceipt?.identityProvenanceMode,
       'degraded_local'
@@ -6758,6 +6760,7 @@ test('adversary run panel separates execution identity and transport columns', (
   assert.match(source, /\{formatLaneLabel\(row\.lane\)\}/);
   assert.doesNotMatch(source, /<td><code>\{row\.runId\}<\/code><\/td>/);
   assert.match(source, /const formatExecutionSummary = \(row = \{\}\) => \{/);
+  assert.match(source, /row\?\.scraplingActivityCount/);
   assert.match(source, /\{formatExecutionSummary\(row\)\}/);
   assert.match(source, /const formatIdentitySummary = \(row = \{\}\) => \{/);
   assert.match(source, /\{formatIdentitySummary\(row\)\}/);
