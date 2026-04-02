@@ -4,6 +4,19 @@ Moved from active TODO files on 2026-02-14.
 
 ## Additional completions (2026-04-02)
 
+### Dashboard Recent Red Team Runs Execution And Realism Column Split
+
+- [x] Replaced the overloaded `Runtime` column in Recent Red Team Runs with separate `Execution` and `Realism` columns so each column now carries one operator-facing purpose instead of flattening execution lineage and realism fidelity into the same cell.
+- [x] What landed:
+  - [`../dashboard/src/lib/components/dashboard/monitoring/AdversaryRunPanel.svelte`](../dashboard/src/lib/components/dashboard/monitoring/AdversaryRunPanel.svelte) now renders `Execution` and `Realism` headers, uses dedicated `formatExecutionSummary(...)` and `formatRealismSummary(...)` helpers, and restores the table empty-state span from `9` to `10`.
+  - [`../e2e/dashboard.modules.unit.test.js`](../e2e/dashboard.modules.unit.test.js) now proves the shared panel no longer renders a mixed-purpose `Runtime` column and instead keeps the focused `Execution` plus `Realism` split.
+  - [`../Makefile`](../Makefile) keeps that column-shape contract under the focused `make test-dashboard-adversary-sim-lane-contract` gate.
+- [x] Why:
+  - the single `Runtime` cell was mixing agentic execution lineage, action outcome, and realism posture while showing only activity-count plus realism for Scrapling rows, which made the column semantically inconsistent and difficult to interpret at a glance.
+- [x] Evidence:
+  - `make test-dashboard-adversary-sim-lane-contract`
+  - `make test-code-quality`
+
 ### Dashboard Recent Red Team Runs Profile Column Removal
 
 - [x] Removed the redundant `Profile` column from the shared Recent Red Team Runs table so the panel keeps only operator-useful columns not already duplicated by lane, modes, and runtime detail.

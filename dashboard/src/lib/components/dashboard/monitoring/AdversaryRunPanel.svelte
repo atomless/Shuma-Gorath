@@ -70,7 +70,11 @@
     if (!normalized) return '-';
     return formatAdversarySimLaneLabel(normalized, '-');
   };
-  const formatRuntimeSummary = (row = {}) => {
+  const joinSummaryParts = (parts = []) => {
+    const filtered = parts.filter(Boolean);
+    return filtered.length > 0 ? filtered.join(' | ') : 'Not materialized';
+  };
+  const formatExecutionSummary = (row = {}) => {
     const summary = row?.llmRuntimeSummary && typeof row.llmRuntimeSummary === 'object'
       ? row.llmRuntimeSummary
       : null;
@@ -83,8 +87,6 @@
       const generated = formatCompactNumber(summary.generatedActionCount || 0, '0');
       const terminalFailure = humanizeToken(summary.terminalFailure || '');
       const fallbackReason = humanizeToken(summary.fallbackReason || '');
-      const identitySummary = formatIdentityRealismSummary(summary.latestRealismReceipt);
-      const transportSummary = formatTransportRealismSummary(summary.latestRealismReceipt);
       const outcome = summary.failedTickCount > 0 || summary.failureClass || summary.error || summary.terminalFailure
         ? 'failed'
         : 'passed';
@@ -94,24 +96,37 @@
       }
       parts.push(`${executed} / ${generated} actions`);
       parts.push(outcome);
-      if (identitySummary) parts.push(identitySummary);
-      if (transportSummary) parts.push(transportSummary);
       if (terminalFailure) parts.push(terminalFailure);
       else if (fallbackReason) parts.push(fallbackReason);
-      return parts.filter(Boolean).join(' | ');
+      return joinSummaryParts(parts);
     }
     const receipt = row?.latestScraplingRealismReceipt && typeof row.latestScraplingRealismReceipt === 'object'
       ? row.latestScraplingRealismReceipt
       : null;
-    if (!receipt) return '-';
+    if (!receipt) return 'Not materialized';
     const parts = [];
     const activityCount = Number(receipt.activityCount || 0);
+    if (activityCount > 0) parts.push(`${formatCompactNumber(activityCount, '0')} activities observed`);
+    return joinSummaryParts(parts);
+  };
+  const formatRealismSummary = (row = {}) => {
+    const llmReceipt =
+      row?.llmRuntimeSummary?.latestRealismReceipt
+      && typeof row.llmRuntimeSummary.latestRealismReceipt === 'object'
+        ? row.llmRuntimeSummary.latestRealismReceipt
+        : null;
+    const receipt = llmReceipt || (
+      row?.latestScraplingRealismReceipt && typeof row.latestScraplingRealismReceipt === 'object'
+        ? row.latestScraplingRealismReceipt
+        : null
+    );
+    if (!receipt) return 'Not materialized';
     const identitySummary = formatIdentityRealismSummary(receipt);
     const transportSummary = formatTransportRealismSummary(receipt);
-    if (activityCount > 0) parts.push(`${formatCompactNumber(activityCount, '0')} activities`);
-    if (identitySummary) parts.push(identitySummary);
-    if (transportSummary) parts.push(transportSummary);
-    return parts.filter(Boolean).join(' | ') || '-';
+    const parts = [];
+    if (identitySummary) parts.push(`Identity: ${identitySummary}`);
+    if (transportSummary) parts.push(`Transport: ${transportSummary}`);
+    return joinSummaryParts(parts);
   };
 </script>
 
@@ -139,7 +154,8 @@
           <th class="caps-label">Lane</th>
           <th class="caps-label">Modes</th>
           <th class="caps-label">Categories</th>
-          <th class="caps-label">Runtime</th>
+          <th class="caps-label">Execution</th>
+          <th class="caps-label">Realism</th>
           <th class="caps-label">Coverage</th>
           <th class="caps-label">Last Event</th>
           <th class="caps-label">Monitoring Deltas</th>
@@ -148,7 +164,7 @@
       </thead>
       <tbody>
         {#if runRows.length === 0}
-          <TableEmptyRow colspan={9}>No adversary runs</TableEmptyRow>
+          <TableEmptyRow colspan={10}>No adversary runs</TableEmptyRow>
         {:else}
           {#each runRows as row}
             <tr>
@@ -156,7 +172,8 @@
               <td>{formatLaneLabel(row.lane)}</td>
               <td>{formatTokenList(row.observedFulfillmentModes)}</td>
               <td>{formatTokenList(row.observedCategoryIds)}</td>
-              <td>{formatRuntimeSummary(row)}</td>
+              <td>{formatExecutionSummary(row)}</td>
+              <td>{formatRealismSummary(row)}</td>
               <td>{formatCoverageSummary(row.ownedSurfaceCoverage)}</td>
               <td>{formatTime(row.lastTs)}</td>
               <td>
