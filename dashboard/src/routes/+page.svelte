@@ -686,7 +686,7 @@
       TuningTabComponent = loadedTuningTab;
 
       const bootstrapped = await routeController.bootstrapRuntime({
-        initialTab: normalizeTab(data?.initialHashTab || ''),
+        initialTab: typeof data?.initialHashTab === 'string' ? data.initialHashTab : '',
         basePath: dashboardBasePath
       });
       authBootstrapState = bootstrapped === true ? 'authenticated' : 'redirecting';

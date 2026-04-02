@@ -5398,6 +5398,35 @@ test("route remount preserves keyboard navigation, ban/unban, verification save,
   expect(ipBansRefreshRequests).toBeGreaterThan(beforePollWait);
 });
 
+test("direct hash loads admin tabs on first render", async ({ page }) => {
+  const escapeForHashPattern = (value) => String(value).replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+
+  await openDashboard(page);
+
+  for (const tab of [
+    "traffic",
+    "ip-bans",
+    "red-team",
+    "tuning",
+    "verification",
+    "traps",
+    "rate-limiting",
+    "geo",
+    "policy",
+    "status",
+    "advanced",
+    "diagnostics"
+  ]) {
+    clearRuntimeFailures(page);
+    await page.goto(`${BASE_URL}/shuma/dashboard/index.html#${tab}`);
+    await waitForDashboardSessionAuthenticated(page, 15000);
+    await page.waitForSelector("#logout-btn", { timeout: 15000 });
+    await expect(page).toHaveURL(new RegExp(`#${escapeForHashPattern(tab)}$`));
+    await assertActiveTabPanelVisibility(page, tab);
+    assertNoRuntimeFailures(page);
+  }
+});
+
 test("traffic manual refresh avoids placeholder flicker and bounds table churn", async ({ page }) => {
   let monitoringSnapshotRequests = 0;
   let monitoringDeltaRequests = 0;

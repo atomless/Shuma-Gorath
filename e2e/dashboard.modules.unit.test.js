@@ -6239,6 +6239,19 @@ test('dashboard route keeps a neutral auth gate mounted until session bootstrap 
   assert.match(source, /\{:else\}\s*<div class="container panel panel-border" data-dashboard-runtime-mode="native">/s);
 });
 
+test('dashboard route preserves an empty server-side hash bootstrap so client hash can select the first tab load', () => {
+  const source = fs.readFileSync(
+    path.join(DASHBOARD_ROOT, 'src/routes/+page.svelte'),
+    'utf8'
+  );
+
+  assert.doesNotMatch(source, /initialTab:\s*normalizeTab\(data\?\.initialHashTab\s*\|\|\s*''\)/);
+  assert.match(
+    source,
+    /bootstrapRuntime\(\{\s*initialTab:\s*(?:typeof data\?\.initialHashTab === 'string'\s*\?\s*data(?:\?\.|\.?)initialHashTab\s*:\s*''|data\?\.initialHashTab\s*\|\|\s*''),\s*basePath:\s*dashboardBasePath\s*\}\)/s
+  );
+});
+
 test('login route exposes native password-manager-friendly form-post semantics', () => {
   const source = fs.readFileSync(
     path.join(DASHBOARD_ROOT, 'src/routes/login.html/+page.svelte'),

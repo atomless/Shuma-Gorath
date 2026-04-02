@@ -4,6 +4,18 @@ Moved from active TODO files on 2026-02-14.
 
 ## Additional completions (2026-04-02)
 
+### Dashboard Direct-Hash Tab Bootstrap Fix
+
+- [x] Restored truthful first-load dashboard hash routing so authenticated direct loads such as `#traps`, `#rate-limiting`, and `#geo` now boot the requested tab instead of collapsing to the default `game-loop` tab before the browser hash is read.
+- [x] What landed:
+  - [`../dashboard/src/routes/+page.svelte`](../dashboard/src/routes/+page.svelte) now preserves the raw server-provided `initialHashTab` value when bootstrapping the dashboard route controller instead of pre-normalizing an empty server-side hash to `game-loop`.
+  - [`../e2e/dashboard.modules.unit.test.js`](../e2e/dashboard.modules.unit.test.js), [`../e2e/dashboard.smoke.spec.js`](../e2e/dashboard.smoke.spec.js), and [`../Makefile`](../Makefile) now lock the caller seam and the rendered behavior behind `make test-dashboard-hash-tab-boot-contract`, with the smoke proof covering direct authenticated first-load hashes across the full admin-tab surface rather than only the three manually observed tabs.
+- [x] Why:
+  - the real failure was a generic first-load hash bootstrap bug, not a special case in the Traps, Rate Limiting, or GEO tabs themselves: the route passed `normalizeTab(data?.initialHashTab || '')` into `bootstrapRuntime`, which converted the server’s empty hash view into `game-loop` before the client-side `window.location.hash` could participate.
+- [x] Evidence:
+  - `make test-dashboard-hash-tab-boot-contract`
+  - `make test-code-quality`
+
 ### Root-Served Defence Confrontation And Bursty Scrapling Recovery
 
 - [x] Landed `SIM-REALISM-REG-1A..1C` so root-started Scrapling on the generated root-hosted site now earns its way through Shuma-served confrontation and into tarpit with violent, bursty cadence rather than fake route knowledge or pedestrian serialized turnover.
