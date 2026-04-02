@@ -162,6 +162,7 @@
           <th class="caps-label">Identity</th>
           <th class="caps-label">Transport</th>
           <th class="caps-label">Coverage</th>
+          <th class="caps-label">Started</th>
           <th class="caps-label">Last Event</th>
           <th class="caps-label">Monitoring Deltas</th>
           <th class="caps-label">Ban Outcomes</th>
@@ -169,7 +170,7 @@
       </thead>
       <tbody>
         {#if runRows.length === 0}
-          <TableEmptyRow colspan={10}>No adversary runs</TableEmptyRow>
+          <TableEmptyRow colspan={11}>No adversary runs</TableEmptyRow>
         {:else}
           {#each runRows as row}
             <tr>
@@ -180,6 +181,7 @@
               <td>{formatIdentitySummary(row)}</td>
               <td>{formatTransportSummary(row)}</td>
               <td>{formatCoverageSummary(row.ownedSurfaceCoverage)}</td>
+              <td>{formatTime(row.firstTs)}</td>
               <td>{formatTime(row.lastTs)}</td>
               <td>
                 {formatCompactNumber(row.monitoringEventCount, '0')} events

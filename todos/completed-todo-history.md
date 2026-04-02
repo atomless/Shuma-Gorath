@@ -4,6 +4,19 @@ Moved from active TODO files on 2026-02-14.
 
 ## Additional completions (2026-04-02)
 
+### Dashboard Recent Red Team Runs Started-Time Disambiguation
+
+- [x] Added a user-facing `Started` column to Recent Red Team Runs so successive runs remain visibly distinguishable after the operator-unhelpful internal `Run ID` column was removed.
+- [x] What landed:
+  - [`../dashboard/src/lib/components/dashboard/monitoring/AdversaryRunPanel.svelte`](../dashboard/src/lib/components/dashboard/monitoring/AdversaryRunPanel.svelte) now renders a focused `Started` column using the run's `firstTs`, shifts `Last Event` one column to the right, and updates the empty-state table span from `10` to `11`.
+  - [`../e2e/dashboard.modules.unit.test.js`](../e2e/dashboard.modules.unit.test.js) now proves the shared panel renders the `Started` header, formats `row.firstTs`, and preserves the corrected empty-state span.
+- [x] Why:
+  - backend monitoring rows were still materializing correctly, but once the internal `Run ID` column was removed, operators lost an immediate way to tell whether a visually similar Scrapling row represented a genuinely new run or just continued updates on an older one.
+- [x] Evidence:
+  - `make test-dashboard-adversary-sim-lane-contract`
+  - `make test-dashboard-red-team-pane`
+  - `make test-code-quality`
+
 ### Dashboard Recent Red Team Runs Scrapling Execution Aggregation
 
 - [x] Fixed the semantic mismatch where Scrapling `Execution` volume in Recent Red Team Runs was being read from only the latest realism receipt while `Modes` and `Categories` were whole-run unions.
