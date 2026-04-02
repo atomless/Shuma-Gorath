@@ -98,6 +98,11 @@ class AdversarialContainerWorkerUnitTests(unittest.TestCase):
             ],
             "observed_user_agent_families": ["chrome_android"],
             "observed_accept_languages": ["fr-FR,fr;q=0.9,en-US;q=0.7,en;q=0.6"],
+            "identity_realism_status": "fixed_proxy",
+            "identity_provenance_mode": "fixed_proxy",
+            "identity_envelope_classes": ["residential", "mobile"],
+            "geo_affinity_mode": "pool_aligned",
+            "session_stickiness": "stable_per_identity",
             "transport_profile": "urllib_direct",
             "recurrence_strategy": "bounded_campaign_return",
             "reentry_scope": "cross_window_campaign",
@@ -190,7 +195,8 @@ class AdversarialContainerWorkerUnitTests(unittest.TestCase):
             receipt["session_handles"],
             ["agentic-request-session-1"],
         )
-        self.assertEqual(receipt["identity_realism_status"], "degraded_local")
+        self.assertEqual(receipt["identity_realism_status"], "fixed_proxy")
+        self.assertEqual(receipt["identity_provenance_mode"], "fixed_proxy")
         self.assertEqual(
             receipt["identity_envelope_classes"],
             ["residential", "mobile"],

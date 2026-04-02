@@ -4,6 +4,22 @@ Moved from active TODO files on 2026-02-14.
 
 ## Additional completions (2026-04-02)
 
+### Adversary Sim Agentic Worker Result Contract Recovery
+
+- [x] Restored agentic recent-run materialization after the LLM worker result contract had drifted far enough that live `bot_red_team` runs were being rejected with `400 Invalid LLM runtime result payload`.
+- [x] What landed:
+  - [`../src/admin/adversary_sim_worker_plan.rs`](../src/admin/adversary_sim_worker_plan.rs) now models the richer LLM realism receipt fields already emitted by the runtime (`action_types_attempted`, `capability_state`, and `targeting_strategy`) and includes a focused typed-ingest regression proving that a current runtime realism receipt parses successfully.
+  - [`../src/admin/api.rs`](../src/admin/api.rs) and [`../src/observability/operator_snapshot.rs`](../src/observability/operator_snapshot.rs) now keep their LLM realism receipt fixtures aligned with that shared contract so the typed-ingest proof surface stays truthful instead of silently lagging behind the runtime.
+  - [`../scripts/tests/adversarial_container/worker.py`](../scripts/tests/adversarial_container/worker.py) and [`../scripts/tests/adversarial_browser_driver.mjs`](../scripts/tests/adversarial_browser_driver.mjs) now emit `identity_provenance_mode` in the realism receipt instead of dropping it and forcing the Rust worker-result parser to reject otherwise valid runtime results.
+  - [`../scripts/tests/test_llm_runtime_worker.py`](../scripts/tests/test_llm_runtime_worker.py) and [`../scripts/tests/test_adversarial_container_worker.py`](../scripts/tests/test_adversarial_container_worker.py) now prove the browser-mode and request-mode emitters preserve the identity provenance contract expected by the backend.
+  - [`../Makefile`](../Makefile) now keeps the Rust typed-ingest proof and the real emitter proofs together under `make test-adversarial-llm-runtime-dispatch`.
+- [x] Why:
+  - live agentic runs were no longer landing in Recent Red Team Runs because the Python/browser/container worker payload had drifted beyond the Rust `LlmRuntimeResult` contract, which meant the supervisor kept failing at the worker-result boundary before the dashboard could ever see a fresh run row.
+- [x] Evidence:
+  - `make test-adversarial-llm-runtime-dispatch`
+  - `make test-code-quality`
+  - live proof via `POST /shuma/admin/adversary-sim/control` followed by `GET /shuma/admin/monitoring?hours=24&limit=10`, which now materializes a fresh `bot_red_team` run row (`simrun-1775148963-cb7ba9a1991978dc`) instead of failing at the old `400 Invalid LLM runtime result payload` boundary
+
 ### Dashboard Recent Red Team Runs Whole-Run Identity And Transport Summaries
 
 - [x] Replaced latest-receipt-only identity and transport rendering in Recent Red Team Runs with whole-run summaries so those columns now match the whole-run semantics already used by modes, categories, coverage, timestamps, monitoring deltas, and Scrapling execution volume.

@@ -211,6 +211,12 @@ pub struct LlmRuntimeActionReceipt {
 pub struct LlmRuntimeRealismReceipt {
     pub schema_version: String,
     pub profile_id: String,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub action_types_attempted: Vec<String>,
+    #[serde(default, skip_serializing_if = "String::is_empty")]
+    pub capability_state: String,
+    #[serde(default, skip_serializing_if = "String::is_empty")]
+    pub targeting_strategy: String,
     pub planned_activity_budget: u64,
     pub effective_activity_budget: u64,
     #[serde(default, skip_serializing_if = "Option::is_none")]
@@ -449,7 +455,7 @@ pub struct AutonomousHeartbeatTickSummary {
 
 #[cfg(test)]
 mod tests {
-    use super::{ScraplingWorkerResult, WorkerFailureClass};
+    use super::{LlmRuntimeResult, ScraplingWorkerResult, WorkerFailureClass};
 
     #[test]
     fn scrapling_worker_result_deserializes_snake_case_failure_class_and_browser_receipt_fields() {
@@ -530,6 +536,88 @@ mod tests {
 
         assert_eq!(parsed.failure_class, Some(WorkerFailureClass::Transport));
         let receipt = parsed.realism_receipt.expect("realism receipt");
+        assert_eq!(receipt.action_types_attempted, vec!["browser_navigate".to_string()]);
+        assert_eq!(receipt.capability_state, "native_persona");
+        assert_eq!(receipt.targeting_strategy, "surface_probe");
+    }
+
+    #[test]
+    fn llm_runtime_result_deserializes_runtime_realism_receipt_contract() {
+        let payload = serde_json::json!({
+            "schema_version": "adversary-sim-llm-runtime-result.v1",
+            "run_id": "simrun-llm-test",
+            "tick_id": "tick-1",
+            "lane": "bot_red_team",
+            "fulfillment_mode": "browser_mode",
+            "worker_id": "llm-runtime-worker-test",
+            "tick_started_at": 1,
+            "tick_completed_at": 2,
+            "backend_kind": "frontier_reference",
+            "backend_state": "configured",
+            "generation_source": "provider_response",
+            "provider": "openai",
+            "model_id": "gpt-5-mini",
+            "category_targets": ["browser_agent"],
+            "generated_action_count": 2,
+            "executed_action_count": 2,
+            "failed_action_count": 0,
+            "last_response_status": 200,
+            "passed": true,
+            "realism_receipt": {
+                "schema_version": "sim-lane-realism-receipt.v1",
+                "profile_id": "agentic.browser_mode.v1",
+                "action_types_attempted": ["browser_navigate"],
+                "capability_state": "native_persona",
+                "targeting_strategy": "surface_probe",
+                "planned_activity_budget": 4,
+                "effective_activity_budget": 2,
+                "activity_count": 2,
+                "top_level_action_count": 2,
+                "focused_page_set_size": 2,
+                "dwell_intervals_ms": [2400],
+                "transport_profile": "playwright_chromium",
+                "transport_realism_class": "browser_runtime_stack",
+                "transport_emission_basis": "playwright_chromium_runtime",
+                "transport_degraded_reason": "",
+                "observed_user_agent_families": ["chrome"],
+                "observed_accept_languages": ["en-US,en;q=0.9"],
+                "observed_browser_locales": ["en-US"],
+                "identity_realism_status": "fixed_proxy",
+                "identity_provenance_mode": "trusted_ingress_backed",
+                "identity_envelope_classes": ["residential"],
+                "geo_affinity_mode": "pool_aligned",
+                "session_stickiness": "stable_per_identity",
+                "observed_country_codes": ["GB"],
+                "secondary_capture_mode": "same_origin_request_events",
+                "secondary_request_count": 3,
+                "background_request_count": 1,
+                "subresource_request_count": 2,
+                "session_handles": ["agentic-browser-session-1"],
+                "identity_rotation_count": 0,
+                "recurrence_strategy": "bounded_campaign_return",
+                "reentry_scope": "cross_window_campaign",
+                "dormancy_truth_mode": "accelerated_local_proof",
+                "session_index": 1,
+                "reentry_count": 0,
+                "max_reentries_per_run": 2,
+                "planned_dormant_gap_seconds": 4,
+                "representative_dormant_gap_seconds": 14400,
+                "stop_reason": "top_level_budget_exhausted"
+            },
+            "action_receipts": [
+                {
+                    "action_index": 1,
+                    "action_type": "browser_navigate",
+                    "path": "/",
+                    "status": 200
+                }
+            ]
+        });
+
+        let parsed: LlmRuntimeResult =
+            serde_json::from_value(payload).expect("llm runtime result parses");
+        let receipt = parsed.realism_receipt.expect("realism receipt");
+        assert_eq!(receipt.identity_provenance_mode, "trusted_ingress_backed");
         assert_eq!(receipt.action_types_attempted, vec!["browser_navigate".to_string()]);
         assert_eq!(receipt.capability_state, "native_persona");
         assert_eq!(receipt.targeting_strategy, "surface_probe");

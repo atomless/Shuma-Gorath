@@ -935,6 +935,10 @@ async function runScenario(payload) {
               : [locale],
             identity_realism_status:
               String(sessionPlanRaw.identity_realism_status || "").trim() || "degraded_local",
+            identity_provenance_mode:
+              String(sessionPlanRaw.identity_provenance_mode || "").trim() ||
+              String(sessionPlanRaw.identity_realism_status || "").trim() ||
+              "degraded_local",
             identity_envelope_classes: Array.isArray(sessionPlanRaw.identity_envelope_classes)
               ? sessionPlanRaw.identity_envelope_classes
                   .map((value) => String(value || "").trim())

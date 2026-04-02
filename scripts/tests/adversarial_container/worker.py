@@ -697,6 +697,11 @@ def execute_resolved_actions_with_realism(
             request_realism_plan.get("observed_accept_languages") or []
         ),
         "identity_realism_status": str(request_realism_plan.get("identity_realism_status") or "degraded_local"),
+        "identity_provenance_mode": str(
+            request_realism_plan.get("identity_provenance_mode")
+            or request_realism_plan.get("identity_realism_status")
+            or "degraded_local"
+        ),
         "identity_envelope_classes": list(request_realism_plan.get("identity_envelope_classes") or []),
         "geo_affinity_mode": str(request_realism_plan.get("geo_affinity_mode") or "pool_aligned"),
         "session_stickiness": str(request_realism_plan.get("session_stickiness") or "stable_per_identity"),

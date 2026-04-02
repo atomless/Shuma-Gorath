@@ -2192,9 +2192,10 @@ test-adversarial-llm-runtime-dispatch: ## Focused bounded LLM runtime dispatch g
 	@echo "$(CYAN)🧪 Running bounded adversarial LLM runtime dispatch gate...$(NC)"
 	@./scripts/set_crate_type.sh rlib
 	@cargo test adversary_sim_worker_result_updates_llm_runtime_generation_and_lane_diagnostics -- --nocapture
+	@cargo test llm_runtime_result_deserializes_runtime_realism_receipt_contract -- --nocapture
 	@$(MAKE) --no-print-directory test-adversary-sim-supervisor-unit
 	@python3 -m py_compile scripts/supervisor/llm_runtime_worker.py
-	@python3 -m unittest scripts/tests/test_adversary_sim_supervisor.py scripts/tests/test_llm_runtime_worker.py
+	@python3 -m unittest scripts/tests/test_adversary_sim_supervisor.py scripts/tests/test_llm_runtime_worker.py scripts/tests/test_adversarial_container_worker.py
 
 test-adversarial-llm-runtime-projection: ## Focused bounded LLM runtime recent-run and operator projection gate
 	@echo "$(CYAN)🧪 Running bounded adversarial LLM runtime projection gate...$(NC)"

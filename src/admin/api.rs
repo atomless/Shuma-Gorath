@@ -1834,6 +1834,9 @@ mod tests {
                             crate::admin::adversary_sim_worker_plan::LlmRuntimeRealismReceipt {
                                 schema_version: "sim-lane-realism-receipt.v1".to_string(),
                                 profile_id: "agentic.request_mode.v1".to_string(),
+                                action_types_attempted: vec!["http_get".to_string()],
+                                capability_state: "degraded_fallback".to_string(),
+                                targeting_strategy: "single_entrypoint_probe".to_string(),
                                 planned_activity_budget: 12,
                                 effective_activity_budget: 9,
                                 planned_burst_size: Some(3),
@@ -2042,6 +2045,9 @@ mod tests {
                                 crate::admin::adversary_sim_worker_plan::LlmRuntimeRealismReceipt {
                                     schema_version: "sim-lane-realism-receipt.v1".to_string(),
                                     profile_id: "agentic.request_mode.v1".to_string(),
+                                    action_types_attempted: vec!["http_get".to_string()],
+                                    capability_state: "degraded_fallback".to_string(),
+                                    targeting_strategy: "single_entrypoint_probe".to_string(),
                                     planned_activity_budget: 12,
                                     effective_activity_budget: 9,
                                     planned_burst_size: Some(3),
@@ -2239,6 +2245,9 @@ mod tests {
                             crate::admin::adversary_sim_worker_plan::LlmRuntimeRealismReceipt {
                                 schema_version: "sim-lane-realism-receipt.v1".to_string(),
                                 profile_id: "agentic.browser_mode.v1".to_string(),
+                                action_types_attempted: vec!["browser_navigate".to_string()],
+                                capability_state: "native_persona".to_string(),
+                                targeting_strategy: "surface_probe".to_string(),
                                 planned_activity_budget: 4,
                                 effective_activity_budget: 2,
                                 planned_burst_size: None,

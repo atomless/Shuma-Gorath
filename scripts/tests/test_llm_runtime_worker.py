@@ -797,6 +797,7 @@ class LlmRuntimeWorkerUnitTests(unittest.TestCase):
                     "subresource_request_count": 2,
                     "session_handles": ["agentic-browser-session-1"],
                     "identity_rotation_count": 0,
+                    "identity_provenance_mode": "fixed_proxy",
                     "stop_reason": "top_level_budget_exhausted",
                 },
                 "browser_evidence": {
@@ -870,6 +871,10 @@ class LlmRuntimeWorkerUnitTests(unittest.TestCase):
         self.assertEqual(
             report["worker_payload"]["realism_receipt"]["secondary_request_count"],
             3,
+        )
+        self.assertEqual(
+            report["worker_payload"]["realism_receipt"]["identity_provenance_mode"],
+            "fixed_proxy",
         )
         self.assertEqual(report["worker_payload"]["requests_sent"], 2)
         self.assertEqual(len(report["_executed_actions"]), 2)
