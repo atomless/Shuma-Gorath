@@ -4,6 +4,20 @@ Moved from active TODO files on 2026-02-14.
 
 ## Additional completions (2026-04-02)
 
+### Dashboard Recent Red Team Runs Started-Only Timing Surface
+
+- [x] Removed the redundant `Last Event` column from Recent Red Team Runs so the table now keeps only the operator-useful `Started` timestamp instead of presenting two adjacent time columns with weakly differentiated value.
+- [x] What landed:
+  - [`../dashboard/src/lib/components/dashboard/monitoring/AdversaryRunPanel.svelte`](../dashboard/src/lib/components/dashboard/monitoring/AdversaryRunPanel.svelte) now drops the `Last Event` header and `row.lastTs` cell, and tightens the empty-state span from `11` to `10`.
+  - [`../e2e/dashboard.modules.unit.test.js`](../e2e/dashboard.modules.unit.test.js) now proves the shared panel keeps `Started`, omits `Last Event`, omits the `row.lastTs` formatter call, and preserves the corrected empty-state span.
+  - [`../e2e/dashboard.smoke.spec.js`](../e2e/dashboard.smoke.spec.js) now includes rendered proof that the live Red Team table shows `Started` and does not show `Last Event`.
+  - [`../Makefile`](../Makefile) now keeps that shared panel contract on the normal `make test-dashboard-red-team-pane` path instead of only the lane-contract path.
+- [x] Why:
+  - once `Started` was added to make recent runs distinguishable after the internal run identifier was removed, `Last Event` no longer carried enough distinct operator value to justify the extra width and visual noise in the table.
+- [x] Evidence:
+  - `make test-dashboard-red-team-pane`
+  - `make test-code-quality`
+
 ### Dashboard Recent Red Team Runs Scrapling Aggregate Execution Rendering
 
 - [x] Repaired the Recent Red Team Runs execution column so Scrapling rows now preserve and render the whole-run `scrapling_activity_count` instead of silently falling back to the latest realism receipt's smaller `activity_count`.

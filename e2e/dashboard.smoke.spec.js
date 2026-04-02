@@ -5051,6 +5051,9 @@ test("red team tab surfaces llm runtime lineage in recent adversary runs", async
   await openDashboard(page);
   await openTab(page, "red-team");
 
+  await expect(page.locator("#adversary-runs thead")).toContainText("Started");
+  await expect(page.locator("#adversary-runs thead")).not.toContainText("Last Event");
+
   const row = page.locator("#adversary-runs tbody tr").first();
   await expect(row).toContainText("simrun-llm-runtime");
   await expect(row).toContainText("Agentic Traffic");

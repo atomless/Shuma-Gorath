@@ -6845,6 +6845,7 @@ test('adversary run panel separates execution identity and transport columns', (
   assert.match(source, /<th class="caps-label">Identity<\/th>/);
   assert.match(source, /<th class="caps-label">Transport<\/th>/);
   assert.match(source, /<th class="caps-label">Started<\/th>/);
+  assert.doesNotMatch(source, /<th class="caps-label">Last Event<\/th>/);
   assert.doesNotMatch(source, /<th class="caps-label">Realism<\/th>/);
   assert.doesNotMatch(source, /<th class="caps-label">Runtime<\/th>/);
   assert.doesNotMatch(source, /<th class="caps-label">Profile<\/th>/);
@@ -6859,12 +6860,13 @@ test('adversary run panel separates execution identity and transport columns', (
   assert.match(source, /const formatTransportSummary = \(row = \{\}\) => \{/);
   assert.match(source, /\{formatTransportSummary\(row\)\}/);
   assert.match(source, /\{formatTime\(row\.firstTs\)\}/);
+  assert.doesNotMatch(source, /\{formatTime\(row\.lastTs\)\}/);
   assert.doesNotMatch(source, /const formatRealismSummary = \(row = \{\}\) => \{/);
   assert.doesNotMatch(source, /\{formatRealismSummary\(row\)\}/);
   assert.doesNotMatch(source, /const formatRuntimeSummary = \(row = \{\}\) => \{/);
   assert.doesNotMatch(source, /\{formatRuntimeSummary\(row\)\}/);
   assert.doesNotMatch(source, /\{row\.profile \|\| '-'\}/);
-  assert.match(source, /<TableEmptyRow colspan=\{11\}>No adversary runs<\/TableEmptyRow>/);
+  assert.match(source, /<TableEmptyRow colspan=\{10\}>No adversary runs<\/TableEmptyRow>/);
 });
 
 test('primary charts reuse the shared half doughnut shell for event-type readouts', () => {
