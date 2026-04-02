@@ -3980,6 +3980,75 @@ test('monitoring view model formats transport realism summaries for recent adver
       }),
       'Mixed: Degraded Direct Library, Impersonated Request Stack (No TLS Or Protocol Impersonation Support)'
     );
+    const summarizedRuns = monitoringModelModule.deriveAdversaryRunRowsFromSummaries([
+      {
+        run_id: 'simrun-agentic-coverage',
+        lane: 'bot_red_team',
+        profile: 'llm_runtime_lane',
+        first_ts: 1710000100,
+        last_ts: 1710000200,
+        monitoring_event_count: 0,
+        defense_delta_count: 0,
+        ban_outcome_count: 0,
+        llm_surface_coverage: {
+          overall_status: 'partial_progress',
+          observed_surface_ids: ['challenge_routing', 'public_path_traversal'],
+          response_surface_ids: ['challenge_routing', 'public_path_traversal'],
+          progress_surface_ids: ['public_path_traversal'],
+          surface_labels: {
+            challenge_routing: 'Challenge Routing',
+            public_path_traversal: 'Public Path Traversal'
+          },
+          receipts: [
+            {
+              surface_id: 'public_path_traversal',
+              coverage_status: 'progress_observed',
+              surface_state: 'leaked',
+              attempt_count: 1,
+              sample_request_method: 'GET',
+              sample_request_path: '/',
+              sample_response_status: 200
+            },
+            {
+              surface_id: 'challenge_routing',
+              coverage_status: 'response_observed',
+              surface_state: 'held',
+              attempt_count: 1,
+              sample_request_method: 'GET',
+              sample_request_path: '/challenge',
+              sample_response_status: 403
+            }
+          ]
+        },
+        llm_runtime_summary: {
+          receipt_count: 1,
+          fulfillment_mode: 'request_mode',
+          category_targets: ['http_agent', 'ai_scraper_bot'],
+          backend_kind: 'frontier_reference',
+          backend_state: 'configured',
+          generation_source: 'provider_response',
+          provider: 'openai',
+          model_id: 'gpt-5-mini',
+          generated_action_count: 2,
+          executedActionCount: 2,
+          failed_action_count: 0,
+          passed_tick_count: 1,
+          failed_tick_count: 0,
+          latest_action_receipts: [
+            {
+              action_index: 1,
+              action_type: 'http_get',
+              path: '/',
+              status: 200
+            }
+          ]
+        }
+      }
+    ], []);
+    assert.equal(summarizedRuns.runRows[0].coverageSummary?.kind, 'llm_surface_observation');
+    assert.equal(summarizedRuns.runRows[0].coverageSummary?.overallStatus, 'partial_progress');
+    assert.equal(summarizedRuns.runRows[0].coverageSummary?.coveredSurfaceCount, 1);
+    assert.equal(summarizedRuns.runRows[0].coverageSummary?.totalSurfaceCount, 2);
   });
 });
 
@@ -6862,6 +6931,9 @@ test('adversary run panel separates execution identity and transport columns', (
   assert.match(source, /\{formatIdentitySummary\(row\)\}/);
   assert.match(source, /const formatTransportSummary = \(row = \{\}\) => \{/);
   assert.match(source, /\{formatTransportSummary\(row\)\}/);
+  assert.match(source, /const formatCoverageSummary = \(row = \{\}\) => \{/);
+  assert.match(source, /row\?\.coverageSummary/);
+  assert.match(source, /\{formatCoverageSummary\(row\)\}/);
   assert.match(source, /<td>\{formatTime\(row\.firstTs\)\}<\/td>\s*<td>\{formatLaneLabel\(row\.lane\)\}<\/td>/);
   assert.doesNotMatch(source, /\{formatTime\(row\.lastTs\)\}/);
   assert.doesNotMatch(source, /const formatRealismSummary = \(row = \{\}\) => \{/);
@@ -6869,6 +6941,7 @@ test('adversary run panel separates execution identity and transport columns', (
   assert.doesNotMatch(source, /const formatRuntimeSummary = \(row = \{\}\) => \{/);
   assert.doesNotMatch(source, /\{formatRuntimeSummary\(row\)\}/);
   assert.doesNotMatch(source, /\{row\.profile \|\| '-'\}/);
+  assert.doesNotMatch(source, /\{formatCoverageSummary\(row\.ownedSurfaceCoverage\)\}/);
   assert.match(source, /<TableEmptyRow colspan=\{10\}>No adversary runs<\/TableEmptyRow>/);
 });
 

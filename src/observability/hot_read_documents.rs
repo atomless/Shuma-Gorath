@@ -8,6 +8,7 @@ use crate::observability::hot_read_contract::{
     monitoring_bootstrap_component_contracts, operator_snapshot_component_contracts,
     HotReadOwnershipTier, HotReadProjectionModel, TelemetryBasis, TelemetryExactness,
 };
+use crate::observability::llm_surface_observation::LlmSurfaceCoverageSummary;
 use crate::observability::monitoring::MonitoringSummary;
 use crate::observability::operator_snapshot::OperatorSnapshotHotReadPayload;
 use crate::observability::scrapling_owned_surface::ScraplingOwnedSurfaceCoverageSummary;
@@ -199,6 +200,8 @@ pub(crate) struct MonitoringRecentSimRunSummary {
     pub transport_summary: Option<MonitoringRecentRunTransportSummary>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub owned_surface_coverage: Option<ScraplingOwnedSurfaceCoverageSummary>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub llm_surface_coverage: Option<LlmSurfaceCoverageSummary>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub latest_scrapling_realism_receipt: Option<crate::admin::adversary_sim::ScraplingRealismReceipt>,
     #[serde(default, skip_serializing_if = "Option::is_none")]

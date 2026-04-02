@@ -5103,6 +5103,36 @@ test("red team recent runs label identity and transport realism truthfully", asy
             monitoring_event_count: 1,
             defense_delta_count: 1,
             ban_outcome_count: 0,
+            llm_surface_coverage: {
+              overall_status: "partial_progress",
+              observed_surface_ids: ["challenge_routing", "public_path_traversal"],
+              response_surface_ids: ["challenge_routing", "public_path_traversal"],
+              progress_surface_ids: ["public_path_traversal"],
+              surface_labels: {
+                challenge_routing: "Challenge Routing",
+                public_path_traversal: "Public Path Traversal"
+              },
+              receipts: [
+                {
+                  surface_id: "public_path_traversal",
+                  coverage_status: "progress_observed",
+                  surface_state: "leaked",
+                  attempt_count: 1,
+                  sample_request_method: "GET",
+                  sample_request_path: "/",
+                  sample_response_status: 200
+                },
+                {
+                  surface_id: "challenge_routing",
+                  coverage_status: "response_observed",
+                  surface_state: "held",
+                  attempt_count: 1,
+                  sample_request_method: "GET",
+                  sample_request_path: "/challenge",
+                  sample_response_status: 403
+                }
+              ]
+            },
             llm_runtime_summary: {
               receipt_count: 1,
               fulfillment_mode: "request_mode",
@@ -5220,6 +5250,7 @@ test("red team recent runs label identity and transport realism truthfully", asy
   await expect(rows.nth(0)).toContainText("FR");
   await expect(rows.nth(0)).toContainText("Degraded Direct Library");
   await expect(rows.nth(0)).toContainText("No TLS Or Protocol Impersonation Support");
+  await expect(rows.nth(0)).toContainText("Partial Progress | 1 / 2 surfaces");
   await expect(rows.nth(1)).toContainText("22 activities executed");
   await expect(rows.nth(1)).toContainText("Degraded local identity");
   await expect(rows.nth(1)).toContainText("Impersonated Request Stack");

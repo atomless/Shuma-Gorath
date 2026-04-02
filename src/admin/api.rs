@@ -1979,6 +1979,181 @@ mod tests {
                 .modes,
             vec!["degraded_direct_library".to_string()]
         );
+        let coverage = row
+            .llm_surface_coverage
+            .as_ref()
+            .expect("llm surface coverage");
+        assert_eq!(coverage.overall_status, "progress_observed");
+        assert_eq!(
+            coverage.observed_surface_ids,
+            vec!["public_path_traversal".to_string()]
+        );
+        assert_eq!(
+            coverage.progress_surface_ids,
+            vec!["public_path_traversal".to_string()]
+        );
+    }
+
+    #[test]
+    fn recent_sim_run_history_projects_llm_runtime_receipts_and_categories_surface_coverage() {
+        let store = MockStore::new();
+        let now = now_ts();
+        let run_started_at = now.saturating_sub(90);
+
+        let persist_llm_runtime_record = |ts: u64, path: &str, status: u16| {
+            persist_event_record(
+                &store,
+                EventLogRecord {
+                    entry: EventLogEntry {
+                        ts,
+                        event: EventType::AdminAction,
+                        ip: None,
+                        reason: Some("llm_runtime_receipt".to_string()),
+                        outcome: Some("request_mode provider_response".to_string()),
+                        admin: Some("internal".to_string()),
+                    },
+                    taxonomy: None,
+                    outcome_code: None,
+                    botness_score: None,
+                    sim_run_id: Some("simrun-llm-runtime-coverage-proof".to_string()),
+                    sim_profile: Some("llm_runtime_lane.request_mode".to_string()),
+                    sim_lane: Some("bot_red_team".to_string()),
+                    is_simulation: true,
+                    scrapling_surface_receipts: Vec::new(),
+                    scrapling_category_targets: Vec::new(),
+                    llm_runtime_summary: Some(
+                        crate::admin::adversary_sim::LlmRuntimeRecentRunSummary {
+                            receipt_count: 1,
+                            fulfillment_mode: "request_mode".to_string(),
+                            category_targets: vec![
+                                "http_agent".to_string(),
+                                "ai_scraper_bot".to_string(),
+                            ],
+                            backend_kind: "frontier_reference".to_string(),
+                            backend_state: "configured".to_string(),
+                            generation_source: "provider_response".to_string(),
+                            provider: "openai".to_string(),
+                            model_id: "gpt-5-mini".to_string(),
+                            fallback_reason: None,
+                            generated_action_count: 1,
+                            executed_action_count: 1,
+                            failed_action_count: 0,
+                            passed_tick_count: 1,
+                            failed_tick_count: 0,
+                            last_response_status: Some(status),
+                            failure_class: None,
+                            error: None,
+                            terminal_failure: None,
+                            latest_realism_receipt: Some(
+                                crate::admin::adversary_sim_worker_plan::LlmRuntimeRealismReceipt {
+                                    schema_version: "sim-lane-realism-receipt.v1".to_string(),
+                                    profile_id: "agentic.request_mode.v1".to_string(),
+                                    action_types_attempted: vec!["http_get".to_string()],
+                                    capability_state: "degraded_fallback".to_string(),
+                                    targeting_strategy: "single_entrypoint_probe".to_string(),
+                                    planned_activity_budget: 12,
+                                    effective_activity_budget: 9,
+                                    planned_burst_size: Some(3),
+                                    effective_burst_size: Some(3),
+                                    activity_count: 1,
+                                    burst_count: Some(1),
+                                    burst_sizes: vec![1],
+                                    inter_activity_gaps_ms: vec![0],
+                                    transport_profile: "urllib_direct".to_string(),
+                                    transport_realism_class: "degraded_direct_library"
+                                        .to_string(),
+                                    transport_emission_basis: "python_urllib_runtime"
+                                        .to_string(),
+                                    transport_degraded_reason:
+                                        "no_tls_or_protocol_impersonation_support".to_string(),
+                                    observed_user_agent_families: vec![
+                                        "chrome_android".to_string(),
+                                    ],
+                                    observed_accept_languages: vec![
+                                        "en-US,en;q=0.9".to_string(),
+                                    ],
+                                    identity_realism_status: "degraded_local".to_string(),
+                                    identity_provenance_mode: "degraded_local".to_string(),
+                                    identity_envelope_classes: vec![
+                                        "residential".to_string(),
+                                    ],
+                                    geo_affinity_mode: "pool_aligned".to_string(),
+                                    session_stickiness: "stable_per_identity".to_string(),
+                                    observed_country_codes: Vec::new(),
+                                    focused_page_set_size: Some(1),
+                                    top_level_action_count: None,
+                                    dwell_intervals_ms: Vec::new(),
+                                    observed_browser_locales: Vec::new(),
+                                    secondary_capture_mode: String::new(),
+                                    secondary_request_count: None,
+                                    background_request_count: None,
+                                    subresource_request_count: None,
+                                    concurrency_group_sizes: vec![1],
+                                    peak_concurrent_activities: Some(1),
+                                    session_handles: vec!["agentic-request-session".to_string()],
+                                    identity_rotation_count: None,
+                                    recurrence_strategy: "bounded_campaign_return".to_string(),
+                                    reentry_scope: "cross_window_campaign".to_string(),
+                                    dormancy_truth_mode: "accelerated_local_proof".to_string(),
+                                    session_index: Some(1),
+                                    reentry_count: Some(0),
+                                    max_reentries_per_run: Some(3),
+                                    planned_dormant_gap_seconds: Some(4),
+                                    representative_dormant_gap_seconds: Some(7_200),
+                                    stop_reason: "response_pressure_stop".to_string(),
+                                },
+                            ),
+                            latest_action_receipts: vec![
+                                crate::admin::adversary_sim_worker_plan::LlmRuntimeActionReceipt {
+                                    action_index: 1,
+                                    action_type: "http_get".to_string(),
+                                    path: path.to_string(),
+                                    label: Some("surface".to_string()),
+                                    status: Some(status),
+                                    error: None,
+                                },
+                            ],
+                        },
+                    ),
+                    execution: EventExecutionMetadata::default(),
+                },
+            );
+        };
+
+        persist_llm_runtime_record(run_started_at, "/", 200);
+        persist_llm_runtime_record(run_started_at.saturating_add(1), "/challenge", 403);
+
+        let recent_runs = monitoring_recent_sim_run_summaries(&store, now, 24, 10);
+        let row = recent_runs
+            .iter()
+            .find(|value| value.run_id == "simrun-llm-runtime-coverage-proof")
+            .expect("llm runtime coverage row");
+        let coverage = row
+            .llm_surface_coverage
+            .as_ref()
+            .expect("llm surface coverage");
+        assert_eq!(row.monitoring_event_count, 0);
+        assert_eq!(row.defense_delta_count, 0);
+        assert_eq!(coverage.overall_status, "partial_progress");
+        assert_eq!(
+            coverage.observed_surface_ids,
+            vec![
+                "challenge_routing".to_string(),
+                "public_path_traversal".to_string()
+            ]
+        );
+        assert_eq!(
+            coverage.progress_surface_ids,
+            vec!["public_path_traversal".to_string()]
+        );
+        assert_eq!(
+            coverage
+                .surface_labels
+                .get("challenge_routing")
+                .map(String::as_str),
+            Some("Challenge Routing")
+        );
+        assert_eq!(coverage.receipts.len(), 2);
     }
 
     #[test]
@@ -2192,6 +2367,19 @@ mod tests {
                 .expect("latest realism receipt")
                 .identity_provenance_mode,
             "trusted_ingress_backed"
+        );
+        let coverage = row
+            .llm_surface_coverage
+            .as_ref()
+            .expect("llm surface coverage");
+        assert_eq!(coverage.overall_status, "progress_observed");
+        assert_eq!(
+            coverage.observed_surface_ids,
+            vec!["public_path_traversal".to_string()]
+        );
+        assert_eq!(
+            coverage.progress_surface_ids,
+            vec!["public_path_traversal".to_string()]
         );
     }
 
@@ -16237,6 +16425,8 @@ struct MonitoringRecentSimRunAccumulator {
     transport_degraded_reasons: HashSet<String>,
     surface_observations:
         Vec<crate::observability::scrapling_owned_surface::ScraplingSurfaceObservationReceipt>,
+    llm_surface_observations:
+        Vec<crate::observability::llm_surface_observation::LlmSurfaceObservationRow>,
     latest_scrapling_realism_receipt:
         Option<crate::admin::adversary_sim::ScraplingRealismReceipt>,
     latest_scrapling_realism_receipt_ts: u64,
@@ -16486,6 +16676,7 @@ fn monitoring_recent_sim_run_summaries_filtered<S: crate::challenge::KeyValueSto
                     transport_modes: HashSet::new(),
                     transport_degraded_reasons: HashSet::new(),
                     surface_observations: Vec::new(),
+                    llm_surface_observations: Vec::new(),
                     latest_scrapling_realism_receipt: None,
                     latest_scrapling_realism_receipt_ts: 0,
                     llm_runtime_summary: None,
@@ -16546,6 +16737,11 @@ fn monitoring_recent_sim_run_summaries_filtered<S: crate::challenge::KeyValueSto
             }
         }
         if let Some(summary) = stored.record.llm_runtime_summary.as_ref() {
+            accumulator.llm_surface_observations.extend(
+                crate::observability::llm_surface_observation::summarize_llm_surface_observations(
+                    Some(summary),
+                ),
+            );
             if let Some(receipt) = summary.latest_realism_receipt.as_ref() {
                 merge_run_identity_and_transport_summary(
                     &mut accumulator.identity_modes,
@@ -16586,6 +16782,10 @@ fn monitoring_recent_sim_run_summaries_filtered<S: crate::challenge::KeyValueSto
                     observed_fulfillment_modes.as_slice(),
                     row.surface_observations.as_slice(),
                 );
+                let llm_surface_coverage =
+                    crate::observability::llm_surface_observation::summarize_llm_surface_coverage(
+                        row.llm_surface_observations.as_slice(),
+                    );
                 crate::observability::hot_read_documents::MonitoringRecentSimRunSummary {
                     run_id: row.run_id,
                     lane: row.lane,
@@ -16616,6 +16816,7 @@ fn monitoring_recent_sim_run_summaries_filtered<S: crate::challenge::KeyValueSto
                         },
                     ),
                     owned_surface_coverage,
+                    llm_surface_coverage,
                     latest_scrapling_realism_receipt: row.latest_scrapling_realism_receipt,
                     llm_runtime_summary: row.llm_runtime_summary,
                 }

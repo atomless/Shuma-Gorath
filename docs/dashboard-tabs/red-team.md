@@ -17,10 +17,13 @@ Panel:
   - lane selector for the currently supported operator-selectable lanes, with `bot_red_team` presented in the menu as `Agentic Traffic`,
   - and a bounded warning when ban-state freshness is unavailable.
 - `Recent Red Team Runs`:
-  - recent adversary simulation run identifiers derived from a compact monitoring-backed run-history summary,
+  - recent adversary simulation rows derived from a compact monitoring-backed run-history summary,
   - the lane column uses the same operator-facing lane names as the control surface, so `bot_red_team` rows read as `Agentic Traffic`,
   - observed fulfillment modes plus preserved category targets for each bounded run row,
   - monitoring-event, defence-reaction, and ban counts for quick run comparison,
+  - `Coverage` remains lane-truthful:
+    - `scrapling_traffic` rows show owned-surface closure against the lane's required surface set,
+    - `bot_red_team` rows show additive whole-run Agentic surface-observation progress across observed loci,
   - additive LLM runtime lineage for `bot_red_team` rows when present in the bounded monitoring window:
     - generation source,
     - provider and model when available,

@@ -51,11 +51,13 @@
       : [];
     return rows.length === 0 ? '-' : rows.join(', ');
   };
-  const formatCoverageSummary = (coverage) => {
-    const record = coverage && typeof coverage === 'object' ? coverage : null;
+  const formatCoverageSummary = (row = {}) => {
+    const record = row?.coverageSummary && typeof row.coverageSummary === 'object'
+      ? row.coverageSummary
+      : null;
     if (!record) return '-';
-    const satisfied = formatCompactNumber(record.satisfiedSurfaceCount || 0, '0');
-    const required = formatCompactNumber(record.requiredSurfaceCount || 0, '0');
+    const satisfied = formatCompactNumber(record.coveredSurfaceCount || 0, '0');
+    const required = formatCompactNumber(record.totalSurfaceCount || 0, '0');
     const status = humanizeToken(record.overallStatus || '');
     return `${status} | ${satisfied} / ${required} surfaces`;
   };
@@ -188,7 +190,7 @@
               <td>{formatExecutionSummary(row)}</td>
               <td>{formatIdentitySummary(row)}</td>
               <td>{formatTransportSummary(row)}</td>
-              <td>{formatCoverageSummary(row.ownedSurfaceCoverage)}</td>
+              <td>{formatCoverageSummary(row)}</td>
               <td>
                 {formatCompactNumber(row.monitoringEventCount, '0')} events
                 · {formatCompactNumber(row.defenseDeltaCount, '0')} defenses

@@ -4,6 +4,24 @@ Moved from active TODO files on 2026-02-14.
 
 ## Additional completions (2026-04-02)
 
+### Agentic Recent Red Team Coverage Projection
+
+- [x] Projected whole-run Agentic surface coverage into `Recent Red Team Runs` so `bot_red_team` rows no longer leave `Coverage` empty when bounded recent-run surface evidence exists.
+- [x] What landed:
+  - [`../src/observability/llm_surface_observation.rs`](../src/observability/llm_surface_observation.rs) now defines a serializable additive Agentic coverage summary and derives whole-run observed, response, and progress surface truth from aggregated LLM action receipts.
+  - [`../src/admin/api.rs`](../src/admin/api.rs) now accumulates LLM surface observations across the whole recent run, preserves external-event-only monitoring and defense counts, and projects the new `llm_surface_coverage` field into the shared monitoring recent-run summary.
+  - [`../src/observability/hot_read_documents.rs`](../src/observability/hot_read_documents.rs) now carries that optional `llm_surface_coverage` payload on `MonitoringRecentSimRunSummary`.
+  - [`../dashboard/src/lib/components/dashboard/monitoring-view-model.js`](../dashboard/src/lib/components/dashboard/monitoring-view-model.js) now shapes the additive Agentic coverage summary, preserves a bounded legacy fallback derived from latest action receipts for older rows, and normalizes a shared `coverageSummary` for table rendering without disturbing Scrapling closure semantics.
+  - [`../dashboard/src/lib/components/dashboard/monitoring/AdversaryRunPanel.svelte`](../dashboard/src/lib/components/dashboard/monitoring/AdversaryRunPanel.svelte) now renders `Coverage` from the shared normalized summary instead of only from Scrapling owned-surface closure.
+  - [`../e2e/dashboard.modules.unit.test.js`](../e2e/dashboard.modules.unit.test.js) and [`../e2e/dashboard.smoke.spec.js`](../e2e/dashboard.smoke.spec.js) now prove the Agentic row renders `Partial Progress | 1 / 2 surfaces` while preserving the existing identity, transport, and Scrapling execution truth.
+  - [`../docs/dashboard-tabs/red-team.md`](../docs/dashboard-tabs/red-team.md) now documents that `Coverage` is lane-truthful for both Scrapling and Agentic rows.
+- [x] Why:
+  - the table previously only understood Scrapling owned-surface closure, so Agentic rows that already carried bounded whole-run surface evidence still showed an empty `Coverage` cell and understated Shuma's observed contact with those loci.
+- [x] Evidence:
+  - `make test-adversarial-llm-runtime-projection`
+  - `make test-dashboard-red-team-pane` (covered transitively by the projection gate above)
+  - `make test-code-quality`
+
 ### Dashboard Recent Red Team Runs Started Column Prioritization
 
 - [x] Moved the `Started` column to the first position in Recent Red Team Runs so the primary run-disambiguation timestamp leads each row instead of being buried behind categorical metadata.
