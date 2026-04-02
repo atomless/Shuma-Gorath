@@ -552,6 +552,23 @@ async function waitForAdversarySimEnabledState(request, desiredEnabled, timeoutM
   );
 }
 
+async function setAdversarySimDesiredLane(page, request, desiredLane, timeoutMs = 30000) {
+  const normalizedDesiredLane = String(desiredLane || "").trim().toLowerCase();
+  if (!normalizedDesiredLane) {
+    throw new Error("desired adversary-sim lane must be a non-empty string");
+  }
+  const laneSelect = page.locator("#adversary-sim-lane-select");
+  await expect(laneSelect).toBeVisible({ timeout: timeoutMs });
+  if ((await laneSelect.inputValue()).trim().toLowerCase() !== normalizedDesiredLane) {
+    await laneSelect.selectOption(normalizedDesiredLane);
+  }
+  await expect.poll(async () => {
+    const payload = await fetchAdversarySimStatus(request);
+    return adversarySimStatusState(payload).desiredLane;
+  }, { timeout: timeoutMs }).toBe(normalizedDesiredLane);
+  await expect(laneSelect).toHaveValue(normalizedDesiredLane);
+}
+
 async function waitForDashboardAdversarySimUiState(
   page,
   request,
@@ -4083,6 +4100,7 @@ test("dashboard class contract tracks runtime and adversary-sim on html root onl
     expect(bodyState.bodyDisconnectedClassPresent).toBeFalsy();
 
     await openTab(page, "red-team");
+    await setAdversarySimDesiredLane(page, request, "synthetic_traffic");
     await expect(toggle).not.toBeChecked();
     await clickAdversaryToggleWithRetry(page, true, 60000, request);
     await expect(toggle).toBeChecked();
@@ -4120,6 +4138,7 @@ test("adversary sim global toggle drives orchestration control lifecycle state",
     await openDashboard(page);
     await waitForDashboardAdversarySimUiState(page, request, false);
     await openTab(page, "red-team");
+    await setAdversarySimDesiredLane(page, request, "synthetic_traffic");
 
     const toggle = page.locator("#global-adversary-sim-toggle");
     const lifecycleCopy = page.locator("#adversary-sim-lifecycle-copy");
@@ -4165,6 +4184,7 @@ test("adversary sim toggle emits fresh telemetry visible in monitoring raw feed"
 
     try {
       await openTab(page, "red-team");
+      await setAdversarySimDesiredLane(page, request, "synthetic_traffic");
       await clickAdversaryToggleWithRetry(page, true, 60000, request);
       await expect(toggle).toBeChecked();
 

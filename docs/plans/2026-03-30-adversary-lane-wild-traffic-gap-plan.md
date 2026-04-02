@@ -8,7 +8,7 @@
 
 **Related research:** [`../research/2026-03-30-adversary-lane-wild-traffic-gap-review.md`](../research/2026-03-30-adversary-lane-wild-traffic-gap-review.md)
 
-**Status note:** `SIM-REALISM-2A`, `SIM-REALISM-2B`, `SIM-REALISM-2C`, `SIM-REALISM-2D`, `SIM-REALISM-2E`, `SIM-REALISM-2F`, `SIM-REALISM-2G`, `SIM-REALISM-2I`, `SIM-REALISM-2J`, and `SIM-REALISM-3A..3E` are now landed. The generated root-hosted contributor public site that satisfied the old `SIM-REALISM-2H` discoverability need is also already landed. The remaining question is now target-environment readiness, not missing realism implementation tranches.
+**Status note:** `SIM-REALISM-2A`, `SIM-REALISM-2B`, `SIM-REALISM-2C`, `SIM-REALISM-2D`, `SIM-REALISM-2E`, `SIM-REALISM-2F`, `SIM-REALISM-2G`, `SIM-REALISM-2I`, `SIM-REALISM-2J`, and `SIM-REALISM-3A..3E` are now landed. The generated root-hosted contributor public site that satisfied the old `SIM-REALISM-2H` discoverability need is also already landed. A fresh regression recovery slice is now active in [`2026-04-01-root-served-defence-confrontation-and-scrapling-cadence-regression-plan.md`](2026-04-01-root-served-defence-confrontation-and-scrapling-cadence-regression-plan.md) because honest root-served defence confrontation and bursty Scrapling cadence still need tightening on that terrain before environment readiness becomes the only blocker again.
 
 ---
 

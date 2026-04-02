@@ -6252,6 +6252,44 @@ test('dashboard route preserves an empty server-side hash bootstrap so client ha
   );
 });
 
+test('dashboard adversary-sim telemetry smoke uses synthetic traffic instead of leaving truncated Scrapling runs in recent history', () => {
+  const source = fs.readFileSync(
+    path.join(WORKSPACE_ROOT, 'e2e/dashboard.smoke.spec.js'),
+    'utf8'
+  );
+  const match = source.match(
+    /test\("adversary sim toggle emits fresh telemetry visible in monitoring raw feed"[\s\S]*?\n}\);/
+  );
+  assert.ok(match, 'expected adversary-sim telemetry smoke test block');
+  assert.match(match[0], /setAdversarySimDesiredLane\(page,\s*request,\s*"synthetic_traffic"\)/);
+});
+
+test('dashboard adversary-sim lifecycle smokes use synthetic traffic unless they are explicitly proving Scrapling coverage', () => {
+  const source = fs.readFileSync(
+    path.join(WORKSPACE_ROOT, 'e2e/dashboard.smoke.spec.js'),
+    'utf8'
+  );
+  const classContractBlock = source.match(
+    /test\("dashboard class contract tracks runtime and adversary-sim on html root only"[\s\S]*?\n}\);/
+  );
+  const lifecycleBlock = source.match(
+    /test\("adversary sim global toggle drives orchestration control lifecycle state"[\s\S]*?\n}\);/
+  );
+  assert.ok(classContractBlock, 'expected dashboard class contract smoke block');
+  assert.ok(lifecycleBlock, 'expected adversary lifecycle smoke block');
+  assert.match(classContractBlock[0], /setAdversarySimDesiredLane\(page,\s*request,\s*"synthetic_traffic"\)/);
+  assert.match(lifecycleBlock[0], /setAdversarySimDesiredLane\(page,\s*request,\s*"synthetic_traffic"\)/);
+});
+
+test('dashboard hosted live smoke pins synthetic traffic before UI-only adversary toggle proof', () => {
+  const source = fs.readFileSync(
+    path.join(WORKSPACE_ROOT, 'scripts/tests/dashboard_external_live_smoke.mjs'),
+    'utf8'
+  );
+  assert.match(source, /await controlAdversarySimViaApi\(false,\s*'synthetic_traffic'\);/);
+  assert.match(source, /await waitForAdversarySimDesiredLane\('synthetic_traffic',\s*30_000\);/);
+});
+
 test('config envelope helper requires both config data and runtime truth before config-backed panes are treated as ready', { concurrency: false }, async () => {
   await withBrowserGlobals({}, async () => {
     const module = await importBrowserModule('dashboard/src/lib/domain/config-envelope.js');

@@ -122,6 +122,29 @@ class TrustedIngressProxyTests(unittest.TestCase):
                 self.assertEqual(recorded["path"], "/research/?page=2")
                 self.assertEqual(recorded["headers"]["x-forwarded-for"], "198.51.100.44")
 
+    def test_proxy_accepts_loopback_alias_for_public_target(self):
+        with _serve(_RecordingOriginHandler) as origin:
+            origin_base_url = f"http://127.0.0.1:{origin.server_port}"
+            config = TrustedIngressProxyConfig(
+                origin_base_url=origin_base_url,
+                public_base_url="http://127.0.0.1:3000",
+                auth_token="trusted-token",
+                forwarded_secret="forwarded-secret",
+            )
+            with _serve(build_proxy_handler(config)) as proxy:
+                opener = self._proxy_opener(
+                    f"http://198.51.100.44:trusted-token@127.0.0.1:{proxy.server_port}"
+                )
+                request = urllib.request.Request("http://localhost:3000/research/?page=2", method="GET")
+                with opener.open(request, timeout=5.0) as response:
+                    body = response.read().decode("utf-8")
+
+                self.assertEqual(response.status, 200)
+                self.assertEqual(body, "origin-ok")
+                recorded = origin.last_request  # type: ignore[attr-defined]
+                self.assertEqual(recorded["path"], "/research/?page=2")
+                self.assertEqual(recorded["headers"]["x-forwarded-for"], "198.51.100.44")
+
     def test_proxy_rejects_cross_origin_targets(self):
         with _serve(_RecordingOriginHandler) as origin:
             origin_base_url = f"http://127.0.0.1:{origin.server_port}"

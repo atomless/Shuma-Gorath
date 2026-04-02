@@ -32,6 +32,7 @@ SIM_TAG_CANONICAL_PREFIX = str((SIM_TAG_CONTRACT.get("canonical") or {}).get("pr
 SIM_TAG_CANONICAL_SEPARATOR = str(
     (SIM_TAG_CONTRACT.get("canonical") or {}).get("separator", "\n")
 )
+SIM_TAG_NONCE_CHARS = 24
 
 
 def build_sim_tag_canonical_message(
@@ -57,3 +58,8 @@ def sign_sim_tag(
         message.encode("utf-8"),
         hashlib.sha256,
     ).hexdigest()
+
+
+def build_sim_tag_nonce(*parts: Any, length: int = SIM_TAG_NONCE_CHARS) -> str:
+    raw = ":".join(str(part).strip() for part in parts if str(part).strip())
+    return hashlib.sha256(raw.encode("utf-8")).hexdigest()[: max(8, int(length))]

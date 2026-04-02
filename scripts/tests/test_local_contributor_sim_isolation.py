@@ -15,6 +15,21 @@ SPEC.loader.exec_module(LOCAL_CONTRIBUTOR_SIM_ISOLATION)
 
 
 class LocalContributorSimIsolationTests(unittest.TestCase):
+    def test_live_proof_reuses_runtime_surface_profile_and_recent_run_coverage_gate(self) -> None:
+        source = SCRIPT.read_text(encoding="utf-8")
+
+        self.assertIn("RuntimeToggleSurfaceGate(", source)
+        self.assertIn("configure_runtime_surface_profile()", source)
+        self.assertIn("poll_recent_scrapling_run_coverage(", source)
+        self.assertNotIn("wait_for_generation_progress(start_status)", source)
+
+    def test_live_proof_reuses_managed_local_runtime_path_instead_of_spawning_a_private_supervisor(self) -> None:
+        source = SCRIPT.read_text(encoding="utf-8")
+
+        self.assertNotIn("launch_supervisor_process()", source)
+        self.assertNotIn("adversary_sim_supervisor_launch.sh", source)
+        self.assertNotIn("subprocess.Popen", source)
+
     def test_generation_progress_accepts_new_run_even_when_tick_count_resets(self) -> None:
         start_status = {
             "run_id": "simrun-old",

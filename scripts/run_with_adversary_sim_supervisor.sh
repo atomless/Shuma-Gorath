@@ -10,6 +10,7 @@ ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 SUPERVISOR_MANAGER_PID=""
 SUPERVISOR_WORKER_PID=""
 TRUSTED_INGRESS_PROXY_PID=""
+PUBLIC_INGRESS_PROXY_PID=""
 APP_PID=""
 
 SIM_AVAILABLE_RAW="${SHUMA_ADVERSARY_SIM_AVAILABLE:-true}"
@@ -27,6 +28,8 @@ TRUSTED_INGRESS_LISTEN_PORT="${ADVERSARY_SIM_TRUSTED_INGRESS_LISTEN_PORT:-3871}"
 LOCAL_CONTRIBUTOR_INGRESS_RAW="${SHUMA_LOCAL_CONTRIBUTOR_INGRESS_ENABLE:-0}"
 LOCAL_CONTRIBUTOR_INGRESS_ENABLED="$(printf '%s' "${LOCAL_CONTRIBUTOR_INGRESS_RAW}" | tr '[:upper:]' '[:lower:]')"
 LOCAL_CONTRIBUTOR_ORIGIN_BASE_URL="${SHUMA_LOCAL_CONTRIBUTOR_ORIGIN_BASE_URL:-${BASE_URL}}"
+LOCAL_CONTRIBUTOR_PUBLIC_INGRESS_LISTEN_HOST="${SHUMA_LOCAL_CONTRIBUTOR_PUBLIC_INGRESS_LISTEN_HOST:-127.0.0.1}"
+LOCAL_CONTRIBUTOR_PUBLIC_INGRESS_LISTEN_PORT="${SHUMA_LOCAL_CONTRIBUTOR_PUBLIC_INGRESS_LISTEN_PORT:-3000}"
 LOCAL_CONTRIBUTOR_ALLOW_TRUSTED_FORWARDING_RAW="${SHUMA_LOCAL_CONTRIBUTOR_ALLOW_TRUSTED_FORWARDING:-0}"
 LOCAL_CONTRIBUTOR_ALLOW_TRUSTED_FORWARDING="$(printf '%s' "${LOCAL_CONTRIBUTOR_ALLOW_TRUSTED_FORWARDING_RAW}" | tr '[:upper:]' '[:lower:]')"
 LOCAL_CONTRIBUTOR_DIRECT_CLIENT_IP="${SHUMA_LOCAL_CONTRIBUTOR_DIRECT_CLIENT_IP:-127.0.0.1}"
@@ -70,6 +73,11 @@ cleanup_trusted_ingress_proxy() {
     kill "${TRUSTED_INGRESS_PROXY_PID}" 2>/dev/null || true
     wait "${TRUSTED_INGRESS_PROXY_PID}" 2>/dev/null || true
     TRUSTED_INGRESS_PROXY_PID=""
+  fi
+  if [[ -n "${PUBLIC_INGRESS_PROXY_PID}" ]]; then
+    kill "${PUBLIC_INGRESS_PROXY_PID}" 2>/dev/null || true
+    wait "${PUBLIC_INGRESS_PROXY_PID}" 2>/dev/null || true
+    PUBLIC_INGRESS_PROXY_PID=""
   fi
 }
 
@@ -138,12 +146,10 @@ import secrets
 print(secrets.token_urlsafe(18))
 PY
   )"
+  TRUSTED_INGRESS_PROXY_URL="http://${TRUSTED_INGRESS_LISTEN_HOST}:${TRUSTED_INGRESS_LISTEN_PORT}"
   local trusted_ingress_origin_base_url="${BASE_URL}"
   if [[ "${contributor_ingress_enabled}" == "1" ]]; then
-    TRUSTED_INGRESS_PROXY_URL="${BASE_URL}"
     trusted_ingress_origin_base_url="${LOCAL_CONTRIBUTOR_ORIGIN_BASE_URL}"
-  else
-    TRUSTED_INGRESS_PROXY_URL="http://${TRUSTED_INGRESS_LISTEN_HOST}:${TRUSTED_INGRESS_LISTEN_PORT}"
   fi
 
   if ! command -v python3 >/dev/null 2>&1; then
@@ -157,7 +163,7 @@ PY
     return 0
   fi
 
-  local proxy_args=(
+  local worker_proxy_args=(
     python3 "${ROOT_DIR}/scripts/supervisor/trusted_ingress_proxy.py"
     --listen-host "${TRUSTED_INGRESS_LISTEN_HOST}"
     --listen-port "${TRUSTED_INGRESS_LISTEN_PORT}"
@@ -166,23 +172,42 @@ PY
     --auth-token "${TRUSTED_INGRESS_AUTH_TOKEN}"
     --forwarded-secret "${FORWARDED_SECRET}"
   )
+  local public_proxy_args=()
   if [[ "${contributor_ingress_enabled}" == "1" ]]; then
-    proxy_args+=(
+    public_proxy_args=(
+      python3 "${ROOT_DIR}/scripts/supervisor/trusted_ingress_proxy.py"
+      --listen-host "${LOCAL_CONTRIBUTOR_PUBLIC_INGRESS_LISTEN_HOST}"
+      --listen-port "${LOCAL_CONTRIBUTOR_PUBLIC_INGRESS_LISTEN_PORT}"
+      --public-base-url "${BASE_URL}"
+      --origin-base-url "${trusted_ingress_origin_base_url}"
+      --auth-token "${TRUSTED_INGRESS_AUTH_TOKEN}"
+      --forwarded-secret "${FORWARDED_SECRET}"
       --allow-direct-browser-requests
       --direct-browser-client-ip "${LOCAL_CONTRIBUTOR_DIRECT_CLIENT_IP}"
     )
     if [[ "${LOCAL_CONTRIBUTOR_ALLOW_TRUSTED_FORWARDING}" == "1" || "${LOCAL_CONTRIBUTOR_ALLOW_TRUSTED_FORWARDING}" == "true" || "${LOCAL_CONTRIBUTOR_ALLOW_TRUSTED_FORWARDING}" == "yes" || "${LOCAL_CONTRIBUTOR_ALLOW_TRUSTED_FORWARDING}" == "on" ]]; then
-      proxy_args+=(--allow-local-trusted-forwarded-passthrough)
+      public_proxy_args+=(--allow-local-trusted-forwarded-passthrough)
     fi
   fi
 
-  "${proxy_args[@]}" &
+  if [[ "${contributor_ingress_enabled}" == "1" ]]; then
+    "${public_proxy_args[@]}" &
+    PUBLIC_INGRESS_PROXY_PID=$!
+    sleep 0.2
+    if ! kill -0 "${PUBLIC_INGRESS_PROXY_PID}" 2>/dev/null; then
+      echo "[adversary-sim-supervisor-manager] local contributor ingress failed to start" >&2
+      cleanup_trusted_ingress_proxy
+      exit 1
+    fi
+  fi
+
+  "${worker_proxy_args[@]}" &
   TRUSTED_INGRESS_PROXY_PID=$!
 
   sleep 0.2
   if ! kill -0 "${TRUSTED_INGRESS_PROXY_PID}" 2>/dev/null; then
     if [[ "${contributor_ingress_enabled}" == "1" ]]; then
-      echo "[adversary-sim-supervisor-manager] local contributor ingress failed to start" >&2
+      echo "[adversary-sim-supervisor-manager] trusted ingress worker proxy failed to start" >&2
       cleanup_trusted_ingress_proxy
       exit 1
     fi

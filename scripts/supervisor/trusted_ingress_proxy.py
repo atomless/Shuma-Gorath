@@ -97,9 +97,17 @@ class TrustedIngressProxyConfig:
             raise ValueError("proxy target missing")
         parsed = urllib.parse.urlparse(target)
         if parsed.scheme and parsed.netloc:
-            allowed_schemes = {self.origin_scheme, self.public_scheme}
-            allowed_netlocs = {self.origin_netloc, self.public_netloc}
-            if parsed.scheme not in allowed_schemes or parsed.netloc not in allowed_netlocs:
+            candidate_origin = urllib.parse.urlunparse(
+                (parsed.scheme, parsed.netloc, "", "", "", "")
+            ).rstrip("/")
+            allowed_origins = {
+                self.origin_base_url,
+                self.public_base_url,
+            }
+            if not any(
+                _loopback_equivalent_origin(candidate_origin, allowed_origin)
+                for allowed_origin in allowed_origins
+            ):
                 raise PermissionError("proxy target must stay same-origin")
             path = parsed.path or "/"
             return urllib.parse.urlunparse(
@@ -135,6 +143,48 @@ def _parse_client_ip(raw_value: str) -> str | None:
         return str(ipaddress.ip_address(value))
     except ValueError:
         return None
+
+
+def _normalized_origin_parts(raw_url: str) -> tuple[str, str, int] | None:
+    try:
+        parts = urllib.parse.urlparse(str(raw_url or "").strip())
+    except ValueError:
+        return None
+    scheme = str(parts.scheme or "").strip().lower()
+    hostname = str(parts.hostname or "").strip().lower().rstrip(".")
+    if not scheme or not hostname:
+        return None
+    if parts.port is not None:
+        port = parts.port
+    elif scheme == "https":
+        port = 443
+    elif scheme == "http":
+        port = 80
+    else:
+        return None
+    return scheme, hostname, port
+
+
+def _loopback_equivalent_origin(left: str, right: str) -> bool:
+    left_parts = _normalized_origin_parts(left)
+    right_parts = _normalized_origin_parts(right)
+    if left_parts is None or right_parts is None:
+        return False
+    left_scheme, left_host, left_port = left_parts
+    right_scheme, right_host, right_port = right_parts
+    if left_scheme != right_scheme or left_port != right_port:
+        return False
+    if left_host == right_host:
+        return True
+    left_ip = _parse_client_ip(left_host)
+    right_ip = _parse_client_ip(right_host)
+    if left_ip is not None and right_ip is not None:
+        return left_ip == right_ip
+    if left_host == "localhost" and right_ip is not None:
+        return ipaddress.ip_address(right_ip).is_loopback
+    if right_host == "localhost" and left_ip is not None:
+        return ipaddress.ip_address(left_ip).is_loopback
+    return False
 
 
 def _forward_headers(

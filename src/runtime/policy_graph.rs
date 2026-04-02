@@ -290,10 +290,21 @@ fn decide_js(
     facts: &crate::runtime::request_facts::RequestFacts,
     cfg: &crate::config::Config,
 ) -> Option<PolicyDecision> {
-    if cfg.js_action_enabled() && facts.needs_js {
+    if cfg.js_action_enabled() && facts.needs_js && facts.browser_navigation_like {
         return Some(PolicyDecision::JsChallengeRequired);
     }
     None
+}
+
+fn should_prefer_js_before_botness(
+    facts: &crate::runtime::request_facts::RequestFacts,
+    cfg: &crate::config::Config,
+    botness_decision_present: bool,
+) -> bool {
+    facts.browser_navigation_like
+        && facts.needs_js
+        && cfg.js_action_enabled()
+        && !botness_decision_present
 }
 
 /// Evaluate the first policy tranche.
@@ -339,7 +350,12 @@ pub(crate) fn evaluate_second_tranche(
         decisions.push(geo);
         return decisions;
     }
-    if let Some(botness) = decide_botness(facts, cfg) {
+    let botness = decide_botness(facts, cfg);
+    if should_prefer_js_before_botness(facts, cfg, botness.is_some()) {
+        decisions.push(PolicyDecision::JsChallengeRequired);
+        return decisions;
+    }
+    if let Some(botness) = botness {
         decisions.push(botness);
         return decisions;
     }
@@ -413,6 +429,7 @@ mod tests {
                 geo_route: crate::signals::geo::GeoPolicyRoute::None,
                 geo_country: None,
                 needs_js: false,
+                browser_navigation_like: false,
                 botness_score: 0,
                 botness_signal_ids: vec![],
                 botness_summary: "none".to_string(),
@@ -462,16 +479,59 @@ mod tests {
     }
 
     #[test]
-    fn post_tranche_prefers_not_a_bot_before_js_when_in_band() {
+    fn post_tranche_keeps_not_a_bot_before_js_for_browser_navigation_once_botness_applies() {
         let mut request_facts = facts();
         request_facts.botness_score = 4;
         request_facts.needs_js = true;
+        request_facts.browser_navigation_like = true;
 
         let mut cfg = cfg();
         cfg.not_a_bot_enabled = true;
         cfg.challenge_puzzle_enabled = true;
         cfg.not_a_bot_risk_threshold = 3;
         cfg.challenge_puzzle_risk_threshold = 7;
+        cfg.js_required_enforced = true;
+        cfg.defence_modes.js = crate::config::ComposabilityMode::Enforce;
+
+        let decisions = evaluate_second_tranche(&request_facts, &cfg);
+        assert_eq!(decisions.len(), 1);
+        assert_eq!(decisions[0].label(), "botness_not_a_bot");
+    }
+
+    #[test]
+    fn post_tranche_prefers_js_before_botness_for_low_risk_browser_navigation() {
+        let mut request_facts = facts();
+        request_facts.botness_score = 1;
+        request_facts.needs_js = true;
+        request_facts.browser_navigation_like = true;
+
+        let mut cfg = cfg();
+        cfg.not_a_bot_enabled = true;
+        cfg.challenge_puzzle_enabled = true;
+        cfg.not_a_bot_risk_threshold = 3;
+        cfg.challenge_puzzle_risk_threshold = 7;
+        cfg.js_required_enforced = true;
+        cfg.defence_modes.js = crate::config::ComposabilityMode::Enforce;
+
+        let decisions = evaluate_second_tranche(&request_facts, &cfg);
+        assert_eq!(decisions.len(), 1);
+        assert_eq!(decisions[0].label(), "js_challenge_required");
+    }
+
+    #[test]
+    fn post_tranche_keeps_not_a_bot_before_js_for_non_browser_navigation() {
+        let mut request_facts = facts();
+        request_facts.botness_score = 4;
+        request_facts.needs_js = true;
+        request_facts.browser_navigation_like = false;
+
+        let mut cfg = cfg();
+        cfg.not_a_bot_enabled = true;
+        cfg.challenge_puzzle_enabled = true;
+        cfg.not_a_bot_risk_threshold = 3;
+        cfg.challenge_puzzle_risk_threshold = 7;
+        cfg.js_required_enforced = true;
+        cfg.defence_modes.js = crate::config::ComposabilityMode::Enforce;
 
         let decisions = evaluate_second_tranche(&request_facts, &cfg);
         assert_eq!(decisions.len(), 1);
@@ -660,6 +720,7 @@ mod tests {
                 facts: {
                     let mut f = facts();
                     f.needs_js = true;
+                    f.browser_navigation_like = true;
                     f
                 },
                 configure: |cfg| {

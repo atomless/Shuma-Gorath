@@ -76,7 +76,7 @@
   --text-2xl: 1.4286rem;
   --text-3xl: 1.7143rem;
   --text-4xl: 2.2857rem;
-  --text-5xl: 3.6rem;
+  --text-5xl: 3.2rem;
   --text-6xl: 5rem;
 
 }
@@ -135,7 +135,7 @@
 }
 
 :root {
-  transition: filter 1s ease-in;
+  transition: filter 2s ease-in;
 }
 
 :root.runtime-prod {
@@ -417,12 +417,16 @@ body {
 }
 
 .shuma-image-wrapper {
-  position: relative;
+  position: absolute;
+  top: 7px;
+  left: 0;
+  right: 0;
+  height: 262px;
 }
 
 .dashboard-shadow-mode-eye {
   position: absolute;
-  top: -34px;
+  top: -60px;
   left: calc(50% - 173px);
   width: 24.5rem;
   pointer-events: none;
@@ -537,6 +541,7 @@ h1 {
   color: var(--heading-fg);
   margin-bottom: 18px;
   margin-top: -7px;
+  padding-top: 235px;
   letter-spacing: -0.15rem;
   font-weight: 900;
   /* text-shadow: 0 -190px 90px white, 0 -150px 110px white, 0 -110px 80px white, 0 -170px 90px white, 0 -80px 90px white; */
@@ -662,7 +667,7 @@ h1 {
 
 .subtitle {
   font-size: var(--text-lg);
-  margin: -18px 0 2rem 0;
+  margin: -12px 0 2rem 0;
 }
 
 .dashboard-tabs {

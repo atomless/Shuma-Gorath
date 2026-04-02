@@ -63,9 +63,20 @@ class AdversarySimSupervisorContractTests(unittest.TestCase):
         script = SUPERVISOR_MANAGER_SCRIPT.read_text(encoding="utf-8")
         self.assertIn("SHUMA_LOCAL_CONTRIBUTOR_INGRESS_ENABLE", script)
         self.assertIn("SHUMA_LOCAL_CONTRIBUTOR_ORIGIN_BASE_URL", script)
+        self.assertIn("SHUMA_LOCAL_CONTRIBUTOR_PUBLIC_INGRESS_LISTEN_PORT", script)
         self.assertIn("--public-base-url", script)
         self.assertIn("--allow-direct-browser-requests", script)
         self.assertIn("--allow-local-trusted-forwarded-passthrough", script)
+
+    def test_supervisor_manager_keeps_worker_trusted_ingress_proxy_on_listener_in_contributor_mode(self) -> None:
+        script = SUPERVISOR_MANAGER_SCRIPT.read_text(encoding="utf-8")
+        self.assertIn(
+            'TRUSTED_INGRESS_PROXY_URL="http://${TRUSTED_INGRESS_LISTEN_HOST}:${TRUSTED_INGRESS_LISTEN_PORT}"',
+            script,
+        )
+        self.assertNotIn('TRUSTED_INGRESS_PROXY_URL="${BASE_URL}"', script)
+        self.assertIn('LOCAL_CONTRIBUTOR_PUBLIC_INGRESS_LISTEN_PORT="${SHUMA_LOCAL_CONTRIBUTOR_PUBLIC_INGRESS_LISTEN_PORT:-3000}"', script)
+        self.assertIn('PUBLIC_INGRESS_PROXY_PID=""', script)
 
     def test_supervisor_manager_forwards_generated_trusted_ingress_env_into_spin_runtime(self) -> None:
         script = SUPERVISOR_MANAGER_SCRIPT.read_text(encoding="utf-8")

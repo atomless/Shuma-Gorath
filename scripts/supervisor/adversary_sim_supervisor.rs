@@ -517,6 +517,15 @@ fn build_scrapling_worker_failure_result(
     )
 }
 
+fn scrapling_worker_timeout_ms(beat_body: &str) -> u64 {
+    const SCRAPLING_TIMEOUT_HEADROOM_MS: u64 = 2_500;
+    const SCRAPLING_TIMEOUT_FLOOR_MS: u64 = 8_000;
+    json_u64(beat_body, "max_ms")
+        .unwrap_or(2_000)
+        .saturating_add(SCRAPLING_TIMEOUT_HEADROOM_MS)
+        .max(SCRAPLING_TIMEOUT_FLOOR_MS)
+}
+
 fn build_llm_runtime_worker_failure_result(
     beat_body: &str,
     failure_class: &str,
@@ -686,7 +695,7 @@ where
 
 fn run_scrapling_worker(config: &Config, beat_body: &str) -> String {
     let worker_script = scrapling_worker_script_path(config);
-    let timeout_ms = json_u64(beat_body, "max_ms").unwrap_or(2_000).saturating_add(1_000);
+    let timeout_ms = scrapling_worker_timeout_ms(beat_body);
     run_python_worker(
         &config.scrapling_python,
         &worker_script,
@@ -896,7 +905,10 @@ fn main() {
 
 #[cfg(test)]
 mod tests {
-    use super::{parse_http_response, worker_dispatches, ExternalWorkerDispatch};
+    use super::{
+        parse_http_response, scrapling_worker_timeout_ms, worker_dispatches,
+        ExternalWorkerDispatch,
+    };
 
     #[test]
     fn parse_http_response_keeps_plain_json_body() {
@@ -934,5 +946,12 @@ mod tests {
             vec![ExternalWorkerDispatch::Scrapling]
         );
         assert_eq!(worker_dispatches(r#"{"dispatch_mode":"internal"}"#), Vec::new());
+    }
+
+    #[test]
+    fn scrapling_worker_timeout_preserves_result_materialization_headroom() {
+        assert_eq!(scrapling_worker_timeout_ms(r#"{"max_ms":2500}"#), 8_000);
+        assert_eq!(scrapling_worker_timeout_ms("{}"), 8_000);
+        assert_eq!(scrapling_worker_timeout_ms(r#"{"max_ms":7000}"#), 9_500);
     }
 }

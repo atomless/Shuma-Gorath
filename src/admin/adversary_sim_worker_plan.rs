@@ -74,6 +74,12 @@ pub struct ScraplingRealismReceipt {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub top_level_action_count: Option<u64>,
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub action_types_attempted: Vec<String>,
+    #[serde(default, skip_serializing_if = "String::is_empty")]
+    pub capability_state: String,
+    #[serde(default, skip_serializing_if = "String::is_empty")]
+    pub targeting_strategy: String,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub dwell_intervals_ms: Vec<u64>,
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub observed_browser_locales: Vec<String>,
@@ -138,6 +144,10 @@ pub struct ScraplingWorkerPlan {
     pub request_proxy_url: Option<String>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub browser_proxy_url: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub local_request_client_ip: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub local_browser_client_ip: Option<String>,
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub request_identity_pool: Vec<IdentityPoolEntry>,
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
@@ -435,4 +445,93 @@ pub struct AutonomousHeartbeatTickSummary {
     pub pending_dispatch_mode: Option<String>,
     pub worker_plan: Option<ScraplingWorkerPlan>,
     pub llm_fulfillment_plan: Option<LlmFulfillmentPlan>,
+}
+
+#[cfg(test)]
+mod tests {
+    use super::{ScraplingWorkerResult, WorkerFailureClass};
+
+    #[test]
+    fn scrapling_worker_result_deserializes_snake_case_failure_class_and_browser_receipt_fields() {
+        let payload = serde_json::json!({
+            "schema_version": "adversary-sim-scrapling-worker-result.v1",
+            "run_id": "simrun-test",
+            "tick_id": "tick-1",
+            "lane": "scrapling_traffic",
+            "fulfillment_mode": "browser_automation",
+            "category_targets": ["automated_browser"],
+            "worker_id": "scrapling-worker-test",
+            "tick_started_at": 1,
+            "tick_completed_at": 2,
+            "generated_requests": 1,
+            "failed_requests": 1,
+            "last_response_status": 403,
+            "failure_class": "transport",
+            "error": "simulated transport failure",
+            "crawl_stats": {
+                "requests_count": 1,
+                "offsite_requests_count": 0,
+                "blocked_requests_count": 0,
+                "response_status_count": {
+                    "status_403": 1
+                },
+                "response_bytes": 128
+            },
+            "scope_rejections": {},
+            "realism_receipt": {
+                "schema_version": "sim-lane-realism-receipt.v1",
+                "profile_id": "scrapling.browser_automation.v1",
+                "activity_unit": "navigation",
+                "planned_activity_budget": 5,
+                "effective_activity_budget": 5,
+                "planned_burst_size": 1,
+                "effective_burst_size": 1,
+                "activity_count": 1,
+                "transport_profile": "browser_runtime",
+                "transport_realism_class": "browser_stack",
+                "transport_emission_basis": "native_browser",
+                "identity_realism_status": "fixed_proxy",
+                "identity_provenance_mode": "trusted_ingress_backed",
+                "geo_affinity_mode": "pool_aligned",
+                "session_stickiness": "stable_per_identity",
+                "identity_rotation_count": 0,
+                "recurrence_strategy": "bounded_campaign_return",
+                "reentry_scope": "cross_window_campaign",
+                "dormancy_truth_mode": "accelerated_local_proof",
+                "session_index": 1,
+                "reentry_count": 0,
+                "max_reentries_per_run": 2,
+                "planned_dormant_gap_seconds": 4,
+                "representative_dormant_gap_seconds": 14400,
+                "visited_url_count": 1,
+                "discovered_url_count": 1,
+                "deepest_depth_reached": 0,
+                "sitemap_documents_seen": 0,
+                "frontier_remaining_count": 0,
+                "canonical_public_pages_reached": 1,
+                "top_level_action_count": 1,
+                "action_types_attempted": ["browser_navigate"],
+                "capability_state": "native_persona",
+                "targeting_strategy": "surface_probe",
+                "dwell_intervals_ms": [250],
+                "observed_browser_locales": ["en-GB"],
+                "secondary_capture_mode": "xhr_capture",
+                "secondary_request_count": 2,
+                "background_request_count": 1,
+                "subresource_request_count": 1,
+                "session_handles": ["browser-session-1"],
+                "stop_reason": "activity_sequence_exhausted"
+            },
+            "surface_receipts": []
+        });
+
+        let parsed: ScraplingWorkerResult =
+            serde_json::from_value(payload).expect("worker result parses");
+
+        assert_eq!(parsed.failure_class, Some(WorkerFailureClass::Transport));
+        let receipt = parsed.realism_receipt.expect("realism receipt");
+        assert_eq!(receipt.action_types_attempted, vec!["browser_navigate".to_string()]);
+        assert_eq!(receipt.capability_state, "native_persona");
+        assert_eq!(receipt.targeting_strategy, "surface_probe");
+    }
 }

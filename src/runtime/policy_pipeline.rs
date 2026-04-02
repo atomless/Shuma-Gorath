@@ -17,6 +17,36 @@ fn active_botness_signal_ids(
         .collect()
 }
 
+fn browser_navigation_like(req: &Request, user_agent: &str) -> bool {
+    if *req.method() != spin_sdk::http::Method::Get {
+        return false;
+    }
+
+    let header_contains = |name: &str, needle: &str| {
+        req.header(name)
+            .and_then(|value| value.as_str())
+            .map(|value| value.to_ascii_lowercase().contains(&needle.to_ascii_lowercase()))
+            .unwrap_or(false)
+    };
+    let header_present = |name: &str| req.header(name).is_some();
+
+    if header_contains("sec-fetch-mode", "navigate")
+        || header_contains("sec-fetch-dest", "document")
+        || header_contains("sec-fetch-site", "none")
+    {
+        return true;
+    }
+
+    let browserish_ua = user_agent.contains("Mozilla/")
+        || req.header("sec-ch-ua").is_some()
+        || req.header("sec-ch-ua-platform").is_some();
+    let document_accept = header_contains("accept", "text/html");
+    let navigation_marker =
+        header_present("accept-language") || header_contains("upgrade-insecure-requests", "1");
+
+    browserish_ua && document_accept && navigation_marker
+}
+
 pub(crate) fn compute_needs_js(
     req: &Request,
     store: &Store,
@@ -138,6 +168,7 @@ pub(crate) fn maybe_handle_policy_graph_first_tranche(
             geo_route: geo_assessment.route,
             geo_country: geo_assessment.country.clone(),
             needs_js: false,
+            browser_navigation_like: browser_navigation_like(req, ua),
             botness_score: 0,
             botness_signal_ids: vec![],
             botness_summary: "none".to_string(),
@@ -180,6 +211,7 @@ pub(crate) fn maybe_handle_policy_graph_second_tranche(
     };
 
     let needs_js = compute_needs_js(req, store, cfg, site_id, path, ip);
+    let is_browser_navigation = browser_navigation_like(req, ua);
     let browser_outdated = cfg.browser_policy_enabled
         && crate::signals::browser_user_agent::is_outdated_browser(ua, &cfg.browser_block);
     let geo_risk = geo_assessment.scored_risk;
@@ -230,6 +262,7 @@ pub(crate) fn maybe_handle_policy_graph_second_tranche(
             geo_route: geo_assessment.route,
             geo_country: geo_assessment.country.clone(),
             needs_js,
+            browser_navigation_like: is_browser_navigation,
             botness_score: botness.score,
             botness_signal_ids: active_botness_signal_ids(&botness),
             botness_summary: crate::botness_signals_summary(&botness),
@@ -290,6 +323,7 @@ pub(crate) fn maybe_handle_policy_graph_verified_identity_tranche(
             geo_route: geo_assessment.route,
             geo_country: geo_assessment.country.clone(),
             needs_js: false,
+            browser_navigation_like: browser_navigation_like(req, ua),
             botness_score: 0,
             botness_signal_ids: vec![],
             botness_summary: "none".to_string(),

@@ -14,6 +14,7 @@ pub(crate) struct RequestFacts {
     pub geo_route: crate::signals::geo::GeoPolicyRoute,
     pub geo_country: Option<String>,
     pub needs_js: bool,
+    pub browser_navigation_like: bool,
     pub botness_score: u8,
     pub botness_signal_ids: Vec<crate::runtime::policy_taxonomy::SignalId>,
     pub botness_summary: String,
@@ -36,6 +37,7 @@ pub(crate) struct RequestFactInputs {
     pub geo_route: crate::signals::geo::GeoPolicyRoute,
     pub geo_country: Option<String>,
     pub needs_js: bool,
+    pub browser_navigation_like: bool,
     pub botness_score: u8,
     pub botness_signal_ids: Vec<crate::runtime::policy_taxonomy::SignalId>,
     pub botness_summary: String,
@@ -60,6 +62,7 @@ pub(crate) fn build_request_facts(req: &Request, inputs: RequestFactInputs) -> R
         geo_route: inputs.geo_route,
         geo_country: inputs.geo_country,
         needs_js: inputs.needs_js,
+        browser_navigation_like: inputs.browser_navigation_like,
         botness_score: inputs.botness_score,
         botness_signal_ids: inputs.botness_signal_ids,
         botness_summary: inputs.botness_summary,
@@ -91,6 +94,7 @@ mod tests {
                 geo_route: crate::signals::geo::GeoPolicyRoute::Challenge,
                 geo_country: Some("US".to_string()),
                 needs_js: true,
+                browser_navigation_like: true,
                 botness_score: 7,
                 botness_signal_ids: vec![crate::runtime::policy_taxonomy::SignalId::GeoRisk],
                 botness_summary: "signals".to_string(),
@@ -116,6 +120,7 @@ mod tests {
         assert_eq!(facts.path, "/x");
         assert!(facts.honeypot_hit);
         assert!(facts.needs_js);
+        assert!(facts.browser_navigation_like);
         assert_eq!(facts.botness_score, 7);
         assert_eq!(
             facts.verified_identity.as_ref().map(|identity| identity.stable_identity.as_str()),

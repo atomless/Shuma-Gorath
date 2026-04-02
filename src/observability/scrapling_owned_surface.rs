@@ -25,13 +25,15 @@ const SCRAPLING_CRAWLER_SURFACE_TARGETS: [&str; 4] = [
     "rate_pressure",
     "geo_ip_policy",
 ];
-const SCRAPLING_BULK_SCRAPER_SURFACE_TARGETS: [&str; 6] = [
+const SCRAPLING_BULK_SCRAPER_SURFACE_TARGETS: [&str; 8] = [
     "public_path_traversal",
     "challenge_routing",
     "rate_pressure",
     "geo_ip_policy",
     "not_a_bot_submit",
     "puzzle_submit_or_escalation",
+    "tarpit_progress_abuse",
+    "maze_navigation",
 ];
 const SCRAPLING_HTTP_AGENT_SURFACE_TARGETS: [&str; 7] = [
     "challenge_routing",
@@ -833,6 +835,8 @@ mod tests {
                 "geo_ip_policy",
                 "not_a_bot_submit",
                 "puzzle_submit_or_escalation",
+                "tarpit_progress_abuse",
+                "maze_navigation",
             ]
         );
         assert_eq!(

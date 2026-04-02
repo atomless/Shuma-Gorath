@@ -207,6 +207,23 @@ class AdversarySimMakeTargetTests(unittest.TestCase):
         self.assertIn("scripts/tests/test_llm_runtime_worker.py", body)
         self.assertIn("scripts/tests/test_adversarial_container_worker.py", body)
 
+    def test_root_served_defence_confrontation_targets_alias_runtime_surface_gate(self) -> None:
+        source = MAKEFILE.read_text(encoding="utf-8")
+        live_match = re.search(
+            r"^test-adversary-sim-root-served-defence-confrontation:.*?(?=^[A-Za-z0-9_.-]+:|\Z)",
+            source,
+            re.MULTILINE | re.DOTALL,
+        )
+        self.assertIsNotNone(live_match)
+        self.assertIn("test-adversary-sim-runtime-surface", live_match.group(0))
+
+        unit_match = re.search(
+            r"^test-adversary-sim-root-served-defence-confrontation-unit:.*?(?=^[A-Za-z0-9_.-]+:|\Z)",
+            source,
+            re.MULTILINE | re.DOTALL,
+        )
+        self.assertIsNotNone(unit_match)
+        self.assertIn("test-adversary-sim-runtime-surface-unit", unit_match.group(0))
     def test_exploration_envelope_realism_target_uses_profile_and_worker_selectors(self) -> None:
         source = MAKEFILE.read_text(encoding="utf-8")
         match = re.search(
@@ -293,6 +310,32 @@ class AdversarySimMakeTargetTests(unittest.TestCase):
         )
         self.assertIn("./scripts/tests/run_dashboard_e2e.sh --grep", body)
 
+    def test_dashboard_adversary_sim_telemetry_target_keeps_scrapling_history_hygiene_contracts(self) -> None:
+        source = MAKEFILE.read_text(encoding="utf-8")
+        match = re.search(
+            r"^test-dashboard-adversary-sim-telemetry-contract:.*?(?=^[A-Za-z0-9_.-]+:|\Z)",
+            source,
+            re.MULTILINE | re.DOTALL,
+        )
+        self.assertIsNotNone(match)
+        body = match.group(0)
+        self.assertIn(
+            "dashboard adversary-sim telemetry smoke uses synthetic traffic instead of leaving truncated Scrapling runs in recent history",
+            body,
+        )
+        self.assertIn(
+            "dashboard adversary-sim lifecycle smokes use synthetic traffic unless they are explicitly proving Scrapling coverage",
+            body,
+        )
+        self.assertIn(
+            "dashboard hosted live smoke pins synthetic traffic before UI-only adversary toggle proof",
+            body,
+        )
+        self.assertIn(
+            'run_dashboard_e2e.sh --grep "adversary sim toggle emits fresh telemetry visible in monitoring raw feed"',
+            body,
+        )
+
     def test_runtime_verify_freshness_target_guards_prebuilt_wasm_against_stale_sources(self) -> None:
         source = MAKEFILE.read_text(encoding="utf-8")
         match = re.search(
@@ -376,6 +419,8 @@ class AdversarySimMakeTargetTests(unittest.TestCase):
 
     def test_local_contributor_ingress_target_uses_proxy_and_makefile_contract_selectors(self) -> None:
         source = MAKEFILE.read_text(encoding="utf-8")
+        self.assertIn("SHUMA_LOCAL_CONTRIBUTOR_PUBLIC_INGRESS_LISTEN_PORT=3000", source)
+        self.assertIn("ADVERSARY_SIM_TRUSTED_INGRESS_LISTEN_PORT=3871", source)
         match = re.search(
             r"^test-local-contributor-ingress-contract:.*?(?=^[A-Za-z0-9_.-]+:|\Z)",
             source,

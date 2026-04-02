@@ -943,6 +943,7 @@ mod tests {
                 geo_route: crate::signals::geo::GeoPolicyRoute::None,
                 geo_country: None,
                 needs_js: false,
+                browser_navigation_like: false,
                 botness_score: 0,
                 botness_signal_ids: vec![],
                 botness_summary: "none".to_string(),
@@ -1356,6 +1357,7 @@ mod tests {
                 facts: {
                     let mut f = facts();
                     f.needs_js = true;
+                    f.browser_navigation_like = true;
                     f
                 },
                 configure: |cfg| {

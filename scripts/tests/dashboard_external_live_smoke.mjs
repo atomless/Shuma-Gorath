@@ -50,13 +50,18 @@ async function requestJson(path, init = {}) {
   return JSON.parse(text || '{}');
 }
 
-async function controlAdversarySimViaApi(desiredEnabled) {
+async function controlAdversarySimViaApi(desiredEnabled, desiredLane = '') {
+  const normalizedDesiredLane = String(desiredLane || '').trim().toLowerCase();
+  const payload = { enabled: desiredEnabled === true };
+  if (normalizedDesiredLane) {
+    payload.lane = normalizedDesiredLane;
+  }
   return requestJson('/shuma/admin/adversary-sim/control', {
     method: 'POST',
     headers: adminHeaders({
       'Idempotency-Key': newDashboardIdempotencyKey()
     }),
-    body: JSON.stringify({ enabled: desiredEnabled === true })
+    body: JSON.stringify(payload)
   });
 }
 
@@ -184,6 +189,26 @@ async function waitForAdversarySimEnabledState(desiredEnabled, timeoutMs = 30_00
   }
   throw new Error(
     `adversary sim did not settle to enabled=${desired} within ${timeoutMs}ms (last_state=${JSON.stringify(lastState)})`
+  );
+}
+
+async function waitForAdversarySimDesiredLane(desiredLane, timeoutMs = 30_000) {
+  const normalizedDesiredLane = String(desiredLane || '').trim().toLowerCase();
+  if (!normalizedDesiredLane) {
+    throw new Error('desired adversary-sim lane must be a non-empty string');
+  }
+  const deadline = Date.now() + Math.max(1_000, Number(timeoutMs || 0));
+  let lastObservedLane = '';
+  while (Date.now() < deadline) {
+    const payload = await fetchAdversarySimStatus();
+    lastObservedLane = String(payload?.desired_lane || '').trim().toLowerCase();
+    if (lastObservedLane === normalizedDesiredLane) {
+      return lastObservedLane;
+    }
+    await new Promise((resolve) => setTimeout(resolve, 500));
+  }
+  throw new Error(
+    `adversary sim desired lane did not settle to ${normalizedDesiredLane} within ${timeoutMs}ms (last_observed=${lastObservedLane || 'missing'})`
   );
 }
 
@@ -420,6 +445,8 @@ async function main() {
 
     await waitForDashboardAdversarySimUiConsistency(page, 30_000);
     await disableAdversarySimAndWaitOff(page);
+    await controlAdversarySimViaApi(false, 'synthetic_traffic');
+    await waitForAdversarySimDesiredLane('synthetic_traffic', 30_000);
     await setShadowModeViaUi(page, true, 20_000);
     await setShadowModeViaUi(page, false, 20_000);
 

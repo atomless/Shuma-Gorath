@@ -4,6 +4,21 @@ Moved from active TODO files on 2026-02-14.
 
 ## Additional completions (2026-04-02)
 
+### Scrapling Recent-Run History Hygiene Across Dashboard And Local Proof Paths
+
+- [x] Removed the test-path fragmentation that was leaving misleading weak Scrapling rows in recent-run history even when the real UI-triggered Scrapling coverage path was much stronger.
+- [x] What landed:
+  - [`../e2e/dashboard.smoke.spec.js`](../e2e/dashboard.smoke.spec.js) now routes dashboard smokes that only need adversary toggle or telemetry truth through `synthetic_traffic` via a shared lane-selection helper instead of silently defaulting to Scrapling.
+  - [`../scripts/tests/dashboard_external_live_smoke.mjs`](../scripts/tests/dashboard_external_live_smoke.mjs) now pins `synthetic_traffic` before its UI-only adversary-toggle proof so hosted dashboard smoke coverage no longer pollutes Scrapling recent-run history.
+  - [`../scripts/tests/verify_local_contributor_sim_isolation.py`](../scripts/tests/verify_local_contributor_sim_isolation.py) now reuses the managed local runtime path and the shared runtime-surface Scrapling gate instead of spawning a private supervisor process with its own weaker execution path.
+  - [`../e2e/dashboard.modules.unit.test.js`](../e2e/dashboard.modules.unit.test.js), [`../scripts/tests/test_local_contributor_sim_isolation.py`](../scripts/tests/test_local_contributor_sim_isolation.py), [`../scripts/tests/test_adversary_sim_make_targets.py`](../scripts/tests/test_adversary_sim_make_targets.py), and [`../Makefile`](../Makefile) now lock the split explicitly: lifecycle-only telemetry smokes must use `synthetic_traffic`, while real Scrapling coverage proofs must stay on the stronger shared runtime-surface path.
+- [x] Why:
+  - the discrepancy was real and had two sources: several dashboard smokes only needed “sim toggled and emitted telemetry” but were still defaulting to Scrapling, and the local contributor isolation proof had drifted onto a private raw-supervisor path instead of the managed `make dev` / `make run` execution path the live UI actually uses.
+- [x] Evidence:
+  - `make test-dashboard-adversary-sim-telemetry-contract`
+  - `make test-local-contributor-sim-isolation-contract`
+  - `make test-code-quality`
+
 ### Dashboard Direct-Hash Config Tab Content Hydration Fix
 
 - [x] Fixed the remaining direct-hash content gap for `#traps`, `#rate-limiting`, and `#geo` so those tabs now render meaningful body content on first authenticated load instead of appearing selected-but-empty while shared config runtime truth is still hydrating.

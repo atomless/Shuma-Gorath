@@ -2,7 +2,6 @@
 import json
 import os
 from pathlib import Path
-import subprocess
 import sys
 import time
 import urllib.error
@@ -16,10 +15,17 @@ API_KEY = os.environ["SHUMA_API_KEY"]
 FORWARDED_SECRET = os.environ["SHUMA_FORWARDED_IP_SECRET"]
 LANE = os.environ.get("SHUMA_LOCAL_CONTRIBUTOR_SIM_LANE", "scrapling_traffic").strip() or "scrapling_traffic"
 WAIT_TIMEOUT_SECONDS = int(
-    os.environ.get("SHUMA_LOCAL_CONTRIBUTOR_SIM_WAIT_TIMEOUT_SECONDS", "20")
+    os.environ.get("SHUMA_LOCAL_CONTRIBUTOR_SIM_WAIT_TIMEOUT_SECONDS", "120")
 )
 REPO_ROOT = Path(__file__).resolve().parents[2]
-SUPERVISOR_LAUNCH_SCRIPT = REPO_ROOT / "scripts" / "adversary_sim_supervisor_launch.sh"
+
+if str(REPO_ROOT) not in sys.path:
+    sys.path.insert(0, str(REPO_ROOT))
+
+from scripts.tests.adversary_runtime_toggle_surface_gate import (  # noqa: E402
+    RuntimeToggleSurfaceGate,
+    runtime_surface_coverage_meets_gate,
+)
 
 
 def request(
@@ -103,20 +109,6 @@ def post_control(enabled: bool, *, lane: Optional[str] = None, reason: str) -> d
     return parsed
 
 
-def launch_supervisor_process() -> subprocess.Popen[str]:
-    env = dict(os.environ)
-    env["SHUMA_ADVERSARY_SIM_SUPERVISOR_BASE_URL"] = BASE_URL
-    env["SHUMA_ADVERSARY_SIM_SUPERVISOR_EXIT_WHEN_OFF"] = "1"
-    return subprocess.Popen(
-        [str(SUPERVISOR_LAUNCH_SCRIPT), "--exit-when-off", "--base-url", BASE_URL],
-        cwd=str(REPO_ROOT),
-        env=env,
-        stdout=subprocess.PIPE,
-        stderr=subprocess.PIPE,
-        text=True,
-    )
-
-
 def unban_loopback_triplet() -> None:
     for ip in ("127.0.0.1", "::1", "unknown"):
         request(
@@ -196,6 +188,34 @@ def wait_for_generation_progress(start_status: dict) -> None:
     )
 
 
+def build_runtime_surface_gate() -> RuntimeToggleSurfaceGate:
+    return RuntimeToggleSurfaceGate(
+        base_url=BASE_URL,
+        api_key=API_KEY,
+        forwarded_secret=FORWARDED_SECRET,
+        health_secret=os.environ.get("SHUMA_HEALTH_SECRET", ""),
+        timeout_seconds=max(10, WAIT_TIMEOUT_SECONDS),
+    )
+
+
+def wait_for_meaningful_recent_run(
+    gate: RuntimeToggleSurfaceGate,
+    *,
+    existing_run_ids: set[str],
+    minimum_started_at: int,
+) -> dict:
+    coverage = gate.poll_recent_scrapling_run_coverage(
+        existing_run_ids=existing_run_ids,
+        minimum_started_at=minimum_started_at,
+    )
+    if runtime_surface_coverage_meets_gate(coverage):
+        return coverage
+    raise SystemExit(
+        "local contributor sim isolation observed only truncated Scrapling coverage; "
+        f"coverage={json.dumps(coverage, sort_keys=True)}"
+    )
+
+
 def assert_loopback_not_banned() -> None:
     bans = fetch_bans()
     entries = bans.get("bans") or []
@@ -209,31 +229,33 @@ def assert_loopback_not_banned() -> None:
 
 
 def main() -> int:
+    gate = build_runtime_surface_gate()
     unban_loopback_triplet()
     assert_root_accessible()
     assert_trusted_ingress_configured()
-    start_status = fetch_status()
-    post_control(True, lane=LANE, reason="local_contributor_sim_isolation_start")
-    supervisor_process = launch_supervisor_process()
+    gate.clear_loopback_bans()
+    gate.clear_runtime_surface_bans()
+    gate.configure_runtime_surface_profile()
+    live_summary_baseline = gate.read_live_summary_counts()
+    existing_run_ids = gate.current_recent_scrapling_run_ids()
+    minimum_started_at = max(0, int(time.time()) - 1)
     try:
-        wait_for_generation_progress(start_status)
+        post_control(True, lane=LANE, reason="local_contributor_sim_isolation_start")
+        wait_for_meaningful_recent_run(
+            gate,
+            existing_run_ids=existing_run_ids,
+            minimum_started_at=minimum_started_at,
+        )
+        live_summary_counts = gate.poll_live_summary_matches_baseline(live_summary_baseline)
+        if live_summary_counts != live_summary_baseline:
+            raise SystemExit(
+                "local contributor sim isolation did not restore the live summary baseline; "
+                f"baseline={json.dumps(live_summary_baseline, sort_keys=True)} "
+                f"current={json.dumps(live_summary_counts, sort_keys=True)}"
+            )
     finally:
         post_control(False, reason="local_contributor_sim_isolation_stop")
-        try:
-            supervisor_process.wait(timeout=10.0)
-        except subprocess.TimeoutExpired:
-            supervisor_process.terminate()
-            try:
-                supervisor_process.wait(timeout=5.0)
-            except subprocess.TimeoutExpired:
-                supervisor_process.kill()
-                supervisor_process.wait(timeout=5.0)
-        stderr = (supervisor_process.stderr.read() if supervisor_process.stderr else "").strip()
-        if supervisor_process.returncode not in (0, None):
-            raise SystemExit(
-                "local adversary sim supervisor failed during contributor isolation proof: "
-                f"returncode={supervisor_process.returncode} stderr={stderr}"
-            )
+        gate.clear_loopback_bans()
     assert_loopback_not_banned()
     assert_root_accessible()
     return 0

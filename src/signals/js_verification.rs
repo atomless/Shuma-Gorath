@@ -152,6 +152,8 @@ pub fn inject_js_challenge(
 
             const POW_SEED = "{seed}";
             const SHUMA_POW_DIFFICULTY = {difficulty};
+            const MIN_POW_SUBMIT_DELAY_MS = 1000;
+            const challengeStartedAt = Date.now();
 
             function hasLeadingZeroBits(bytes, bits) {{
                 let remaining = bits;
@@ -205,6 +207,10 @@ pub fn inject_js_challenge(
 
                 try {{
                     const nonce = await solvePow(POW_SEED, SHUMA_POW_DIFFICULTY);
+                    const elapsedMs = Date.now() - challengeStartedAt;
+                    if (elapsedMs < MIN_POW_SUBMIT_DELAY_MS) {{
+                        await new Promise(r => setTimeout(r, MIN_POW_SUBMIT_DELAY_MS - elapsedMs));
+                    }}
                     const resp = await fetch('/pow/verify', {{
                         method: 'POST',
                         headers: {{ 'Content-Type': 'application/json' }},
@@ -322,6 +328,24 @@ mod tests {
         assert!(body.contains("setTimeout(showVerifying, 200);"));
         assert!(body.contains("function showVerifying()"));
         assert!(!body.contains("document.body.innerText = 'Verifying...';\n                const nonce"));
+    }
+
+    #[test]
+    fn js_verification_pow_interstitial_waits_for_min_sequence_latency_before_verify() {
+        let resp = inject_js_challenge(
+            "203.0.113.24",
+            "Mozilla/5.0",
+            "/fingerprint-report",
+            true,
+            15,
+            120,
+            crate::config::CdpProbeFamily::V1,
+            100,
+        );
+        let body = String::from_utf8_lossy(resp.body());
+        assert!(body.contains("const MIN_POW_SUBMIT_DELAY_MS = 1000;"));
+        assert!(body.contains("const elapsedMs = Date.now() - challengeStartedAt;"));
+        assert!(body.contains("await new Promise(r => setTimeout(r, MIN_POW_SUBMIT_DELAY_MS - elapsedMs));"));
     }
 
     #[test]
