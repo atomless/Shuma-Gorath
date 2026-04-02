@@ -4,6 +4,19 @@ Moved from active TODO files on 2026-02-14.
 
 ## Additional completions (2026-04-02)
 
+### Dashboard Recent Red Team Runs Started Column Prioritization
+
+- [x] Moved the `Started` column to the first position in Recent Red Team Runs so the primary run-disambiguation timestamp leads each row instead of being buried behind categorical metadata.
+- [x] What landed:
+  - [`../dashboard/src/lib/components/dashboard/monitoring/AdversaryRunPanel.svelte`](../dashboard/src/lib/components/dashboard/monitoring/AdversaryRunPanel.svelte) now renders `Started` as the first header and first cell in each row, ahead of `Lane`, while preserving the rest of the table shape.
+  - [`../e2e/dashboard.modules.unit.test.js`](../e2e/dashboard.modules.unit.test.js) now proves the shared panel header order starts with `Started` then `Lane`, and that the first row cell pair is `formatTime(row.firstTs)` followed by `formatLaneLabel(row.lane)`.
+  - [`../e2e/dashboard.smoke.spec.js`](../e2e/dashboard.smoke.spec.js) now includes rendered proof that the first table header cell is `Started`.
+- [x] Why:
+  - once the table was reduced to a single operator-useful timestamp column, that timestamp became the most important orienting datum for scanning recent runs and should therefore lead the row instead of remaining a mid-table attribute.
+- [x] Evidence:
+  - `make test-dashboard-red-team-pane`
+  - `make test-code-quality`
+
 ### Dashboard Recent Red Team Runs Started-Only Timing Surface
 
 - [x] Removed the redundant `Last Event` column from Recent Red Team Runs so the table now keeps only the operator-useful `Started` timestamp instead of presenting two adjacent time columns with weakly differentiated value.

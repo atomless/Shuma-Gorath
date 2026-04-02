@@ -163,6 +163,7 @@
     <table id="adversary-runs" class="panel panel-border">
       <thead>
         <tr>
+          <th class="caps-label">Started</th>
           <th class="caps-label">Lane</th>
           <th class="caps-label">Modes</th>
           <th class="caps-label">Categories</th>
@@ -170,7 +171,6 @@
           <th class="caps-label">Identity</th>
           <th class="caps-label">Transport</th>
           <th class="caps-label">Coverage</th>
-          <th class="caps-label">Started</th>
           <th class="caps-label">Monitoring Deltas</th>
           <th class="caps-label">Ban Outcomes</th>
         </tr>
@@ -181,6 +181,7 @@
         {:else}
           {#each runRows as row}
             <tr>
+              <td>{formatTime(row.firstTs)}</td>
               <td>{formatLaneLabel(row.lane)}</td>
               <td>{formatTokenList(row.observedFulfillmentModes)}</td>
               <td>{formatTokenList(row.observedCategoryIds)}</td>
@@ -188,7 +189,6 @@
               <td>{formatIdentitySummary(row)}</td>
               <td>{formatTransportSummary(row)}</td>
               <td>{formatCoverageSummary(row.ownedSurfaceCoverage)}</td>
-              <td>{formatTime(row.firstTs)}</td>
               <td>
                 {formatCompactNumber(row.monitoringEventCount, '0')} events
                 · {formatCompactNumber(row.defenseDeltaCount, '0')} defenses

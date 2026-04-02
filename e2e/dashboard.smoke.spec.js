@@ -5053,6 +5053,7 @@ test("red team tab surfaces llm runtime lineage in recent adversary runs", async
 
   await expect(page.locator("#adversary-runs thead")).toContainText("Started");
   await expect(page.locator("#adversary-runs thead")).not.toContainText("Last Event");
+  await expect(page.locator("#adversary-runs thead th").first()).toHaveText("Started");
 
   const row = page.locator("#adversary-runs tbody tr").first();
   await expect(row).toContainText("simrun-llm-runtime");

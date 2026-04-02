@@ -6844,7 +6844,10 @@ test('adversary run panel separates execution identity and transport columns', (
   assert.match(source, /<th class="caps-label">Execution<\/th>/);
   assert.match(source, /<th class="caps-label">Identity<\/th>/);
   assert.match(source, /<th class="caps-label">Transport<\/th>/);
-  assert.match(source, /<th class="caps-label">Started<\/th>/);
+  assert.match(
+    source,
+    /<thead>\s*<tr>\s*<th class="caps-label">Started<\/th>\s*<th class="caps-label">Lane<\/th>/
+  );
   assert.doesNotMatch(source, /<th class="caps-label">Last Event<\/th>/);
   assert.doesNotMatch(source, /<th class="caps-label">Realism<\/th>/);
   assert.doesNotMatch(source, /<th class="caps-label">Runtime<\/th>/);
@@ -6859,7 +6862,7 @@ test('adversary run panel separates execution identity and transport columns', (
   assert.match(source, /\{formatIdentitySummary\(row\)\}/);
   assert.match(source, /const formatTransportSummary = \(row = \{\}\) => \{/);
   assert.match(source, /\{formatTransportSummary\(row\)\}/);
-  assert.match(source, /\{formatTime\(row\.firstTs\)\}/);
+  assert.match(source, /<td>\{formatTime\(row\.firstTs\)\}<\/td>\s*<td>\{formatLaneLabel\(row\.lane\)\}<\/td>/);
   assert.doesNotMatch(source, /\{formatTime\(row\.lastTs\)\}/);
   assert.doesNotMatch(source, /const formatRealismSummary = \(row = \{\}\) => \{/);
   assert.doesNotMatch(source, /\{formatRealismSummary\(row\)\}/);
