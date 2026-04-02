@@ -4,6 +4,20 @@ Moved from active TODO files on 2026-02-14.
 
 ## Additional completions (2026-04-02)
 
+### Dashboard Adversary-Sim Auto-Start Reason Surfacing
+
+- [x] Surfaced the backend-known adversary-sim start/stop transition reason in the Red Team lifecycle copy so operators can immediately distinguish manual runs from oversight-driven auto-follow-on runs.
+- [x] What landed:
+  - [`../dashboard/src/lib/domain/adversary-sim.js`](../dashboard/src/lib/domain/adversary-sim.js) now centralizes operator-facing copy for known adversary-sim transition reasons, including `candidate_window_follow_on`, `loop_continuation_follow_on`, `auto_window_expired`, and manual stop/start reasons.
+  - [`../dashboard/src/lib/runtime/dashboard-adversary-sim.js`](../dashboard/src/lib/runtime/dashboard-adversary-sim.js) now preserves `last_transition_reason` during status normalization and incorporates the mapped reason copy into the Red Team lifecycle message shown while the sim is active or after it has stopped.
+  - [`../e2e/dashboard.modules.unit.test.js`](../e2e/dashboard.modules.unit.test.js) now proves both seams: the runtime normalizer must retain `last_transition_reason`, and lifecycle copy must explicitly describe oversight-driven auto-start reasons.
+  - [`../Makefile`](../Makefile) now keeps that lifecycle-copy proof inside the focused `make test-dashboard-adversary-sim-lane-contract` gate.
+- [x] Why:
+  - the backend already knew whether a run started as `manual_on`, `candidate_window_follow_on`, or `loop_continuation_follow_on`, but the dashboard runtime normalizer dropped that field, so the UI could only show generic “Generation active” copy and operators had to infer whether a second run was an intentional oversight follow-on or a bug.
+- [x] Evidence:
+  - `make test-dashboard-adversary-sim-lane-contract`
+  - `make test-code-quality`
+
 ### Scrapling Recent-Run History Hygiene Across Dashboard And Local Proof Paths
 
 - [x] Removed the test-path fragmentation that was leaving misleading weak Scrapling rows in recent-run history even when the real UI-triggered Scrapling coverage path was much stronger.

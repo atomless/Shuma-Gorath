@@ -1,5 +1,7 @@
 // @ts-check
 
+import { formatAdversarySimTransitionReasonCopy } from '../domain/adversary-sim.js';
+
 const DEFAULT_DURATION_SECONDS = 180;
 const ADVERSARY_SIM_LANES = Object.freeze([
   'synthetic_traffic',
@@ -413,6 +415,7 @@ function normalizePhase(value) {
  *   laneSwitchSeq: number,
  *   lastLaneSwitchAt: number,
  *   lastLaneSwitchReason: string,
+ *   lastTransitionReason: string,
  *   queuePolicy: string,
  *   laneDiagnostics: ReturnType<typeof normalizeLaneDiagnostics>,
  *   supervisor: {
@@ -521,6 +524,9 @@ export function normalizeAdversarySimStatus(payload) {
     ),
     lastLaneSwitchReason: String(
       pick(source, 'last_lane_switch_reason', 'lastLaneSwitchReason', '') || ''
+    ),
+    lastTransitionReason: String(
+      pick(source, 'last_transition_reason', 'lastTransitionReason', '') || ''
     ),
     queuePolicy: String(pick(source, 'queue_policy', 'queuePolicy', '') || ''),
     laneDiagnostics: normalizeLaneDiagnostics(laneDiagnosticsRaw),
@@ -640,10 +646,17 @@ export function deriveAdversarySimLifecycleCopy(source = {}) {
   }
 
   const generationDiagnostics = normalizedStatus.generationDiagnostics || {};
+  const transitionReasonCopy = formatAdversarySimTransitionReasonCopy(
+    normalizedStatus.lastTransitionReason,
+    ''
+  );
   if (normalizedStatus.generationActive) {
+    const activePrefix = transitionReasonCopy
+      ? `Generation active. ${transitionReasonCopy} `
+      : 'Generation active. ';
     return String(generationDiagnostics.health || '') === 'ok'
-      ? 'Generation active. Auto-off stops new simulation traffic only; retained telemetry stays visible.'
-      : `Generation active. ${
+      ? `${activePrefix}Auto-off stops new simulation traffic only; retained telemetry stays visible.`
+      : `${activePrefix}${
         String(generationDiagnostics.recommendedAction || '').trim() ||
         'No observable traffic yet. Check supervisor diagnostics for stalled heartbeat state.'
       }`;
@@ -652,9 +665,10 @@ export function deriveAdversarySimLifecycleCopy(source = {}) {
   const retentionHours = Math.max(0, Number(normalizedStatus.historyRetentionHours || 0));
   const cleanupCommand =
     String(normalizedStatus.historyCleanupCommand || '').trim() || 'make telemetry-clean';
-  return normalizedStatus.historicalDataVisible
+  const inactiveBase = normalizedStatus.historicalDataVisible
     ? `Generation inactive. Retained telemetry remains visible for ${retentionHours}h or until ${cleanupCommand} is run.`
     : 'Generation inactive.';
+  return transitionReasonCopy ? `${inactiveBase} ${transitionReasonCopy}` : inactiveBase;
 }
 
 /**

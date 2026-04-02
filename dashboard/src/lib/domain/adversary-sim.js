@@ -11,6 +11,21 @@ const REPRESENTATIVENESS_STATUS_LABELS = Object.freeze({
   degraded: 'Degraded'
 });
 
+const TRANSITION_REASON_COPY = Object.freeze({
+  manual_on: 'This run started manually.',
+  candidate_window_follow_on:
+    'This run started automatically to materialize a candidate-window follow-on.',
+  loop_continuation_follow_on:
+    'This run started automatically to continue the oversight loop after a still-outside-budget judgment.',
+  auto_window_expired: 'The latest run ended after reaching its configured duration window.',
+  manual_off: 'The latest run was stopped manually.',
+  config_disabled: 'The latest run stopped because adversary simulation was disabled.',
+  process_restart:
+    'The latest run stopped because runtime ownership moved to a different process.',
+  forced_kill_timeout:
+    'The latest run was force-stopped after the shutdown timeout elapsed.'
+});
+
 const TOKEN_ACRONYMS = Object.freeze({
   ai: 'AI',
   api: 'API',
@@ -50,4 +65,10 @@ export const formatRepresentativenessStatusLabel = (value, fallback = '-') => {
   if (!normalized) return fallback;
   return REPRESENTATIVENESS_STATUS_LABELS[normalized]
     || humanizeAdversarySimToken(normalized, fallback);
+};
+
+export const formatAdversarySimTransitionReasonCopy = (value, fallback = '') => {
+  const normalized = String(value || '').trim().toLowerCase();
+  if (!normalized) return fallback;
+  return TRANSITION_REASON_COPY[normalized] || fallback;
 };

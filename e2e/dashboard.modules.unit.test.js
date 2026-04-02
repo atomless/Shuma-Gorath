@@ -720,6 +720,7 @@ test('dashboard API client preserves adversary-sim lane status and diagnostics f
       lane_switch_seq: 3,
       last_lane_switch_at: 1720,
       last_lane_switch_reason: 'beat_boundary_reconciliation',
+      last_transition_reason: 'loop_continuation_follow_on',
       generation_diagnostics: {
         health: 'ok',
         reason: 'persisted_events_observed',
@@ -824,6 +825,7 @@ test('dashboard API client preserves adversary-sim lane status and diagnostics f
     assert.equal(adapted.lane_switch_seq, 3);
     assert.equal(adapted.last_lane_switch_at, 1720);
     assert.equal(adapted.last_lane_switch_reason, 'beat_boundary_reconciliation');
+    assert.equal(adapted.last_transition_reason, 'loop_continuation_follow_on');
     assert.equal(adapted.generation_diagnostics.generated_request_count, 235);
     assert.equal(adapted.generation_diagnostics.truth_basis, 'persisted_event_lower_bound');
     assert.equal(adapted.lane_diagnostics.schema_version, 'v1');
@@ -4269,6 +4271,7 @@ test('dashboard adversary-sim runtime normalizes orchestration status', { concur
       lane_switch_seq: 5,
       last_lane_switch_at: 1100,
       last_lane_switch_reason: 'beat_boundary_reconciliation',
+      last_transition_reason: 'candidate_window_follow_on',
       supervisor: {
         owner: 'backend_autonomous_supervisor',
         cadence_seconds: 1,
@@ -4403,6 +4406,7 @@ test('dashboard adversary-sim runtime normalizes orchestration status', { concur
     assert.equal(normalized.laneSwitchSeq, 5);
     assert.equal(normalized.lastLaneSwitchAt, 1100);
     assert.equal(normalized.lastLaneSwitchReason, 'beat_boundary_reconciliation');
+    assert.equal(normalized.lastTransitionReason, 'candidate_window_follow_on');
     assert.equal(normalized.remainingSeconds, 120);
     assert.equal(normalized.supervisor.owner, 'backend_autonomous_supervisor');
     assert.equal(normalized.supervisor.cadenceSeconds, 1);
@@ -4596,6 +4600,56 @@ test('dashboard adversary-sim lifecycle copy prioritizes controller convergence 
         }
       }),
       'Generation active. Auto-off stops new simulation traffic only; retained telemetry stays visible.'
+    );
+
+    assert.equal(
+      adversaryModule.deriveAdversarySimLifecycleCopy({
+        status: {
+          adversary_sim_enabled: true,
+          generation_active: true,
+          historical_data_visible: true,
+          history_retention: {
+            retention_hours: 168,
+            cleanup_command: 'make telemetry-clean'
+          },
+          phase: 'running',
+          last_transition_reason: 'candidate_window_follow_on',
+          generation_diagnostics: {
+            health: 'ok',
+            recommended_action: 'No action required; simulation traffic is being generated.'
+          }
+        },
+        controllerState: {
+          controllerPhase: 'idle',
+          uiDesiredEnabled: true
+        }
+      }),
+      'Generation active. This run started automatically to materialize a candidate-window follow-on. Auto-off stops new simulation traffic only; retained telemetry stays visible.'
+    );
+
+    assert.equal(
+      adversaryModule.deriveAdversarySimLifecycleCopy({
+        status: {
+          adversary_sim_enabled: true,
+          generation_active: true,
+          historical_data_visible: true,
+          history_retention: {
+            retention_hours: 168,
+            cleanup_command: 'make telemetry-clean'
+          },
+          phase: 'running',
+          last_transition_reason: 'loop_continuation_follow_on',
+          generation_diagnostics: {
+            health: 'ok',
+            recommended_action: 'No action required; simulation traffic is being generated.'
+          }
+        },
+        controllerState: {
+          controllerPhase: 'idle',
+          uiDesiredEnabled: true
+        }
+      }),
+      'Generation active. This run started automatically to continue the oversight loop after a still-outside-budget judgment. Auto-off stops new simulation traffic only; retained telemetry stays visible.'
     );
 
     assert.equal(
