@@ -6,9 +6,9 @@
         "schema_version": "sim-lane-realism-profile.v1",
         "profile_id": "scrapling.crawler.v1",
         "activity_unit": "request",
-        "activity_budget": { "min": 6, "max": 14 },
-        "burst_size": { "min": 1, "max": 2 },
-        "intra_burst_jitter_ms": { "min": 300, "max": 1200 },
+        "activity_budget": { "min": 24, "max": 48 },
+        "burst_size": { "min": 6, "max": 12 },
+        "intra_burst_jitter_ms": { "min": 10, "max": 50 },
         "between_burst_pause_ms": { "min": 0, "max": 0 },
         "navigation_dwell_ms": { "min": 0, "max": 0 },
         "identity_rotation": {
@@ -34,10 +34,10 @@
         },
         "browser_propensity": "none",
         "javascript_execution": "disabled",
-        "retry_ceiling": 2,
+        "retry_ceiling": 3,
         "pressure_envelope": {
-          "max_activities": 14,
-          "max_time_budget_ms": 12000
+          "max_activities": 48,
+          "max_time_budget_ms": 1800
         },
         "exploration_envelope": {
           "max_depth": 4,
@@ -92,10 +92,10 @@
         "schema_version": "sim-lane-realism-profile.v1",
         "profile_id": "scrapling.bulk_scraper.v1",
         "activity_unit": "request",
-        "activity_budget": { "min": 18, "max": 45 },
-        "burst_size": { "min": 2, "max": 5 },
-        "intra_burst_jitter_ms": { "min": 200, "max": 800 },
-        "between_burst_pause_ms": { "min": 1000, "max": 3000 },
+        "activity_budget": { "min": 96, "max": 180 },
+        "burst_size": { "min": 18, "max": 32 },
+        "intra_burst_jitter_ms": { "min": 0, "max": 25 },
+        "between_burst_pause_ms": { "min": 0, "max": 25 },
         "navigation_dwell_ms": { "min": 0, "max": 0 },
         "identity_rotation": {
           "strategy": "per_n_activities_when_proxy_available",
@@ -120,10 +120,10 @@
         },
         "browser_propensity": "none",
         "javascript_execution": "disabled",
-        "retry_ceiling": 2,
+        "retry_ceiling": 3,
         "pressure_envelope": {
-          "max_activities": 45,
-          "max_time_budget_ms": 30000
+          "max_activities": 180,
+          "max_time_budget_ms": 3200
         },
         "exploration_envelope": {
           "max_depth": 6,
@@ -178,11 +178,11 @@
         "schema_version": "sim-lane-realism-profile.v1",
         "profile_id": "scrapling.browser_automation.v1",
         "activity_unit": "action",
-        "activity_budget": { "min": 4, "max": 9 },
+        "activity_budget": { "min": 10, "max": 18 },
         "burst_size": { "min": 1, "max": 1 },
         "intra_burst_jitter_ms": { "min": 0, "max": 0 },
         "between_burst_pause_ms": { "min": 0, "max": 0 },
-        "navigation_dwell_ms": { "min": 800, "max": 2500 },
+        "navigation_dwell_ms": { "min": 40, "max": 150 },
         "identity_rotation": {
           "strategy": "none",
           "min_every_n_activities": 0,
@@ -206,10 +206,10 @@
         },
         "browser_propensity": "required",
         "javascript_execution": "required",
-        "retry_ceiling": 1,
+        "retry_ceiling": 2,
         "pressure_envelope": {
-          "max_activities": 9,
-          "max_time_budget_ms": 20000
+          "max_activities": 18,
+          "max_time_budget_ms": 3000
         },
         "exploration_envelope": {
           "max_depth": 3,
@@ -265,11 +265,11 @@
         "schema_version": "sim-lane-realism-profile.v1",
         "profile_id": "scrapling.stealth_browser.v1",
         "activity_unit": "action",
-        "activity_budget": { "min": 3, "max": 6 },
+        "activity_budget": { "min": 8, "max": 14 },
         "burst_size": { "min": 1, "max": 1 },
         "intra_burst_jitter_ms": { "min": 0, "max": 0 },
         "between_burst_pause_ms": { "min": 0, "max": 0 },
-        "navigation_dwell_ms": { "min": 1400, "max": 3200 },
+        "navigation_dwell_ms": { "min": 60, "max": 175 },
         "identity_rotation": {
           "strategy": "none",
           "min_every_n_activities": 0,
@@ -293,10 +293,10 @@
         },
         "browser_propensity": "required",
         "javascript_execution": "required",
-        "retry_ceiling": 1,
+        "retry_ceiling": 2,
         "pressure_envelope": {
-          "max_activities": 6,
-          "max_time_budget_ms": 24000
+          "max_activities": 14,
+          "max_time_budget_ms": 3000
         },
         "exploration_envelope": {
           "max_depth": 3,
@@ -352,10 +352,10 @@
         "schema_version": "sim-lane-realism-profile.v1",
         "profile_id": "scrapling.http_agent.v1",
         "activity_unit": "request",
-        "activity_budget": { "min": 10, "max": 24 },
-        "burst_size": { "min": 2, "max": 4 },
-        "intra_burst_jitter_ms": { "min": 100, "max": 500 },
-        "between_burst_pause_ms": { "min": 500, "max": 2000 },
+        "activity_budget": { "min": 72, "max": 144 },
+        "burst_size": { "min": 18, "max": 30 },
+        "intra_burst_jitter_ms": { "min": 0, "max": 20 },
+        "between_burst_pause_ms": { "min": 0, "max": 20 },
         "navigation_dwell_ms": { "min": 0, "max": 0 },
         "identity_rotation": {
           "strategy": "per_burst_when_proxy_available",
@@ -380,10 +380,10 @@
         },
         "browser_propensity": "none",
         "javascript_execution": "disabled",
-        "retry_ceiling": 2,
+        "retry_ceiling": 3,
         "pressure_envelope": {
-          "max_activities": 24,
-          "max_time_budget_ms": 18000
+          "max_activities": 144,
+        "max_time_budget_ms": 10000
         },
         "exploration_envelope": {
           "max_depth": 4,

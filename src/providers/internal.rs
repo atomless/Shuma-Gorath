@@ -145,6 +145,47 @@ fn render_tarpit_budget_fallback(
     }
 }
 
+fn log_tarpit_entry_event<S: crate::challenge::KeyValueStore>(
+    store: &S,
+    ip: &str,
+    source_path: &str,
+    progress_path: &str,
+) {
+    crate::admin::log_event(
+        store,
+        &crate::admin::EventLogEntry {
+            ts: crate::admin::now_ts(),
+            event: crate::admin::EventType::Challenge,
+            ip: Some(ip.to_string()),
+            reason: Some("tarpit_progressive_entry_served".to_string()),
+            outcome: Some(format!(
+                "served source_path={} progress_path={} budget=acquired",
+                source_path, progress_path
+            )),
+            admin: None,
+        },
+    );
+}
+
+fn log_tarpit_progress_event<S: crate::challenge::KeyValueStore>(
+    store: &S,
+    ip: &str,
+    reason: &str,
+    outcome: &str,
+) {
+    crate::admin::log_event(
+        store,
+        &crate::admin::EventLogEntry {
+            ts: crate::admin::now_ts(),
+            event: crate::admin::EventType::Challenge,
+            ip: Some(ip.to_string()),
+            reason: Some(reason.to_string()),
+            outcome: Some(outcome.to_string()),
+            admin: None,
+        },
+    );
+}
+
 fn maybe_escalate_persistent_tarpit_client(
     store: &Store,
     cfg: &crate::config::Config,
@@ -533,6 +574,7 @@ impl MazeTarpitProvider for InternalMazeTarpitProvider {
                 crate::tarpit::runtime::now_duration_ms(started_at),
             ),
         );
+        log_tarpit_entry_event(store, ip, req.path(), self.tarpit_progress_path());
 
         Some(response)
     }
@@ -568,6 +610,17 @@ impl MazeTarpitProvider for InternalMazeTarpitProvider {
                     budget_reason.as_str(),
                 );
             }
+            log_tarpit_progress_event(
+                store,
+                ip,
+                reason.as_str(),
+                format!(
+                    "rejected status={} source_path={}",
+                    handled.response.status(),
+                    req.path()
+                )
+                .as_str(),
+            );
             if reason.is_budget() {
                 return render_tarpit_budget_fallback(self, req, store, cfg, ip, user_agent);
             }
@@ -588,6 +641,18 @@ impl MazeTarpitProvider for InternalMazeTarpitProvider {
             crate::tarpit::runtime::tarpit_duration_bucket(
                 crate::tarpit::runtime::now_duration_ms(started_at),
             ),
+        );
+        log_tarpit_progress_event(
+            store,
+            ip,
+            "tarpit_progress_advanced",
+            format!(
+                "advanced status={} source_path={} chunk_bytes={}",
+                handled.response.status(),
+                req.path(),
+                handled.chunk_bytes.unwrap_or(0)
+            )
+            .as_str(),
         );
         handled.response
     }
@@ -774,5 +839,32 @@ mod tests {
             crate::tarpit::runtime::persistence_escalation(&cfg, fresh_same_bucket.principal_count),
             crate::tarpit::runtime::PersistenceEscalation::None
         );
+    }
+
+    #[test]
+    fn tarpit_progress_rejection_logs_runtime_event_evidence() {
+        let store = crate::test_support::InMemoryStore::default();
+        log_tarpit_progress_event(
+            &store,
+            "198.51.100.44",
+            "tarpit_progress_invalid_proof",
+            "rejected_invalid_proof",
+        );
+
+        let recent = crate::admin::monitoring_presented_recent_event_tail(
+            &store,
+            crate::admin::now_ts(),
+            1,
+            10,
+            true,
+        );
+        assert!(recent.recent_events.iter().any(|row| {
+            row.get("reason").and_then(|value| value.as_str()) == Some("tarpit_progress_invalid_proof")
+                && row
+                    .get("outcome")
+                    .and_then(|value| value.as_str())
+                    .map(|value| value.contains("rejected"))
+                    .unwrap_or(false)
+        }));
     }
 }

@@ -371,6 +371,8 @@ make test-adversarial-smoke
 Available profiles:
 - `make test-adversarial-fast` - mandatory fast matrix (`smoke + abuse + Akamai`)
 - `make test-adversary-sim-runtime-surface` - runtime-toggle integration gate that proves a real recent `scrapling_traffic` run reaches `owned_surface_coverage.overall_status=covered` in `operator_snapshot_v1`, while live-only monitoring summary paths remain clean on the running target
+- `make test-adversary-sim-root-served-defence-confrontation` - alias of the live runtime-surface gate, used when the acceptance question is specifically whether root-started Scrapling on the generated site provokes Shuma-served challenge, rate, maze, JS, and other hostile confrontation surfaces
+- `make test-adversary-sim-root-served-defence-confrontation-unit` - focused unit alias for the same confrontation gate’s worker and coverage-contract logic
 - `make test-adversarial-smoke` - mandatory fast smoke gate (`SIM-T0`..`SIM-T4`)
 - `make test-adversarial-abuse` - mandatory replay/stale/order-cadence abuse regressions
 - `make test-adversarial-akamai` - mandatory Akamai signal fixture coverage

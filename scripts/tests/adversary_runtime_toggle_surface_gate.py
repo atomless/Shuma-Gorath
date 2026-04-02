@@ -23,6 +23,71 @@ RUNTIME_SURFACE_IP_RESET_TICK_HORIZON = 40
 RUNTIME_SURFACE_ATTACK_CORPUS_PATH = (
     Path(__file__).resolve().parent / "adversarial" / "deterministic_attack_corpus.v1.json"
 )
+REQUIRED_RUNTIME_SURFACE_MODES = {
+    "crawler",
+    "bulk_scraper",
+    "browser_automation",
+    "stealth_browser",
+    "http_agent",
+}
+REQUIRED_RUNTIME_SURFACE_IDS = {
+    "public_path_traversal",
+    "challenge_routing",
+    "rate_pressure",
+    "not_a_bot_submit",
+    "puzzle_submit_or_escalation",
+    "pow_verify_abuse",
+    "tarpit_progress_abuse",
+    "maze_navigation",
+    "js_verification_execution",
+    "browser_automation_detection",
+}
+MIN_RUNTIME_SURFACE_DEFENSE_DELTAS = 3
+MEANINGFUL_RUNTIME_EVENT_FAMILIES = {
+    "challenge",
+    "not_a_bot",
+    "pow",
+    "maze",
+    "tarpit",
+    "rate_limit",
+    "geo",
+    "ban_path",
+}
+NON_TARPIT_MEANINGFUL_RUNTIME_EVENT_FAMILIES = MEANINGFUL_RUNTIME_EVENT_FAMILIES - {"tarpit"}
+
+
+def runtime_surface_coverage_meets_gate(coverage: Dict[str, Any]) -> bool:
+    required_surface_ids = {
+        str(value).strip()
+        for value in list(coverage.get("required_surface_ids") or [])
+        if str(value).strip()
+    }
+    satisfied_surface_ids = {
+        str(value).strip()
+        for value in list(coverage.get("satisfied_surface_ids") or [])
+        if str(value).strip()
+    }
+    blocking_surface_ids = {
+        str(value).strip()
+        for value in list(coverage.get("blocking_surface_ids") or [])
+        if str(value).strip()
+    }
+    observed_fulfillment_modes = {
+        str(value).strip()
+        for value in list(coverage.get("observed_fulfillment_modes") or [])
+        if str(value).strip()
+    }
+    if not str(coverage.get("run_id") or "").strip():
+        return False
+    if not REQUIRED_RUNTIME_SURFACE_IDS.issubset(required_surface_ids):
+        return False
+    if not REQUIRED_RUNTIME_SURFACE_IDS.issubset(satisfied_surface_ids):
+        return False
+    if REQUIRED_RUNTIME_SURFACE_IDS.intersection(blocking_surface_ids):
+        return False
+    if not REQUIRED_RUNTIME_SURFACE_MODES.issubset(observed_fulfillment_modes):
+        return False
+    return int(coverage.get("defense_delta_count") or 0) >= MIN_RUNTIME_SURFACE_DEFENSE_DELTAS
 
 
 def parse_bool(value: str, default: bool) -> bool:
@@ -41,6 +106,91 @@ def live_summary_leaks(current: Dict[str, int], baseline: Dict[str, int]) -> Dic
         if delta > 0:
             leaked[name] = delta
     return leaked
+
+
+def normalize_event_token(value: Any) -> str:
+    return str(value or "").strip().lower().replace("-", "_")
+
+
+def classify_runtime_surface_event_family(row: Dict[str, Any]) -> str:
+    combined = " ".join(
+        [
+            normalize_event_token(row.get("event")),
+            normalize_event_token(row.get("reason")),
+            normalize_event_token(row.get("outcome_code")),
+            normalize_event_token(row.get("outcome")),
+        ]
+    )
+    if "honeypot" in combined:
+        return "honeypot"
+    if "tarpit" in combined:
+        return "tarpit"
+    if "maze" in combined:
+        return "maze"
+    if "not_a_bot" in combined or "not-a-bot" in combined:
+        return "not_a_bot"
+    if "pow" in combined or "proof" in combined:
+        return "pow"
+    if "rate" in combined:
+        return "rate_limit"
+    if "geo" in combined:
+        return "geo"
+    if "cdp" in combined:
+        return "cdp"
+    if "fingerprint" in combined:
+        return "fingerprint"
+    if "challenge" in combined:
+        return "challenge"
+    if "ban" in combined or "deny_temp" in combined or "block" in combined:
+        return "ban_path"
+    if str(row.get("sim_run_id") or "").strip():
+        return "event_stream"
+    return "other"
+
+
+def runtime_surface_event_mentions_tarpit_progress(row: Dict[str, Any]) -> bool:
+    combined = " ".join(
+        [
+            normalize_event_token(row.get("event")),
+            normalize_event_token(row.get("reason")),
+            normalize_event_token(row.get("outcome_code")),
+            normalize_event_token(row.get("outcome")),
+        ]
+    )
+    return "tarpit_progress" in combined
+
+
+def runtime_surface_event_has_hostile_outcome(row: Dict[str, Any]) -> bool:
+    if normalize_event_token(row.get("event")) == "ban":
+        return True
+    combined = " ".join(
+        [
+            normalize_event_token(row.get("outcome_code")),
+            normalize_event_token(row.get("outcome")),
+            normalize_event_token(row.get("reason")),
+        ]
+    )
+    return any(
+        token in combined
+        for token in ("fail", "reject", "deny", "block", "banned", "limited")
+    )
+
+
+def runtime_surface_event_evidence_meets_gate(evidence: Dict[str, Any]) -> bool:
+    defense_families = {
+        str(value).strip()
+        for value in list(evidence.get("defense_families") or [])
+        if str(value).strip()
+    }
+    return (
+        int(evidence.get("matching_event_count") or 0) > 0
+        and int(evidence.get("challenge_event_count") or 0) > 0
+        and int(evidence.get("hostile_outcome_event_count") or 0) > 0
+        and int(evidence.get("tarpit_progress_event_count") or 0) > 0
+        and bool(
+            NON_TARPIT_MEANINGFUL_RUNTIME_EVENT_FAMILIES.intersection(defense_families)
+        )
+    )
 
 
 def load_runtime_surface_corpus_profile() -> Dict[str, Any]:
@@ -117,6 +267,10 @@ class RuntimeToggleSurfaceGate:
         self.health_secret = health_secret.strip()
         self.timeout_seconds = timeout_seconds
         self.opener = urllib.request.build_opener()
+
+    @staticmethod
+    def log(message: str) -> None:
+        print(f"[runtime-surface-gate] {message}", file=sys.stderr, flush=True)
 
     def _headers(self, include_json: bool = False) -> Dict[str, str]:
         headers = {
@@ -230,8 +384,37 @@ class RuntimeToggleSurfaceGate:
                     f"failed to clear loopback ban for {ip}: status={response['status']} body={response['raw'][:200]}"
                 )
 
+    def active_ban_ips(self) -> set[str]:
+        response = self.request("GET", "/shuma/admin/ban?active=true")
+        if response["status"] != 200:
+            raise RuntimeError(
+                f"failed to read active bans: status={response['status']} body={response['raw'][:200]}"
+            )
+        body = response["body"]
+        entries = []
+        if isinstance(body, dict):
+            entries = self._as_list(body.get("bans"))
+        elif isinstance(body, list):
+            entries = body
+        ips: set[str] = set()
+        for entry in entries:
+            if isinstance(entry, dict):
+                ip = str(entry.get("ip") or "").strip()
+            else:
+                ip = str(entry or "").strip()
+            if ip:
+                ips.add(ip)
+        return ips
+
     def clear_runtime_surface_bans(self) -> None:
-        for ip in runtime_surface_candidate_ips(load_runtime_surface_corpus_profile()):
+        candidate_ips = set(runtime_surface_candidate_ips(load_runtime_surface_corpus_profile()))
+        active_runtime_bans = sorted(self.active_ban_ips().intersection(candidate_ips))
+        self.log(
+            f"clearing runtime-surface bans active={len(active_runtime_bans)} candidate_pool={len(candidate_ips)}"
+        )
+        for index, ip in enumerate(active_runtime_bans, start=1):
+            if index == 1 or index == len(active_runtime_bans) or index % 25 == 0:
+                self.log(f"clearing runtime-surface ban {index}/{len(active_runtime_bans)} ip={ip}")
             response = self.request("POST", f"/shuma/admin/unban?ip={ip}")
             if response["status"] != 200:
                 raise RuntimeError(
@@ -241,15 +424,22 @@ class RuntimeToggleSurfaceGate:
     def configure_runtime_surface_profile(self) -> None:
         payload = {
             "defence_modes": {"rate": "both", "geo": "both", "js": "both"},
-            "rate_limit": 80,
+            # Keep the proof lane confrontational so request-native Scrapling must
+            # provoke live rate pressure inside a normal watch window.
+            "rate_limit": 12,
             "js_required_enforced": True,
             "pow_enabled": True,
+            "cdp_auto_ban": False,
             "challenge_puzzle_enabled": True,
+            "challenge_puzzle_risk_threshold": 4,
             "not_a_bot_enabled": True,
+            "not_a_bot_risk_threshold": 2,
             "maze_auto_ban": False,
             "geo_edge_headers_enabled": True,
-            "geo_challenge": ["RU"],
-            "geo_maze": [],
+            "geo_challenge": [],
+            # Preserve crawler root traversal while still proving geo-served
+            # defence confrontation from its deterministic local country.
+            "geo_maze": ["RU"],
             "geo_block": [],
             "ban_durations": {
                 "rate_limit": 1,
@@ -341,6 +531,11 @@ class RuntimeToggleSurfaceGate:
                     for value in self._as_list(coverage.get("required_surface_ids"))
                     if str(value).strip()
                 ],
+                "satisfied_surface_ids": [
+                    str(value).strip()
+                    for value in self._as_list(coverage.get("satisfied_surface_ids"))
+                    if str(value).strip()
+                ],
                 "blocking_surface_ids": [
                     str(value).strip()
                     for value in self._as_list(coverage.get("blocking_surface_ids"))
@@ -351,6 +546,8 @@ class RuntimeToggleSurfaceGate:
                     for value in self._as_list(run.get("observed_fulfillment_modes"))
                     if str(value).strip()
                 ],
+                "defense_delta_count": self._as_int(run.get("defense_delta_count")),
+                "ban_outcome_count": self._as_int(run.get("ban_outcome_count")),
             }
         return {
             "run_id": "",
@@ -361,8 +558,11 @@ class RuntimeToggleSurfaceGate:
             "suspicious_forwarded_byte_target": None,
             "suspicious_forwarded_latency_target": None,
             "required_surface_ids": [],
+            "satisfied_surface_ids": [],
             "blocking_surface_ids": [],
             "observed_fulfillment_modes": [],
+            "defense_delta_count": 0,
+            "ban_outcome_count": 0,
         }
 
     def current_recent_scrapling_run_ids(self) -> set[str]:
@@ -397,8 +597,11 @@ class RuntimeToggleSurfaceGate:
             "suspicious_forwarded_byte_target": None,
             "suspicious_forwarded_latency_target": None,
             "required_surface_ids": [],
+            "satisfied_surface_ids": [],
             "blocking_surface_ids": [],
             "observed_fulfillment_modes": [],
+            "defense_delta_count": 0,
+            "ban_outcome_count": 0,
         }
 
         while time.time() < deadline:
@@ -411,11 +614,73 @@ class RuntimeToggleSurfaceGate:
                 existing_run_ids=existing_run_ids,
                 minimum_started_at=minimum_started_at,
             )
-            if (
-                last_seen["run_id"]
-                and last_seen["overall_status"] == "covered"
-                and bool(last_seen["required_surface_ids"])
-            ):
+            if runtime_surface_coverage_meets_gate(last_seen):
+                return last_seen
+            time.sleep(1)
+
+        return last_seen
+
+    def recent_sim_run_event_evidence(
+        self,
+        events_body: Dict[str, Any],
+        sim_run_id: str,
+    ) -> Dict[str, Any]:
+        matching_events: list[Dict[str, Any]] = []
+        for row in self._as_list(events_body.get("recent_events")):
+            event = self._as_obj(row)
+            if event.get("is_simulation") is not True:
+                continue
+            if str(event.get("sim_run_id") or "").strip() != sim_run_id:
+                continue
+            matching_events.append(event)
+        defense_families = sorted(
+            {
+                classify_runtime_surface_event_family(event)
+                for event in matching_events
+                if classify_runtime_surface_event_family(event) != "other"
+            }
+        )
+        challenge_event_count = sum(
+            1
+            for event in matching_events
+            if normalize_event_token(event.get("event")) == "challenge"
+        )
+        hostile_outcome_event_count = sum(
+            1 for event in matching_events if runtime_surface_event_has_hostile_outcome(event)
+        )
+        tarpit_progress_event_count = sum(
+            1 for event in matching_events if runtime_surface_event_mentions_tarpit_progress(event)
+        )
+        return {
+            "sim_run_id": sim_run_id,
+            "matching_event_count": len(matching_events),
+            "challenge_event_count": challenge_event_count,
+            "hostile_outcome_event_count": hostile_outcome_event_count,
+            "tarpit_progress_event_count": tarpit_progress_event_count,
+            "defense_families": defense_families,
+        }
+
+    def poll_recent_sim_run_event_evidence(self, sim_run_id: str) -> Dict[str, Any]:
+        deadline = time.time() + float(self.timeout_seconds)
+        last_seen = {
+            "sim_run_id": sim_run_id,
+            "matching_event_count": 0,
+            "challenge_event_count": 0,
+            "hostile_outcome_event_count": 0,
+            "tarpit_progress_event_count": 0,
+            "defense_families": [],
+        }
+
+        while time.time() < deadline:
+            events = self.request("GET", "/shuma/admin/events?hours=2&limit=200")
+            if events["status"] != 200:
+                time.sleep(1)
+                continue
+            last_seen = self.recent_sim_run_event_evidence(
+                self._as_obj(events["body"]),
+                sim_run_id,
+            )
+            if runtime_surface_event_evidence_meets_gate(last_seen):
                 return last_seen
             time.sleep(1)
 
@@ -435,7 +700,21 @@ class RuntimeToggleSurfaceGate:
             if status["status"] != 200:
                 time.sleep(1)
                 continue
-            recent_runs = self._as_list(self._as_obj(status["body"]).get("recent_runs"))
+            status_body = self._as_obj(status["body"])
+            latest_run = self._as_obj(status_body.get("latest_run"))
+            if (
+                str(latest_run.get("trigger_kind") or "").strip() == "post_adversary_sim"
+                and str(latest_run.get("sim_run_id") or "").strip() == sim_run_id
+            ):
+                execution = self._as_obj(latest_run.get("execution"))
+                apply = self._as_obj(execution.get("apply"))
+                return {
+                    "run_id": str(latest_run.get("run_id") or "").strip(),
+                    "trigger_kind": str(latest_run.get("trigger_kind") or "").strip(),
+                    "sim_run_id": str(latest_run.get("sim_run_id") or "").strip(),
+                    "apply_stage": str(apply.get("stage") or "").strip(),
+                }
+            recent_runs = self._as_list(status_body.get("recent_runs"))
             for row in recent_runs:
                 run = self._as_obj(row)
                 if str(run.get("trigger_kind") or "").strip() != "post_adversary_sim":
@@ -510,18 +789,26 @@ def main() -> int:
     )
 
     try:
+        gate.log("checking health")
         gate.ensure_health()
+        gate.log("clearing loopback bans")
         gate.clear_loopback_bans()
+        gate.log("clearing runtime-surface candidate bans")
         gate.clear_runtime_surface_bans()
+        gate.log("configuring runtime-surface defence profile")
         gate.configure_runtime_surface_profile()
+        gate.log("reading live-summary baseline")
         live_summary_baseline = gate.read_live_summary_counts()
         existing_run_ids = gate.current_recent_scrapling_run_ids()
         minimum_started_at = max(0, int(time.time()) - 1)
+        gate.log("toggling runtime surface run on")
         gate.toggle(True, "on")
+        gate.log("waiting for recent Scrapling run coverage")
         coverage = gate.poll_recent_scrapling_run_coverage(
             existing_run_ids=existing_run_ids,
             minimum_started_at=minimum_started_at,
         )
+        gate.log("waiting for live-summary baseline restoration")
         live_summary_counts = gate.poll_live_summary_matches_baseline(live_summary_baseline)
     except Exception as exc:  # noqa: BLE001
         print(f"[runtime-surface-gate] error: {exc}", file=sys.stderr)
@@ -536,18 +823,19 @@ def main() -> int:
         return 1
 
     try:
+        gate.log("toggling runtime surface run off")
         gate.toggle(False, "off")
     except Exception as exc:  # noqa: BLE001
         print(f"[runtime-surface-gate] warning: failed to toggle off: {exc}", file=sys.stderr)
-    oversight_run = gate.poll_post_sim_oversight_run(str(coverage.get("run_id") or ""))
     try:
+        gate.log("clearing loopback bans after run")
         gate.clear_loopback_bans()
     except Exception as exc:  # noqa: BLE001
         print(f"[runtime-surface-gate] warning: failed to clear loopback bans: {exc}", file=sys.stderr)
 
-    if coverage.get("overall_status") != "covered":
+    if not runtime_surface_coverage_meets_gate(coverage):
         print(
-            "[runtime-surface-gate] missing covered Scrapling owned-surface receipt",
+            "[runtime-surface-gate] runtime surface coverage did not satisfy the hostile subset gate",
             file=sys.stderr,
         )
         print(
@@ -555,6 +843,19 @@ def main() -> int:
             file=sys.stderr,
         )
         return 1
+
+    gate.log("waiting for event evidence")
+    event_evidence = gate.poll_recent_sim_run_event_evidence(str(coverage.get("run_id") or ""))
+    if not runtime_surface_event_evidence_meets_gate(event_evidence):
+        print(
+            "[runtime-surface-gate] server-observed runtime event evidence did not prove root-served defense confrontation: "
+            + json.dumps({"coverage": coverage, "event_evidence": event_evidence}, sort_keys=True),
+            file=sys.stderr,
+        )
+        return 1
+
+    gate.log("waiting for oversight run")
+    oversight_run = gate.poll_post_sim_oversight_run(str(coverage.get("run_id") or ""))
 
     if coverage.get("profile_id") != "human_only_private":
         print(
@@ -609,6 +910,8 @@ def main() -> int:
     print(
         "[runtime-surface-gate] PASS coverage="
         + json.dumps(coverage, sort_keys=True)
+        + " event_evidence="
+        + json.dumps(event_evidence, sort_keys=True)
         + " oversight="
         + json.dumps(oversight_run, sort_keys=True)
         + " live_summary="

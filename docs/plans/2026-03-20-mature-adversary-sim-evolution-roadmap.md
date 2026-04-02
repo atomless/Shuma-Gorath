@@ -251,9 +251,9 @@ The adopted execution order on this roadmap is therefore:
 19. `SIM-REALISM-3D` deeper transport and network fingerprint realism,
 20. `SIM-REALISM-3E` explicit representativeness infrastructure gating.
 
-At the current point in that order, `SIM-REALISM-3E` is now landed as well, so the adversary-realism implementation chain is complete. No further Game Loop or Tuning execution should proceed until the landed representativeness readiness gate reports representative hostile-lane backing in the target environment, because later loop and tuning work would otherwise optimize against attacker traffic that is still only partially or degradedly representative there even though the code path now fails closed truthfully.
+At the current point in that order, `SIM-REALISM-3E` remains landed and the follow-on regression-recovery tranche `SIM-REALISM-REG-1A..1C` is now landed as well. On the current generated root-hosted site, root-started Scrapling now proves honest server-observed defence confrontation, request-native and browser personas follow Shuma-served challenge surfaces without fake route hints, aggressive request-native pressure can earn tarpit escalation on the real defence path, and five-mode serialized turnover is bursty again instead of collapsing into the earlier roughly `104s` watch-window ceiling.
 
-The next execution-ready work is therefore no longer another core lane-realism tranche. It is the contributor-facing environment-readiness chain frozen in [`2026-04-01-contributor-friendly-adversary-proxy-pool-setup-plan.md`](2026-04-01-contributor-friendly-adversary-proxy-pool-setup-plan.md): repo-owned hostile proxy-pool setup, local sidecar orchestration, exact readiness validation, and an optional agent-facing runbook or skill adapter layered on top of that canonical workflow.
+The next execution-ready work therefore returns to the contributor-facing environment-readiness chain frozen in [`2026-04-01-contributor-friendly-adversary-proxy-pool-setup-plan.md`](2026-04-01-contributor-friendly-adversary-proxy-pool-setup-plan.md): remote-aware hostile proxy-pool setup, trusted-ingress compatibility, validation, and representativeness readiness against the already-deployed Linode shared-host protected target.
 
 Before Shuma should describe Scrapling or Agentic Traffic as representative tuning evidence, it should:
 

@@ -163,6 +163,7 @@ The directory is intentionally flat. Use this index to distinguish current execu
 - [`2026-03-30-contributor-generated-public-content-sim-site-plan.md`](2026-03-30-contributor-generated-public-content-sim-site-plan.md)
 - [`2026-03-31-adversary-realism-acceptance-and-envelope-governance-plan.md`](2026-03-31-adversary-realism-acceptance-and-envelope-governance-plan.md)
 - [`2026-03-31-post-2j-adversary-realism-sufficiency-plan.md`](2026-03-31-post-2j-adversary-realism-sufficiency-plan.md)
+- [`2026-04-01-root-served-defence-confrontation-and-scrapling-cadence-regression-plan.md`](2026-04-01-root-served-defence-confrontation-and-scrapling-cadence-regression-plan.md)
 - [`2026-03-20-sim-deploy-2-production-operating-envelope-implementation-plan.md`](2026-03-20-sim-deploy-2-production-operating-envelope-implementation-plan.md)
 - [`2026-03-20-sim-scr-lane-1-runtime-migration-plan.md`](2026-03-20-sim-scr-lane-1-runtime-migration-plan.md)
 

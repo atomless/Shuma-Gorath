@@ -276,7 +276,7 @@ ADVERSARY_SIM_SUPERVISOR_BASE_URL ?= http://127.0.0.1:3000
 LOCAL_CONTRIBUTOR_PUBLIC_BASE_URL ?= http://127.0.0.1:3000
 LOCAL_CONTRIBUTOR_ORIGIN_BASE_URL ?= http://127.0.0.1:3001
 LOCAL_CONTRIBUTOR_ORIGIN_LISTEN ?= 127.0.0.1:3001
-LOCAL_CONTRIBUTOR_INGRESS_ENV := SHUMA_LOCAL_CONTRIBUTOR_INGRESS_ENABLE=1 SHUMA_LOCAL_CONTRIBUTOR_ORIGIN_BASE_URL=$(LOCAL_CONTRIBUTOR_ORIGIN_BASE_URL) SHUMA_LOCAL_CONTRIBUTOR_ALLOW_TRUSTED_FORWARDING=1 ADVERSARY_SIM_TRUSTED_INGRESS_LISTEN_HOST=127.0.0.1 ADVERSARY_SIM_TRUSTED_INGRESS_LISTEN_PORT=3000
+LOCAL_CONTRIBUTOR_INGRESS_ENV := SHUMA_LOCAL_CONTRIBUTOR_INGRESS_ENABLE=1 SHUMA_LOCAL_CONTRIBUTOR_ORIGIN_BASE_URL=$(LOCAL_CONTRIBUTOR_ORIGIN_BASE_URL) SHUMA_LOCAL_CONTRIBUTOR_PUBLIC_INGRESS_LISTEN_HOST=127.0.0.1 SHUMA_LOCAL_CONTRIBUTOR_PUBLIC_INGRESS_LISTEN_PORT=3000 SHUMA_LOCAL_CONTRIBUTOR_ALLOW_TRUSTED_FORWARDING=1 ADVERSARY_SIM_TRUSTED_INGRESS_LISTEN_HOST=127.0.0.1 ADVERSARY_SIM_TRUSTED_INGRESS_LISTEN_PORT=3871
 GATEWAY_TLS_WASM_REPORT ?= scripts/tests/adversarial/gateway_tls_wasm_harness_report.json
 GATEWAY_PROBE_PATH ?= /
 GATEWAY_PROBE_FAIL_ON_INCONCLUSIVE ?= 0
@@ -1895,6 +1895,7 @@ test-adversary-sim-pressure-envelope-realism: ## Focused adversary-sim pressure-
 	@echo "$(CYAN)🧪 Running adversary-sim pressure-envelope realism gate...$(NC)"
 	@./scripts/set_crate_type.sh rlib
 	@cargo test admin::adversary_sim_lane_runtime::tests::scrapling_worker_plan_uses_mode_specific_pressure_envelopes -- --exact --nocapture
+	@cargo test admin::adversary_sim_lane_runtime::tests::autonomous_supervisor_keeps_dispatching_through_full_scrapling_mode_cycle_before_dormancy -- --exact --nocapture
 	@if [ ! -x "$(SCRAPLING_VENV_PYTHON)" ]; then \
 		echo "$(RED)❌ Error: $(SCRAPLING_VENV_PYTHON) not found.$(NC)"; \
 		echo "$(YELLOW)   Run make setup or make setup-runtime to provision the repo-owned Scrapling worker runtime.$(NC)"; \
@@ -1992,6 +1993,7 @@ test-adversary-sim-trusted-ingress-ip-realism: ## Focused trusted-ingress realis
 	@./scripts/set_crate_type.sh rlib
 	@cargo test admin::adversary_sim_lane_runtime::tests::scrapling_worker_plan_uses_trusted_ingress_proxy_when_configured_without_explicit_proxy_or_pool -- --exact --nocapture
 	@cargo test admin::adversary_sim_lane_runtime::tests::scrapling_worker_plan_prefers_explicit_request_proxy_over_trusted_ingress_fallback -- --exact --nocapture
+	@cargo test admin::adversary_sim_lane_runtime::tests::scrapling_worker_plan_skips_trusted_ingress_proxy_fallback_in_local_contributor_mode -- --exact --nocapture
 	@cargo test admin::adversary_sim_llm_lane::tests::llm_fulfillment_plan_uses_trusted_ingress_proxy_when_configured_and_request_pool_absent -- --exact --nocapture
 	@cargo test admin::adversary_sim_llm_lane::tests::llm_fulfillment_plan_keeps_request_pool_authoritative_over_trusted_ingress_fallback -- --exact --nocapture
 	@python3 -m unittest scripts/tests/test_trusted_ingress_proxy.py scripts/tests/test_llm_runtime_worker.py scripts/tests/test_adversary_sim_supervisor.py
@@ -2109,6 +2111,7 @@ test-adversary-sim-scrapling-worker: ## Focused Scrapling lane worker gate (beat
 	@./scripts/set_crate_type.sh rlib
 	@cargo test adversary_sim_internal_beat_returns_scrapling_worker_plan_and_switches_active_lane -- --nocapture
 	@cargo test adversary_sim_worker_result_updates_scrapling_generation_and_lane_diagnostics -- --nocapture
+	@cargo test scrapling_worker_result_deserializes_snake_case_failure_class_and_browser_receipt_fields -- --nocapture
 	@cargo test scrapling_worker_results_without_surface_receipts_still_materialize_recent_run_categories -- --nocapture
 	@cargo test adversary_sim_worker_result_is_rejected_after_manual_off_and_does_not_restore_running_state -- --nocapture
 	@$(MAKE) --no-print-directory test-adversary-sim-supervisor-unit
@@ -2119,6 +2122,21 @@ test-adversary-sim-scrapling-worker: ## Focused Scrapling lane worker gate (beat
 	fi
 	@$(SCRAPLING_VENV_PYTHON) -m unittest scripts/tests/test_scrapling_worker.py
 	@python3 -m unittest scripts/tests/test_adversary_sim_supervisor.py
+
+test-adversary-sim-scrapling-realism-regression-unit: ## Focused realism regression proofs for local persona identity isolation and hostile follow-up pacing
+	@echo "$(CYAN)🧪 Running focused Scrapling realism regression unit checks...$(NC)"
+	@./scripts/set_crate_type.sh rlib
+	@cargo test local_contributor_scrapling_personas_do_not_share_bucketed_client_identity -- --nocapture
+	@cargo test local_contributor_scrapling_personas_use_curated_mode_specific_identity_fixtures -- --nocapture
+	@cargo test autonomous_supervisor_reaps_stale_pending_scrapling_worker_before_redispatching -- --nocapture
+	@if [ ! -x "$(SCRAPLING_VENV_PYTHON)" ]; then \
+		echo "$(RED)❌ Error: $(SCRAPLING_VENV_PYTHON) not found.$(NC)"; \
+		echo "$(YELLOW)   Run make setup or make setup-runtime to provision the repo-owned Scrapling worker runtime.$(NC)"; \
+		exit 1; \
+	fi
+	@$(SCRAPLING_VENV_PYTHON) -m unittest scripts.tests.test_scrapling_worker.ScraplingWorkerUnitTests.test_request_native_followup_pause_windows_respect_server_minimum_step_latency
+	@$(SCRAPLING_VENV_PYTHON) -m unittest scripts.tests.test_scrapling_worker.ScraplingWorkerUnitTests.test_http_agent_hits_live_like_rate_threshold_from_root_served_challenge
+	@$(SCRAPLING_VENV_PYTHON) -m unittest scripts.tests.test_scrapling_worker.ScraplingWorkerUnitTests.test_http_agent_pivots_from_root_served_js_interstitial_into_later_root_challenge_followthrough
 
 test-adversary-sim-diagnostics-truth: ## Focused adversary-sim status truth gate (persisted sim event evidence must recover stale status counters)
 	@echo "$(CYAN)🧪 Running adversary-sim diagnostics-truth gate...$(NC)"
@@ -2206,6 +2224,17 @@ test-adversary-sim-runtime-surface: ## Runtime-toggle integration gate for deter
 test-adversary-sim-runtime-surface-unit: ## Focused unit checks for the runtime-toggle live-summary no-impact gate
 	@echo "$(CYAN)🧪 Running runtime-toggle adversary-sim gate unit checks...$(NC)"
 	@python3 -m unittest scripts/tests/test_adversary_runtime_toggle_surface_gate.py
+
+.PHONY: test-adversary-sim-root-served-defence-confrontation test-adversary-sim-root-served-defence-confrontation-unit
+
+test-adversary-sim-root-served-defence-confrontation: ## Root-started Scrapling live defence-confrontation gate on the running generated site
+	@$(MAKE) --no-print-directory test-adversary-sim-runtime-surface
+
+test-adversary-sim-root-served-defence-confrontation-unit: ## Focused unit checks for the root-served defence-confrontation gate
+	@echo "$(CYAN)🧪 Running root-served defence-confrontation unit checks...$(NC)"
+	@./scripts/set_crate_type.sh rlib
+	@cargo test tarpit_progress_rejection_logs_runtime_event_evidence -- --nocapture
+	@$(MAKE) --no-print-directory test-adversary-sim-runtime-surface-unit
 
 test-adversarial-sim-tag-contract: ## Validate simulation tag signing contract parity across runtime/tooling
 	@echo "$(CYAN)🧪 Validating adversarial sim-tag contract...$(NC)"

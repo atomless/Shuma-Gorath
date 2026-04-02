@@ -216,6 +216,72 @@ pub(crate) fn simulated_request_ip(tick_count: u64, index: usize) -> String {
     format!("198.51.{}.{}", third, fourth)
 }
 
+fn curated_local_contributor_request_segment(fulfillment_mode: &str) -> Option<u16> {
+    match fulfillment_mode {
+        "crawler" => Some(0x0010),
+        "bulk_scraper" => Some(0x0012),
+        "http_agent" => Some(0x0100),
+        _ => None,
+    }
+}
+
+fn curated_local_contributor_browser_segment(fulfillment_mode: &str) -> Option<u16> {
+    match fulfillment_mode {
+        "stealth_browser" => Some(0x0040),
+        "browser_automation" => Some(0x0020),
+        _ => None,
+    }
+}
+
+fn simulated_local_contributor_client_ip(
+    fulfillment_mode: &str,
+    run_id: &str,
+    tick_count: u64,
+    index: usize,
+) -> String {
+    let curated_segment = match index {
+        0 => curated_local_contributor_request_segment(fulfillment_mode),
+        1 => curated_local_contributor_browser_segment(fulfillment_mode),
+        _ => None,
+    };
+    if let Some(segment3) = curated_segment {
+        let segment4 = ((deterministic_lane_entropy(
+            run_id,
+            0,
+            0x4c4f4341 ^ segment3 as u64 ^ index as u64,
+        )) % 65_535)
+            + 1;
+        let host = ((deterministic_lane_entropy(
+            run_id,
+            tick_count,
+            0x4c434980 ^ segment3 as u64 ^ index as u64,
+        )) % 65_535)
+            + 1;
+        return format!("2001:db8:{segment3:x}:{segment4:x}::{host:x}");
+    }
+
+    let actor_ordinal = tick_count.saturating_mul(2).saturating_add(index as u64);
+    // Use synthetic documentation-only IPv6 identities locally so repeated sim runs do not
+    // collapse into a tiny recycled IPv4 /24 space and accidentally inherit stale rate/fingerprint
+    // state that Shuma would treat as the same actor bucket.
+    let segment3 =
+        ((deterministic_lane_entropy(run_id, 0, 0x4c4f4341).wrapping_add(actor_ordinal)) % 65_535)
+            + 1;
+    let segment4 = ((deterministic_lane_entropy(
+        run_id,
+        tick_count,
+        0x4c434950 + index as u64,
+    )) % 65_535)
+        + 1;
+    let host = ((deterministic_lane_entropy(
+        run_id,
+        tick_count,
+        0x4c434980 + index as u64,
+    )) % 65_535)
+        + 1;
+    format!("2001:db8:{segment3:x}:{segment4:x}::{host:x}")
+}
+
 #[allow(dead_code)]
 pub(crate) fn lane_actor_ip(
     third_octet: u8,
@@ -560,8 +626,10 @@ pub(crate) fn apply_scrapling_worker_result(
     let realism_profile = scrapling_realism_profile_for_mode(result.fulfillment_mode.as_str());
     if state.desired_lane == RuntimeLane::ParallelMixedTraffic {
         reset_recurrence_state(state);
-    } else {
+    } else if scrapling_completed_within_run_mode_cycle(state) {
         schedule_recurrence_dormancy_after_tick(state, result.tick_completed_at, &realism_profile);
+    } else {
+        state.recurrence_dormant_until = None;
     }
     state.updated_at = result.tick_completed_at;
 }
@@ -678,8 +746,13 @@ fn next_scrapling_worker_plan(now: u64, state: &mut ControlState) -> ScraplingWo
         load_identity_pool_from_env("ADVERSARY_SIM_SCRAPLING_REQUEST_PROXY_POOL_JSON");
     let browser_identity_pool =
         load_identity_pool_from_env("ADVERSARY_SIM_SCRAPLING_BROWSER_PROXY_POOL_JSON");
+    let local_contributor_mode = local_contributor_ingress_enabled();
+    let explicit_request_proxy_url =
+        optional_scrapling_proxy_env("ADVERSARY_SIM_SCRAPLING_REQUEST_PROXY_URL");
+    let explicit_browser_proxy_url =
+        optional_scrapling_proxy_env("ADVERSARY_SIM_SCRAPLING_BROWSER_PROXY_URL");
     let trusted_ingress_config = trusted_ingress_proxy_config_from_env();
-    let trusted_request_proxy_url = if request_identity_pool.is_empty() {
+    let trusted_request_proxy_url = if !local_contributor_mode && request_identity_pool.is_empty() {
         trusted_ingress_config.as_ref().and_then(|config| {
             trusted_ingress_proxy_url_for_client_ip(
                 config,
@@ -689,7 +762,7 @@ fn next_scrapling_worker_plan(now: u64, state: &mut ControlState) -> ScraplingWo
     } else {
         None
     };
-    let trusted_browser_proxy_url = if browser_identity_pool.is_empty() {
+    let trusted_browser_proxy_url = if !local_contributor_mode && browser_identity_pool.is_empty() {
         trusted_ingress_config.as_ref().and_then(|config| {
             trusted_ingress_proxy_url_for_client_ip(
                 config,
@@ -699,11 +772,36 @@ fn next_scrapling_worker_plan(now: u64, state: &mut ControlState) -> ScraplingWo
     } else {
         None
     };
-    let request_proxy_url = optional_scrapling_proxy_env("ADVERSARY_SIM_SCRAPLING_REQUEST_PROXY_URL")
-        .or(trusted_request_proxy_url);
-    let browser_proxy_url = optional_scrapling_proxy_env("ADVERSARY_SIM_SCRAPLING_BROWSER_PROXY_URL")
+    let request_proxy_url = explicit_request_proxy_url.or(trusted_request_proxy_url);
+    let browser_proxy_url = explicit_browser_proxy_url
         .or_else(|| trusted_browser_proxy_url.clone())
         .or_else(|| request_proxy_url.clone());
+    let local_request_client_ip = if local_contributor_mode
+        && request_identity_pool.is_empty()
+        && request_proxy_url.is_none()
+    {
+        Some(simulated_local_contributor_client_ip(
+            fulfillment_mode,
+            run_id.as_str(),
+            state.generated_tick_count,
+            0,
+        ))
+    } else {
+        None
+    };
+    let local_browser_client_ip = if local_contributor_mode
+        && browser_identity_pool.is_empty()
+        && browser_proxy_url.is_none()
+    {
+        Some(simulated_local_contributor_client_ip(
+            fulfillment_mode,
+            run_id.as_str(),
+            state.generated_tick_count,
+            1,
+        ))
+    } else {
+        None
+    };
     let recurrence_context = recurrence_context_for_profile(now, state, &realism_profile);
     set_lane_pending_worker(state, RuntimeLane::ScraplingTraffic, tick_id.clone(), now);
     state.updated_at = now;
@@ -724,6 +822,8 @@ fn next_scrapling_worker_plan(now: u64, state: &mut ControlState) -> ScraplingWo
             ),
         request_proxy_url,
         browser_proxy_url,
+        local_request_client_ip,
+        local_browser_client_ip,
         request_identity_pool,
         browser_identity_pool,
         tick_started_at: now,
@@ -736,14 +836,22 @@ fn next_scrapling_worker_plan(now: u64, state: &mut ControlState) -> ScraplingWo
     }
 }
 
+const SCRAPLING_FULFILLMENT_MODE_CYCLE_LEN: u64 = 5;
+const SCRAPLING_PENDING_WORKER_GRACE_SECONDS: u64 = 2;
+
 fn scrapling_fulfillment_mode_for_tick(generated_tick_count: u64) -> &'static str {
-    match generated_tick_count % 5 {
+    match generated_tick_count % SCRAPLING_FULFILLMENT_MODE_CYCLE_LEN {
         0 => "crawler",
         1 => "bulk_scraper",
-        2 => "browser_automation",
-        3 => "stealth_browser",
-        _ => "http_agent",
+        2 => "stealth_browser",
+        3 => "http_agent",
+        _ => "browser_automation",
     }
+}
+
+fn scrapling_completed_within_run_mode_cycle(state: &ControlState) -> bool {
+    state.generated_tick_count > 0
+        && state.generated_tick_count % SCRAPLING_FULFILLMENT_MODE_CYCLE_LEN == 0
 }
 
 fn optional_scrapling_proxy_env(name: &str) -> Option<String> {
@@ -753,27 +861,72 @@ fn optional_scrapling_proxy_env(name: &str) -> Option<String> {
         .filter(|value| !value.is_empty())
 }
 
+fn local_contributor_ingress_enabled() -> bool {
+    matches!(
+        std::env::var("SHUMA_LOCAL_CONTRIBUTOR_INGRESS_ENABLE")
+            .ok()
+            .map(|value| value.trim().to_ascii_lowercase())
+            .as_deref(),
+        Some("1" | "true" | "yes" | "on")
+    )
+}
+
+fn scrapling_pending_worker_timeout_seconds(state: &ControlState) -> u64 {
+    let fulfillment_mode = scrapling_fulfillment_mode_for_tick(state.generated_tick_count);
+    let max_time_budget_ms = scrapling_realism_profile_for_mode(fulfillment_mode)
+        .pressure_envelope
+        .max_time_budget_ms;
+    max_time_budget_ms
+        .div_ceil(1_000)
+        .saturating_add(autonomous_execution_profile().cadence_seconds)
+        .saturating_add(SCRAPLING_PENDING_WORKER_GRACE_SECONDS)
+}
+
+fn clear_stale_scrapling_pending_worker(state: &mut ControlState, now: u64) -> bool {
+    let Some(started_at) = state.pending_scrapling_started_at else {
+        return false;
+    };
+    let timeout_seconds = scrapling_pending_worker_timeout_seconds(state);
+    if now < started_at.saturating_add(timeout_seconds) {
+        return false;
+    }
+
+    let last_error = {
+        let counters = state.lane_diagnostics.lane_mut(RuntimeLane::ScraplingTraffic);
+        counters.beat_failures = counters.beat_failures.saturating_add(1);
+        counters.last_error = Some("scrapling_worker_stale_timeout".to_string());
+        counters.last_error.clone()
+    };
+    state.last_generation_error = last_error;
+    clear_lane_pending_worker(state, RuntimeLane::ScraplingTraffic);
+    state.updated_at = now;
+    true
+}
+
 #[cfg(test)]
 mod tests {
     use super::{
         apply_scrapling_worker_result, next_scrapling_worker_plan, run_autonomous_supervisor_ticks,
-        scrapling_fulfillment_mode_for_tick,
+        scrapling_fulfillment_mode_for_tick, scrapling_pending_worker_timeout_seconds,
+        SCRAPLING_FULFILLMENT_MODE_CYCLE_LEN,
     };
     use crate::admin::adversary_sim::{
         ControlPhase, ControlState, RuntimeLane, ScraplingWorkerResult,
         SCRAPLING_WORKER_RESULT_SCHEMA_VERSION,
     };
-    use crate::admin::adversary_sim_state::process_instance_id;
+    use crate::admin::adversary_sim_realism_profile::scrapling_realism_profile_for_mode;
+    use crate::admin::adversary_sim_state::{autonomous_execution_profile, process_instance_id};
     use crate::admin::adversary_sim_worker_plan::ScraplingCrawlStats;
     use crate::test_support::InMemoryStore;
+    use std::collections::BTreeSet;
 
     #[test]
     fn scrapling_fulfillment_modes_cycle_across_full_spectrum_personas() {
         assert_eq!(scrapling_fulfillment_mode_for_tick(0), "crawler");
         assert_eq!(scrapling_fulfillment_mode_for_tick(1), "bulk_scraper");
-        assert_eq!(scrapling_fulfillment_mode_for_tick(2), "browser_automation");
-        assert_eq!(scrapling_fulfillment_mode_for_tick(3), "stealth_browser");
-        assert_eq!(scrapling_fulfillment_mode_for_tick(4), "http_agent");
+        assert_eq!(scrapling_fulfillment_mode_for_tick(2), "stealth_browser");
+        assert_eq!(scrapling_fulfillment_mode_for_tick(3), "http_agent");
+        assert_eq!(scrapling_fulfillment_mode_for_tick(4), "browser_automation");
         assert_eq!(scrapling_fulfillment_mode_for_tick(5), "crawler");
     }
 
@@ -822,6 +975,35 @@ mod tests {
         assert!(bulk_plan.max_requests > crawler_plan.max_requests);
         assert!(bulk_plan.max_requests > 8);
         assert!(bulk_plan.max_ms > 2_000);
+    }
+
+    #[test]
+    fn serialized_scrapling_mode_cycle_fits_with_headroom_inside_default_runtime_window() {
+        let cadence_seconds = autonomous_execution_profile().cadence_seconds;
+        let fulfillment_modes = [
+            "crawler",
+            "bulk_scraper",
+            "stealth_browser",
+            "http_agent",
+            "browser_automation",
+        ];
+        let total_budget_ms: u64 = fulfillment_modes
+            .iter()
+            .map(|mode| {
+                scrapling_realism_profile_for_mode(mode)
+                    .pressure_envelope
+                    .max_time_budget_ms
+            })
+            .sum();
+        let cycle_budget_seconds = total_budget_ms.div_ceil(1_000).saturating_add(
+            cadence_seconds.saturating_mul((fulfillment_modes.len() as u64).saturating_sub(1)),
+        );
+        let default_window_seconds = crate::config::defaults().adversary_sim_duration_seconds;
+
+        assert!(
+            cycle_budget_seconds <= default_window_seconds.saturating_sub(8),
+            "serialized five-mode cycle needs real headroom inside the default window: cycle_budget_seconds={cycle_budget_seconds} default_window_seconds={default_window_seconds}"
+        );
     }
 
     #[test]
@@ -920,6 +1102,172 @@ mod tests {
     }
 
     #[test]
+    fn scrapling_worker_plan_skips_trusted_ingress_proxy_fallback_in_local_contributor_mode() {
+        let _lock = crate::test_support::lock_env();
+        std::env::remove_var("ADVERSARY_SIM_SCRAPLING_REQUEST_PROXY_URL");
+        std::env::remove_var("ADVERSARY_SIM_SCRAPLING_BROWSER_PROXY_URL");
+        std::env::remove_var("ADVERSARY_SIM_SCRAPLING_REQUEST_PROXY_POOL_JSON");
+        std::env::remove_var("ADVERSARY_SIM_SCRAPLING_BROWSER_PROXY_POOL_JSON");
+        std::env::set_var("SHUMA_LOCAL_CONTRIBUTOR_INGRESS_ENABLE", "true");
+        std::env::set_var(
+            "ADVERSARY_SIM_TRUSTED_INGRESS_PROXY_URL",
+            "http://127.0.0.1:3000",
+        );
+        std::env::set_var("ADVERSARY_SIM_TRUSTED_INGRESS_AUTH_TOKEN", "trusted-token");
+
+        let mut state = ControlState::default();
+        state.run_id = Some("simrun-local-proof".to_string());
+        state.generated_tick_count = 0;
+        let plan = next_scrapling_worker_plan(1_700_000_202, &mut state);
+
+        assert_eq!(
+            plan.request_proxy_url.as_deref(),
+            None
+        );
+        assert_eq!(
+            plan.browser_proxy_url.as_deref(),
+            None
+        );
+        assert_eq!(
+            plan.local_request_client_ip
+                .as_deref()
+                .map(|value| value.starts_with("2001:db8:10:")),
+            Some(true)
+        );
+        assert_eq!(
+            plan.local_browser_client_ip
+                .as_deref()
+                .map(|value| value.starts_with("2001:db8:")),
+            Some(true)
+        );
+        assert_ne!(
+            crate::signals::ip_identity::bucket_ip(
+                plan.local_request_client_ip
+                    .as_deref()
+                    .expect("local request client ip"),
+            ),
+            crate::signals::ip_identity::bucket_ip(
+                plan.local_browser_client_ip
+                    .as_deref()
+                    .expect("local browser client ip"),
+            )
+        );
+
+        std::env::remove_var("SHUMA_LOCAL_CONTRIBUTOR_INGRESS_ENABLE");
+        std::env::remove_var("ADVERSARY_SIM_TRUSTED_INGRESS_PROXY_URL");
+        std::env::remove_var("ADVERSARY_SIM_TRUSTED_INGRESS_AUTH_TOKEN");
+    }
+
+    #[test]
+    fn local_contributor_scrapling_personas_do_not_share_bucketed_client_identity() {
+        let _lock = crate::test_support::lock_env();
+        std::env::remove_var("ADVERSARY_SIM_SCRAPLING_REQUEST_PROXY_URL");
+        std::env::remove_var("ADVERSARY_SIM_SCRAPLING_BROWSER_PROXY_URL");
+        std::env::remove_var("ADVERSARY_SIM_SCRAPLING_REQUEST_PROXY_POOL_JSON");
+        std::env::remove_var("ADVERSARY_SIM_SCRAPLING_BROWSER_PROXY_POOL_JSON");
+        std::env::remove_var("ADVERSARY_SIM_TRUSTED_INGRESS_PROXY_URL");
+        std::env::remove_var("ADVERSARY_SIM_TRUSTED_INGRESS_AUTH_TOKEN");
+        std::env::set_var("SHUMA_LOCAL_CONTRIBUTOR_INGRESS_ENABLE", "true");
+
+        let mut observed_buckets = Vec::new();
+        for tick in 0..SCRAPLING_FULFILLMENT_MODE_CYCLE_LEN {
+            let mut state = ControlState::default();
+            state.run_id = Some("simrun-local-proof".to_string());
+            state.generated_tick_count = tick;
+            let plan = next_scrapling_worker_plan(1_700_000_240 + tick, &mut state);
+            let request_ip = plan
+                .local_request_client_ip
+                .as_deref()
+                .expect("local request client ip");
+            let browser_ip = plan
+                .local_browser_client_ip
+                .as_deref()
+                .expect("local browser client ip");
+            let request_bucket = crate::signals::ip_identity::bucket_ip(request_ip);
+            let browser_bucket = crate::signals::ip_identity::bucket_ip(browser_ip);
+
+            assert_ne!(
+                request_bucket, browser_bucket,
+                "request and browser identities for tick {tick} must not collapse into the same /64 bucket"
+            );
+            observed_buckets.push(request_bucket);
+            observed_buckets.push(browser_bucket);
+        }
+
+        let unique_buckets: BTreeSet<String> = observed_buckets.iter().cloned().collect();
+        assert_eq!(
+            unique_buckets.len(),
+            observed_buckets.len(),
+            "each Scrapling persona identity in local contributor mode must occupy its own /64 bucket"
+        );
+
+        std::env::remove_var("SHUMA_LOCAL_CONTRIBUTOR_INGRESS_ENABLE");
+    }
+
+    #[test]
+    fn local_contributor_scrapling_personas_use_mode_specific_identity_families_without_reusing_fixed_single_ips(
+    ) {
+        let _lock = crate::test_support::lock_env();
+        std::env::remove_var("ADVERSARY_SIM_SCRAPLING_REQUEST_PROXY_URL");
+        std::env::remove_var("ADVERSARY_SIM_SCRAPLING_BROWSER_PROXY_URL");
+        std::env::remove_var("ADVERSARY_SIM_SCRAPLING_REQUEST_PROXY_POOL_JSON");
+        std::env::remove_var("ADVERSARY_SIM_SCRAPLING_BROWSER_PROXY_POOL_JSON");
+        std::env::set_var("SHUMA_LOCAL_CONTRIBUTOR_INGRESS_ENABLE", "true");
+
+        let expected = [
+            (0u64, Some("2001:db8:10:"), None),
+            (1u64, Some("2001:db8:12:"), None),
+            (2u64, None, Some("2001:db8:40:")),
+            (3u64, Some("2001:db8:100:"), None),
+            (4u64, None, Some("2001:db8:20:")),
+        ];
+
+        for (tick, expected_request_prefix, expected_browser_prefix) in expected {
+            let mut state = ControlState::default();
+            state.run_id = Some("simrun-local-proof".to_string());
+            state.generated_tick_count = tick;
+            let plan = next_scrapling_worker_plan(1_700_000_250 + tick, &mut state);
+
+            if let Some(request_prefix) = expected_request_prefix {
+                assert_eq!(
+                    plan.local_request_client_ip
+                        .as_deref()
+                        .map(|value| value.starts_with(request_prefix)),
+                    Some(true)
+                );
+            }
+            if let Some(browser_prefix) = expected_browser_prefix {
+                assert_eq!(
+                    plan.local_browser_client_ip
+                        .as_deref()
+                        .map(|value| value.starts_with(browser_prefix)),
+                    Some(true)
+                );
+            }
+        }
+
+        let first_http_agent_ip = super::simulated_local_contributor_client_ip(
+            "http_agent",
+            "simrun-local-proof-a",
+            3,
+            0,
+        );
+        let second_http_agent_ip = super::simulated_local_contributor_client_ip(
+            "http_agent",
+            "simrun-local-proof-b",
+            3,
+            0,
+        );
+        assert_ne!(
+            crate::signals::ip_identity::bucket_ip(first_http_agent_ip.as_str()),
+            crate::signals::ip_identity::bucket_ip(second_http_agent_ip.as_str()),
+            "local contributor hostile identities must not recycle the same /64 bucket across runs"
+        );
+
+        std::env::remove_var("SHUMA_LOCAL_CONTRIBUTOR_INGRESS_ENABLE");
+    }
+
+    #[test]
     fn scrapling_worker_plan_surfaces_long_window_recurrence_context() {
         let mut state = ControlState::default();
         let plan = next_scrapling_worker_plan(1_700_000_000, &mut state);
@@ -961,34 +1309,40 @@ mod tests {
             ..ControlState::default()
         };
 
-        let first_plan = next_scrapling_worker_plan(1_700_000_000, &mut state);
-        let recurrence = first_plan
-            .recurrence_context
-            .clone()
-            .expect("recurrence context");
-        let first_result = ScraplingWorkerResult {
-            schema_version: SCRAPLING_WORKER_RESULT_SCHEMA_VERSION.to_string(),
-            run_id: first_plan.run_id.clone(),
-            tick_id: first_plan.tick_id.clone(),
-            lane: RuntimeLane::ScraplingTraffic,
-            fulfillment_mode: first_plan.fulfillment_mode.clone(),
-            category_targets: first_plan.category_targets.clone(),
-            worker_id: "scrapling-worker-test".to_string(),
-            tick_started_at: first_plan.tick_started_at,
-            tick_completed_at: first_plan.tick_started_at.saturating_add(1),
-            generated_requests: 2,
-            failed_requests: 0,
-            last_response_status: Some(200),
-            failure_class: None,
-            error: None,
-            crawl_stats: ScraplingCrawlStats::default(),
-            scope_rejections: std::collections::BTreeMap::new(),
-            realism_receipt: None,
-            surface_receipts: Vec::new(),
-        };
-        apply_scrapling_worker_result(&mut state, &first_result);
+        let mut now = 1_700_000_000u64;
+        let mut recurrence = None;
+        let mut final_result = None;
+        for _ in 0..SCRAPLING_FULFILLMENT_MODE_CYCLE_LEN {
+            let plan = next_scrapling_worker_plan(now, &mut state);
+            recurrence = plan.recurrence_context.clone();
+            let result = ScraplingWorkerResult {
+                schema_version: SCRAPLING_WORKER_RESULT_SCHEMA_VERSION.to_string(),
+                run_id: plan.run_id.clone(),
+                tick_id: plan.tick_id.clone(),
+                lane: RuntimeLane::ScraplingTraffic,
+                fulfillment_mode: plan.fulfillment_mode.clone(),
+                category_targets: plan.category_targets.clone(),
+                worker_id: "scrapling-worker-test".to_string(),
+                tick_started_at: plan.tick_started_at,
+                tick_completed_at: plan.tick_started_at.saturating_add(1),
+                generated_requests: 2,
+                failed_requests: 0,
+                last_response_status: Some(200),
+                failure_class: None,
+                error: None,
+                crawl_stats: ScraplingCrawlStats::default(),
+                scope_rejections: std::collections::BTreeMap::new(),
+                realism_receipt: None,
+                surface_receipts: Vec::new(),
+            };
+            apply_scrapling_worker_result(&mut state, &result);
+            now = result.tick_completed_at.saturating_add(1);
+            final_result = Some(result);
+        }
 
-        let dormant_at = first_result
+        let recurrence = recurrence.expect("recurrence context");
+        let final_result = final_result.expect("final cycle result");
+        let dormant_at = final_result
             .tick_completed_at
             .saturating_add(recurrence.planned_dormant_gap_seconds)
             .saturating_sub(1);
@@ -999,7 +1353,7 @@ mod tests {
             Some("recurrence_dormant")
         );
 
-        let reentry_at = first_result
+        let reentry_at = final_result
             .tick_completed_at
             .saturating_add(recurrence.planned_dormant_gap_seconds);
         let reentry_summary = run_autonomous_supervisor_ticks(&store, &mut state, reentry_at);
@@ -1008,8 +1362,129 @@ mod tests {
             .recurrence_context
             .as_ref()
             .expect("re-entry recurrence context");
+        assert_eq!(reentry_plan.fulfillment_mode, "crawler");
         assert_eq!(reentry_context.session_index, 2);
         assert_eq!(reentry_context.reentry_count, 1);
+
+        std::env::remove_var("SHUMA_GATEWAY_DEPLOYMENT_PROFILE");
+    }
+
+    #[test]
+    fn autonomous_supervisor_keeps_dispatching_through_full_scrapling_mode_cycle_before_dormancy() {
+        let _lock = crate::test_support::lock_env();
+        std::env::set_var("SHUMA_GATEWAY_DEPLOYMENT_PROFILE", "shared-server");
+        let store = InMemoryStore::default();
+        let mut state = ControlState {
+            phase: ControlPhase::Running,
+            desired_enabled: true,
+            desired_lane: RuntimeLane::ScraplingTraffic,
+            active_lane: Some(RuntimeLane::ScraplingTraffic),
+            owner_instance_id: Some(process_instance_id().to_string()),
+            run_id: Some("run-bursty-cycle".to_string()),
+            started_at: Some(100),
+            ends_at: Some(500),
+            active_run_count: 1,
+            active_lane_count: 1,
+            ..ControlState::default()
+        };
+
+        let mut now = 1_700_000_000u64;
+        let cadence_seconds = autonomous_execution_profile().cadence_seconds;
+        let expected_modes = [
+            "crawler",
+            "bulk_scraper",
+            "stealth_browser",
+            "http_agent",
+            "browser_automation",
+        ];
+
+        for (index, expected_mode) in expected_modes.iter().enumerate() {
+            let summary = run_autonomous_supervisor_ticks(&store, &mut state, now);
+            let plan = summary.worker_plan.expect("worker plan");
+            assert_eq!(plan.fulfillment_mode, *expected_mode);
+
+            let result = ScraplingWorkerResult {
+                schema_version: SCRAPLING_WORKER_RESULT_SCHEMA_VERSION.to_string(),
+                run_id: plan.run_id.clone(),
+                tick_id: plan.tick_id.clone(),
+                lane: RuntimeLane::ScraplingTraffic,
+                fulfillment_mode: plan.fulfillment_mode.clone(),
+                category_targets: plan.category_targets.clone(),
+                worker_id: "scrapling-worker-test".to_string(),
+                tick_started_at: plan.tick_started_at,
+                tick_completed_at: plan.tick_started_at.saturating_add(1),
+                generated_requests: 2,
+                failed_requests: 0,
+                last_response_status: Some(200),
+                failure_class: None,
+                error: None,
+                crawl_stats: ScraplingCrawlStats::default(),
+                scope_rejections: std::collections::BTreeMap::new(),
+                realism_receipt: None,
+                surface_receipts: Vec::new(),
+            };
+            apply_scrapling_worker_result(&mut state, &result);
+            now = result.tick_completed_at.saturating_add(cadence_seconds);
+
+            if index < expected_modes.len() - 1 {
+                assert!(
+                    state.recurrence_dormant_until.is_none(),
+                    "expected no recurrence dormancy before completing full cycle after {expected_mode}"
+                );
+            }
+        }
+
+        let dormant_summary = run_autonomous_supervisor_ticks(&store, &mut state, now);
+        assert!(dormant_summary.worker_plan.is_none());
+        assert_eq!(
+            dormant_summary.pending_dispatch_mode.as_deref(),
+            Some("recurrence_dormant")
+        );
+
+        std::env::remove_var("SHUMA_GATEWAY_DEPLOYMENT_PROFILE");
+    }
+
+    #[test]
+    fn autonomous_supervisor_reaps_stale_pending_scrapling_worker_before_redispatching() {
+        let _lock = crate::test_support::lock_env();
+        std::env::set_var("SHUMA_GATEWAY_DEPLOYMENT_PROFILE", "shared-server");
+
+        let store = InMemoryStore::default();
+        let mut state = ControlState {
+            phase: ControlPhase::Running,
+            desired_enabled: true,
+            desired_lane: RuntimeLane::ScraplingTraffic,
+            active_lane: Some(RuntimeLane::ScraplingTraffic),
+            owner_instance_id: Some(process_instance_id().to_string()),
+            run_id: Some("run-stale-scrapling".to_string()),
+            started_at: Some(100),
+            ends_at: Some(500),
+            active_run_count: 1,
+            active_lane_count: 1,
+            generated_tick_count: 3,
+            pending_scrapling_tick_id: Some("scrapling-tick-stale".to_string()),
+            pending_scrapling_started_at: Some(100),
+            last_generated_at: Some(100),
+            ..ControlState::default()
+        };
+        let stale_at = 100u64
+            .saturating_add(scrapling_pending_worker_timeout_seconds(&state))
+            .saturating_add(1);
+
+        let summary = run_autonomous_supervisor_ticks(&store, &mut state, stale_at);
+        let plan = summary.worker_plan.expect("replacement worker plan");
+
+        assert_eq!(plan.fulfillment_mode, "http_agent");
+        assert_eq!(
+            state.last_generation_error.as_deref(),
+            Some("scrapling_worker_stale_timeout")
+        );
+        assert_eq!(
+            state.pending_scrapling_tick_id.as_deref(),
+            Some(plan.tick_id.as_str())
+        );
+        assert!(state.pending_scrapling_started_at.is_some());
+        assert!(!summary.worker_pending);
 
         std::env::remove_var("SHUMA_GATEWAY_DEPLOYMENT_PROFILE");
     }
@@ -1112,6 +1587,7 @@ pub(crate) fn run_autonomous_supervisor_ticks(
     }
     reconcile_active_lane_at_beat_boundary(now, state);
     clear_recurrence_dormancy_if_ready(state, now);
+    clear_stale_scrapling_pending_worker(state, now);
     match effective_active_lane(state) {
         Some(RuntimeLane::SyntheticTraffic) => {}
         Some(RuntimeLane::ScraplingTraffic) => {

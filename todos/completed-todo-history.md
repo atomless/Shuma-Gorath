@@ -2,6 +2,29 @@
 
 Moved from active TODO files on 2026-02-14.
 
+## Additional completions (2026-04-02)
+
+### Root-Served Defence Confrontation And Bursty Scrapling Recovery
+
+- [x] Landed `SIM-REALISM-REG-1A..1C` so root-started Scrapling on the generated root-hosted site now earns its way through Shuma-served confrontation and into tarpit with violent, bursty cadence rather than fake route knowledge or pedestrian serialized turnover.
+- [x] What landed:
+  - [`../scripts/tests/adversary_runtime_toggle_surface_gate.py`](../scripts/tests/adversary_runtime_toggle_surface_gate.py), [`../scripts/tests/test_adversary_runtime_toggle_surface_gate.py`](../scripts/tests/test_adversary_runtime_toggle_surface_gate.py), [`../src/providers/internal.rs`](../src/providers/internal.rs), and [`../Makefile`](../Makefile) now lock an honest root-served confrontation gate that fails unless server-observed evidence includes real hostile-surface breadth, non-trivial defence families, and tarpit-family progression when `tarpit_progress_abuse` is claimed.
+  - [`../scripts/supervisor/scrapling_worker.py`](../scripts/supervisor/scrapling_worker.py), [`../scripts/tests/test_scrapling_worker.py`](../scripts/tests/test_scrapling_worker.py), [`../src/admin/adversary_sim_realism_profile.rs`](../src/admin/adversary_sim_realism_profile.rs), and [`../scripts/tests/adversarial/lane_realism_contract.v1.json`](../scripts/tests/adversarial/lane_realism_contract.v1.json) now recover root-served challenge handling, stronger request-native follow-through, generated-site hostile traversal, and faster pressure envelopes without public defence links or hidden worker catalogs.
+  - [`../src/admin/adversary_sim_lane_runtime.rs`](../src/admin/adversary_sim_lane_runtime.rs) now keeps serialized Scrapling mode turnover bursty, reaps stale pending workers, and in local contributor mode assigns run-scoped hostile client identities so Shuma does not inherit stale sequence or replay state across runs and prematurely abort honest challenge follow-through before puzzle or tarpit escalation.
+  - [`../docs/testing.md`](../docs/testing.md), [`../docs/research/2026-04-01-root-served-defence-confrontation-and-scrapling-cadence-regression-review.md`](../docs/research/2026-04-01-root-served-defence-confrontation-and-scrapling-cadence-regression-review.md), [`../docs/plans/2026-04-01-root-served-defence-confrontation-and-scrapling-cadence-regression-plan.md`](../docs/plans/2026-04-01-root-served-defence-confrontation-and-scrapling-cadence-regression-plan.md), [`../docs/plans/2026-03-20-mature-adversary-sim-evolution-roadmap.md`](../docs/plans/2026-03-20-mature-adversary-sim-evolution-roadmap.md), [`../docs/plans/2026-03-16-pre-launch-roadmap-gap-capture-and-sequencing.md`](../docs/plans/2026-03-16-pre-launch-roadmap-gap-capture-and-sequencing.md), and [`../todos/todo.md`](../todos/todo.md) now reflect that this recovery is closed and that environment readiness is again the next active realism blocker.
+- [x] Why:
+  - the earlier realism chain had become more honest on paper while simultaneously degrading hostile efficacy on the real generated site: request-native Scrapling could overclaim confrontation from harmless `200` responses, root-served challenge persistence was collapsing before earned escalation, and the five-mode serialized cycle had stretched into an impotent watch-window cadence.
+- [x] Evidence:
+  - `make test-adversary-sim-root-served-defence-confrontation-unit`
+  - `make test-adversary-sim-root-served-defence-confrontation`
+  - `make test-adversary-sim-scrapling-worker`
+  - `make test-adversary-sim-scrapling-category-fit`
+  - `make test-adversary-sim-scrapling-coverage-receipts`
+  - `make test-adversary-sim-scrapling-realism`
+  - `make test-adversary-sim-pressure-envelope-realism`
+  - `make test-code-quality`
+  - live gate evidence: `simrun-1775121528-071806d5b2978095` reached `overall_status=covered` with `blocking_surface_ids=[]`, `defense_families=["cdp","challenge","maze","not_a_bot","pow","rate_limit","tarpit"]`, and `tarpit_progress_event_count=5`
+
 ## Additional completions (2026-04-01)
 
 ### Repo-Wide Code-Quality Completion Gate
