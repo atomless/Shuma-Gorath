@@ -729,6 +729,62 @@ class LlmRuntimeWorkerUnitTests(unittest.TestCase):
             403,
         )
 
+    def test_run_request_mode_blackbox_materializes_empty_report_as_structured_failure(self):
+        plan = {
+            "schema_version": "adversary-sim-llm-fulfillment-plan.v1",
+            "run_id": "simrun-llm-runtime",
+            "tick_id": "llm-fit-tick-5",
+            "lane": "bot_red_team",
+            "fulfillment_mode": "request_mode",
+            "backend_kind": "frontier_reference",
+            "backend_state": "configured",
+            "category_targets": ["http_agent"],
+            "capability_envelope": {"max_actions": 3, "max_time_budget_seconds": 120},
+            "realism_profile": resolve_lane_realism_profile("bot_red_team", "request_mode"),
+        }
+        generation = {
+            "generation_source": "provider_response",
+            "provider": "openai",
+            "model_id": "gpt-5-mini",
+            "actions": [
+                {"action_index": 1, "action_type": "http_get", "path": "/", "label": "root"},
+            ],
+        }
+
+        with tempfile.TemporaryDirectory() as temp_dir:
+            report_path = Path(temp_dir) / "llm-runtime-report.json"
+
+            def fake_runner(command, *, capture_output, text, check, cwd):
+                report_path.write_text("", encoding="utf-8")
+                return subprocess.CompletedProcess(
+                    args=command,
+                    returncode=1,
+                    stdout="runner-stdout",
+                    stderr="runner-stderr",
+                )
+
+            report = llm_runtime_worker.run_request_mode_blackbox(
+                base_url="http://127.0.0.1:3000/",
+                fulfillment_plan=plan,
+                generation_result=generation,
+                runner=fake_runner,
+                report_path=report_path,
+            )
+
+        self.assertEqual(report["passed"], False)
+        self.assertEqual(
+            report["terminal_failure"]["terminal_failure"],
+            "request_mode_execution_failed",
+        )
+        self.assertIn(
+            "container_runner_report_empty",
+            report["worker_failure_detail"],
+        )
+        self.assertEqual(report["_runner_exit_code"], 1)
+        self.assertEqual(report["_runner_stderr"], "runner-stderr")
+        self.assertEqual(report["worker_payload"]["requests_sent"], 0)
+        self.assertEqual(report["worker_payload"]["traffic"], [])
+
     def test_run_browser_mode_blackbox_uses_browser_driver_and_reads_receipt(self):
         plan = {
             "schema_version": "adversary-sim-llm-fulfillment-plan.v1",

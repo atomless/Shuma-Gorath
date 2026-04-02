@@ -2,7 +2,7 @@
 
 import { formatAdversarySimTransitionReasonCopy } from '../domain/adversary-sim.js';
 
-const DEFAULT_DURATION_SECONDS = 180;
+const DEFAULT_DURATION_SECONDS = 30;
 const ADVERSARY_SIM_LANES = Object.freeze([
   'synthetic_traffic',
   'scrapling_traffic',

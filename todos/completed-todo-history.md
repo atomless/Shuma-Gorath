@@ -4,6 +4,21 @@ Moved from active TODO files on 2026-02-14.
 
 ## Additional completions (2026-04-02)
 
+### Adversary Sim Request-Mode Failure Materialization And Duration Default Alignment
+
+- [x] Recovered agentic request-mode failure materialization so empty container-runner reports no longer crash the LLM runtime worker with a raw `JSONDecodeError`, and aligned the dashboard-side default sim duration back to the canonical 30-second backend default.
+- [x] What landed:
+  - [`../scripts/supervisor/llm_runtime_worker.py`](../scripts/supervisor/llm_runtime_worker.py) now converts missing, empty, invalid-JSON, and non-object request-mode container reports into structured `request_mode_execution_failed` worker payloads instead of raising and tearing down the whole worker process before a result can be materialized.
+  - [`../scripts/tests/test_llm_runtime_worker.py`](../scripts/tests/test_llm_runtime_worker.py) now proves the exact live failure class by exercising an empty request-mode report file and asserting that the worker returns a structured failure envelope rather than crashing.
+  - [`../dashboard/src/lib/runtime/dashboard-adversary-sim.js`](../dashboard/src/lib/runtime/dashboard-adversary-sim.js) now uses `30` seconds as its local adversary-sim fallback duration instead of the stale `180` second drift value.
+  - [`../e2e/dashboard.modules.unit.test.js`](../e2e/dashboard.modules.unit.test.js) now locks the dashboard defaulted adversary-sim duration to `30` seconds while preserving explicit runtime-provided durations such as `180`.
+- [x] Why:
+  - live `bot_red_team` request-mode execution was still failing on the seam where the container runner sometimes left an empty report file, which produced a traceback in the runtime status surface and starved the lane of a clean structured failure result; at the same time the dashboard still carried a contradictory 180-second local duration fallback even though the canonical backend default remains 30 seconds.
+- [x] Evidence:
+  - `make test-adversarial-llm-runtime-dispatch`
+  - `make test-dashboard-adversary-sim-lane-contract`
+  - `make test-code-quality`
+
 ### Adversary Sim Agentic Worker Result Contract Recovery
 
 - [x] Restored agentic recent-run materialization after the LLM worker result contract had drifted far enough that live `bot_red_team` runs were being rejected with `400 Invalid LLM runtime result payload`.

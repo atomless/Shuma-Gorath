@@ -4504,6 +4504,7 @@ test('dashboard adversary-sim runtime normalizes orchestration status', { concur
 
     const defaulted = adversaryModule.normalizeAdversarySimStatus({});
     assert.equal(defaulted.desiredLane, 'scrapling_traffic');
+    assert.equal(defaulted.durationSeconds, 30);
   });
 });
 

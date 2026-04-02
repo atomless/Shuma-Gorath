@@ -887,6 +887,30 @@ def run_request_mode_blackbox(
     runner: Any = subprocess.run,
     report_path: Path | None = None,
 ) -> dict[str, Any]:
+    def request_mode_failure_report(
+        *,
+        detail: str,
+        completed: subprocess.CompletedProcess[str],
+    ) -> dict[str, Any]:
+        normalized_detail = str(detail or "").strip() or "container_runner_failed"
+        return {
+            "passed": False,
+            "terminal_failure": {
+                "terminal_failure": "request_mode_execution_failed",
+                "reason": normalized_detail,
+            },
+            "worker_failure_detail": normalized_detail,
+            "worker_payload": {
+                "requests_sent": 0,
+                "errors": [normalized_detail],
+                "traffic": [],
+                "realism_receipt": None,
+            },
+            "_runner_exit_code": int(completed.returncode),
+            "_runner_stdout": str(completed.stdout or ""),
+            "_runner_stderr": str(completed.stderr or ""),
+        }
+
     capability_envelope = dict(fulfillment_plan.get("capability_envelope") or {})
     if realism_execution_plan is None:
         realism_execution_plan = build_request_mode_realism_execution_plan(
@@ -940,16 +964,45 @@ def run_request_mode_blackbox(
         cwd=str(REPO_ROOT),
     )
     if not report_output_path.exists():
-        raise RuntimeError(
-            "container_runner_report_missing:"
-            f"exit_code={completed.returncode}:stderr={str(completed.stderr or '').strip()}"
+        return request_mode_failure_report(
+            detail=(
+                "container_runner_report_missing:"
+                f"exit_code={completed.returncode}:stderr={str(completed.stderr or '').strip()}"
+            ),
+            completed=completed,
         )
+
+    report_text = ""
     try:
-        payload = json.loads(report_output_path.read_text(encoding="utf-8"))
+        report_text = report_output_path.read_text(encoding="utf-8")
     finally:
         report_output_path.unlink(missing_ok=True)
+
+    normalized_report_text = report_text.strip()
+    if not normalized_report_text:
+        return request_mode_failure_report(
+            detail=(
+                "container_runner_report_empty:"
+                f"exit_code={completed.returncode}:stderr={str(completed.stderr or '').strip()}"
+            ),
+            completed=completed,
+        )
+
+    try:
+        payload = json.loads(normalized_report_text)
+    except json.JSONDecodeError as err:
+        return request_mode_failure_report(
+            detail=(
+                "container_runner_report_invalid_json:"
+                f"{err}:exit_code={completed.returncode}:stderr={str(completed.stderr or '').strip()}"
+            ),
+            completed=completed,
+        )
     if not isinstance(payload, dict):
-        raise RuntimeError("container_runner_report_invalid")
+        return request_mode_failure_report(
+            detail="container_runner_report_invalid",
+            completed=completed,
+        )
     payload["_runner_exit_code"] = int(completed.returncode)
     payload["_runner_stdout"] = str(completed.stdout or "")
     payload["_runner_stderr"] = str(completed.stderr or "")
