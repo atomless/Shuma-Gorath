@@ -162,6 +162,22 @@ pub(crate) struct MonitoringRecentEventsTailPayload {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+pub(crate) struct MonitoringRecentRunIdentitySummary {
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub modes: Vec<String>,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub observed_country_codes: Vec<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+pub(crate) struct MonitoringRecentRunTransportSummary {
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub modes: Vec<String>,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub degraded_reasons: Vec<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 pub(crate) struct MonitoringRecentSimRunSummary {
     pub run_id: String,
     pub lane: String,
@@ -177,6 +193,10 @@ pub(crate) struct MonitoringRecentSimRunSummary {
     pub scrapling_activity_count: Option<u64>,
     pub defense_delta_count: u64,
     pub ban_outcome_count: u64,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub identity_summary: Option<MonitoringRecentRunIdentitySummary>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub transport_summary: Option<MonitoringRecentRunTransportSummary>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub owned_surface_coverage: Option<ScraplingOwnedSurfaceCoverageSummary>,
     #[serde(default, skip_serializing_if = "Option::is_none")]

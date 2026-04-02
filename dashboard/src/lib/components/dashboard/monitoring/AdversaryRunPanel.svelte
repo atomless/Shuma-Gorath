@@ -86,6 +86,14 @@
         : null
     );
   };
+  const extractIdentitySummary = (row = {}) =>
+    row?.identitySummary && typeof row.identitySummary === 'object'
+      ? row.identitySummary
+      : extractRealismReceipt(row);
+  const extractTransportSummary = (row = {}) =>
+    row?.transportSummary && typeof row.transportSummary === 'object'
+      ? row.transportSummary
+      : extractRealismReceipt(row);
   const formatExecutionSummary = (row = {}) => {
     const summary = row?.llmRuntimeSummary && typeof row.llmRuntimeSummary === 'object'
       ? row.llmRuntimeSummary
@@ -122,15 +130,15 @@
     return joinSummaryParts(parts);
   };
   const formatIdentitySummary = (row = {}) => {
-    const receipt = extractRealismReceipt(row);
-    if (!receipt) return 'Not materialized';
-    const identitySummary = formatIdentityRealismSummary(receipt);
+    const summary = extractIdentitySummary(row);
+    if (!summary) return 'Not materialized';
+    const identitySummary = formatIdentityRealismSummary(summary);
     return identitySummary || 'Not materialized';
   };
   const formatTransportSummary = (row = {}) => {
-    const receipt = extractRealismReceipt(row);
-    if (!receipt) return 'Not materialized';
-    const transportSummary = formatTransportRealismSummary(receipt);
+    const summary = extractTransportSummary(row);
+    if (!summary) return 'Not materialized';
+    const transportSummary = formatTransportRealismSummary(summary);
     return transportSummary || 'Not materialized';
   };
 </script>

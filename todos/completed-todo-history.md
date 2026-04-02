@@ -4,6 +4,24 @@ Moved from active TODO files on 2026-02-14.
 
 ## Additional completions (2026-04-02)
 
+### Dashboard Recent Red Team Runs Whole-Run Identity And Transport Summaries
+
+- [x] Replaced latest-receipt-only identity and transport rendering in Recent Red Team Runs with whole-run summaries so those columns now match the whole-run semantics already used by modes, categories, coverage, timestamps, monitoring deltas, and Scrapling execution volume.
+- [x] What landed:
+  - [`../src/observability/hot_read_documents.rs`](../src/observability/hot_read_documents.rs) now exposes optional `identity_summary` and `transport_summary` fields on recent-run summaries.
+  - [`../src/admin/api.rs`](../src/admin/api.rs) now accumulates identity modes, observed country codes, transport modes, and degraded transport reasons across every realism receipt seen in a run for both Scrapling and LLM lanes, while still preserving the newest receipt separately where latest-receipt detail remains useful.
+  - [`../dashboard/src/lib/components/dashboard/monitoring-view-model.js`](../dashboard/src/lib/components/dashboard/monitoring-view-model.js) now shapes those run-level summaries into the dashboard row model and formats mixed whole-run summaries explicitly.
+  - [`../dashboard/src/lib/components/dashboard/monitoring/AdversaryRunPanel.svelte`](../dashboard/src/lib/components/dashboard/monitoring/AdversaryRunPanel.svelte) now prefers run-level `identitySummary` and `transportSummary`, falling back to the latest receipt only when older payloads do not yet carry the new fields.
+  - [`../e2e/dashboard.modules.unit.test.js`](../e2e/dashboard.modules.unit.test.js) now proves the dashboard shaping path and realism formatters use whole-run summaries correctly, including mixed-mode summaries.
+  - [`../Makefile`](../Makefile) now includes `make test-adversary-sim-recent-run-realism-summaries` as the focused backend proof path for whole-run identity and transport aggregation.
+- [x] Why:
+  - after fixing Scrapling `Execution`, `Identity` and `Transport` were still semantically inconsistent because they only reflected the latest realism receipt in the run, which meant a row could truthfully claim broad multi-mode/multi-category coverage while still displaying a narrow last-receipt realism posture.
+- [x] Evidence:
+  - `make test-adversary-sim-recent-run-realism-summaries`
+  - `make test-adversary-sim-scrapling-realism`
+  - `make test-dashboard-red-team-pane`
+  - `make test-code-quality`
+
 ### Dashboard Recent Red Team Runs Started-Time Disambiguation
 
 - [x] Added a user-facing `Started` column to Recent Red Team Runs so successive runs remain visibly distinguishable after the operator-unhelpful internal `Run ID` column was removed.

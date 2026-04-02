@@ -442,6 +442,12 @@ const shapeAdversaryRunRows = (rows = [], activeBans = []) => {
         row?.latestScraplingRealismReceipt && typeof row.latestScraplingRealismReceipt === 'object'
           ? row.latestScraplingRealismReceipt
           : null;
+      const identitySummary = row?.identitySummary && typeof row.identitySummary === 'object'
+        ? row.identitySummary
+        : null;
+      const transportSummary = row?.transportSummary && typeof row.transportSummary === 'object'
+        ? row.transportSummary
+        : null;
       const llmRuntimeSummary = row?.llmRuntimeSummary && typeof row.llmRuntimeSummary === 'object'
         ? row.llmRuntimeSummary
         : null;
@@ -458,6 +464,8 @@ const shapeAdversaryRunRows = (rows = [], activeBans = []) => {
         observedCategoryIds,
         ownedSurfaceCoverage,
         latestScraplingRealismReceipt,
+        identitySummary,
+        transportSummary,
         llmRuntimeSummary,
         banOutcomeCount: row.banOutcomeCount,
         monitoringHref: '#game-loop',
@@ -759,6 +767,36 @@ const shapeIdentityRealismReceipt = (receipt = {}) => {
   };
 };
 
+const shapeIdentitySummary = (summary = {}) => {
+  const source = summary && typeof summary === 'object' ? summary : {};
+  const hasAnyValue = Object.keys(source).length > 0;
+  if (!hasAnyValue) return null;
+  const modes = toSummaryStringArray(source.modes);
+  const observedCountryCodes = toSummaryStringArray(
+    source.observedCountryCodes || source.observed_country_codes
+  );
+  if (modes.length === 0 && observedCountryCodes.length === 0) return null;
+  return {
+    modes,
+    observedCountryCodes
+  };
+};
+
+const shapeTransportSummary = (summary = {}) => {
+  const source = summary && typeof summary === 'object' ? summary : {};
+  const hasAnyValue = Object.keys(source).length > 0;
+  if (!hasAnyValue) return null;
+  const modes = toSummaryStringArray(source.modes);
+  const degradedReasons = toSummaryStringArray(
+    source.degradedReasons || source.degraded_reasons
+  );
+  if (modes.length === 0 && degradedReasons.length === 0) return null;
+  return {
+    modes,
+    degradedReasons
+  };
+};
+
 const shapeLlmRuntimeSummary = (summary = {}) => {
   const source = summary && typeof summary === 'object' ? summary : {};
   const hasAnyValue = Object.keys(source).length > 0;
@@ -929,6 +967,12 @@ export const deriveAdversaryRunRowsFromSummaries = (summaries = [], bans = []) =
       ownedSurfaceCoverage: shapeOwnedSurfaceCoverage(
         summary?.ownedSurfaceCoverage || summary?.owned_surface_coverage
       ),
+      identitySummary: shapeIdentitySummary(
+        summary?.identitySummary || summary?.identity_summary
+      ),
+      transportSummary: shapeTransportSummary(
+        summary?.transportSummary || summary?.transport_summary
+      ),
       latestScraplingRealismReceipt: shapeIdentityRealismReceipt(
         summary?.latestScraplingRealismReceipt || summary?.latest_scrapling_realism_receipt
       ),
@@ -1058,16 +1102,24 @@ export const formatIdentityRealismSummary = (receipt = null) => {
   if (!shaped) return '';
   const provenanceMode = String(shaped.identityProvenanceMode || shaped.identity_provenance_mode || '').trim();
   const identityStatus = String(shaped.identityRealismStatus || shaped.identity_realism_status || '').trim();
-  const label =
-    IDENTITY_PROVENANCE_LABELS[provenanceMode]
-    || IDENTITY_PROVENANCE_LABELS[identityStatus]
-    || (provenanceMode || identityStatus ? formatMetricLabel(provenanceMode || identityStatus) : '');
+  const modes = toSummaryStringArray(shaped.modes).length > 0
+    ? toSummaryStringArray(shaped.modes)
+    : toSummaryStringArray([provenanceMode || identityStatus]);
+  const labels = Array.from(new Set(
+    modes
+      .map((mode) => (
+        IDENTITY_PROVENANCE_LABELS[mode]
+        || (mode ? formatMetricLabel(mode) : '')
+      ))
+      .filter(Boolean)
+  ));
   const countries = toSummaryStringArray(
     shaped.observedCountryCodes || shaped.observed_country_codes
   );
-  if (!label && countries.length === 0) return '';
-  if (!label) return countries.join(', ');
-  return countries.length > 0 ? `${label} (${countries.join(', ')})` : label;
+  if (labels.length === 0 && countries.length === 0) return '';
+  if (labels.length === 0) return countries.join(', ');
+  const summary = labels.length === 1 ? labels[0] : `Mixed: ${labels.join(', ')}`;
+  return countries.length > 0 ? `${summary} (${countries.join(', ')})` : summary;
 };
 
 export const formatTransportRealismSummary = (receipt = null) => {
@@ -1086,16 +1138,30 @@ export const formatTransportRealismSummary = (receipt = null) => {
   const transportProfile = String(
     shaped.transportProfile || shaped.transport_profile || ''
   ).trim();
-  const degradedReason = String(
-    shaped.transportDegradedReason || shaped.transport_degraded_reason || ''
-  ).trim();
-  const label = realismClass ? formatTransportLabel(realismClass) : (
-    transportProfile ? formatTransportLabel(transportProfile) : ''
+  const modes = toSummaryStringArray(shaped.modes).length > 0
+    ? toSummaryStringArray(shaped.modes)
+    : toSummaryStringArray([realismClass || transportProfile]);
+  const labels = Array.from(new Set(
+    modes.map((mode) => formatTransportLabel(mode)).filter(Boolean)
+  ));
+  const degradedReasons = toSummaryStringArray(
+    shaped.degradedReasons || shaped.degraded_reasons || [
+      shaped.transportDegradedReason || shaped.transport_degraded_reason || ''
+    ]
   );
-  if (!label && !degradedReason) return '';
-  if (!degradedReason) return label;
-  if (!label) return formatTransportLabel(degradedReason);
-  return `${label} (${formatTransportLabel(degradedReason)})`;
+  const degradedLabels = Array.from(new Set(
+    degradedReasons.map((reason) => formatTransportLabel(reason)).filter(Boolean)
+  ));
+  if (labels.length === 0 && degradedLabels.length === 0) return '';
+  const summary = labels.length === 0
+    ? ''
+    : (labels.length === 1 ? labels[0] : `Mixed: ${labels.join(', ')}`);
+  if (degradedLabels.length === 0) return summary;
+  const degradedSummary = degradedLabels.length === 1
+    ? degradedLabels[0]
+    : `Mixed: ${degradedLabels.join(', ')}`;
+  if (!summary) return degradedSummary;
+  return `${summary} (${degradedSummary})`;
 };
 
 export const deriveMazeStatsViewModel = (data = {}) => {

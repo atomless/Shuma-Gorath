@@ -1962,6 +1962,231 @@ mod tests {
             "degraded_direct_library"
         );
         assert_eq!(llm_runtime_summary.latest_action_receipts.len(), 2);
+        assert_eq!(
+            row.identity_summary
+                .as_ref()
+                .expect("identity summary")
+                .modes,
+            vec!["degraded_local".to_string()]
+        );
+        assert_eq!(
+            row.transport_summary
+                .as_ref()
+                .expect("transport summary")
+                .modes,
+            vec!["degraded_direct_library".to_string()]
+        );
+    }
+
+    #[test]
+    fn recent_sim_run_history_aggregates_llm_identity_and_transport_summaries_across_receipts() {
+        let store = MockStore::new();
+        let now = now_ts();
+        let run_started_at = now.saturating_sub(90);
+
+        let persist_llm_runtime_record = |
+            ts: u64,
+            provider: &str,
+            model_id: &str,
+            transport_realism_class: &str,
+            transport_degraded_reason: &str,
+            identity_provenance_mode: &str,
+            observed_country_codes: Vec<&str>,
+            generated_action_count: u64,
+            executed_action_count: u64,
+        | {
+            persist_event_record(
+                &store,
+                EventLogRecord {
+                    entry: EventLogEntry {
+                        ts,
+                        event: EventType::AdminAction,
+                        ip: None,
+                        reason: Some("llm_runtime_receipt".to_string()),
+                        outcome: Some("request_mode provider_response".to_string()),
+                        admin: Some("internal".to_string()),
+                    },
+                    taxonomy: None,
+                    outcome_code: None,
+                    botness_score: None,
+                    sim_run_id: Some("simrun-llm-runtime-aggregate-proof".to_string()),
+                    sim_profile: Some("llm_runtime_lane.request_mode".to_string()),
+                    sim_lane: Some("bot_red_team".to_string()),
+                    is_simulation: true,
+                    scrapling_surface_receipts: Vec::new(),
+                    scrapling_category_targets: Vec::new(),
+                    llm_runtime_summary: Some(
+                        crate::admin::adversary_sim::LlmRuntimeRecentRunSummary {
+                            receipt_count: 1,
+                            fulfillment_mode: "request_mode".to_string(),
+                            category_targets: vec![
+                                "http_agent".to_string(),
+                                "ai_scraper_bot".to_string(),
+                            ],
+                            backend_kind: "frontier_reference".to_string(),
+                            backend_state: "configured".to_string(),
+                            generation_source: "provider_response".to_string(),
+                            provider: provider.to_string(),
+                            model_id: model_id.to_string(),
+                            fallback_reason: None,
+                            generated_action_count,
+                            executed_action_count,
+                            failed_action_count: 0,
+                            passed_tick_count: 1,
+                            failed_tick_count: 0,
+                            last_response_status: Some(200),
+                            failure_class: None,
+                            error: None,
+                            terminal_failure: None,
+                            latest_realism_receipt: Some(
+                                crate::admin::adversary_sim_worker_plan::LlmRuntimeRealismReceipt {
+                                    schema_version: "sim-lane-realism-receipt.v1".to_string(),
+                                    profile_id: "agentic.request_mode.v1".to_string(),
+                                    planned_activity_budget: 12,
+                                    effective_activity_budget: 9,
+                                    planned_burst_size: Some(3),
+                                    effective_burst_size: Some(3),
+                                    activity_count: executed_action_count,
+                                    burst_count: Some(1),
+                                    burst_sizes: vec![executed_action_count],
+                                    inter_activity_gaps_ms: vec![0],
+                                    transport_profile: "urllib_direct".to_string(),
+                                    transport_realism_class: transport_realism_class.to_string(),
+                                    transport_emission_basis: "python_urllib_runtime".to_string(),
+                                    transport_degraded_reason: transport_degraded_reason.to_string(),
+                                    observed_user_agent_families: vec![
+                                        "chrome_android".to_string(),
+                                    ],
+                                    observed_accept_languages: vec![
+                                        "en-US,en;q=0.9".to_string(),
+                                    ],
+                                    identity_realism_status: identity_provenance_mode.to_string(),
+                                    identity_provenance_mode: identity_provenance_mode.to_string(),
+                                    identity_envelope_classes: vec![
+                                        "residential".to_string(),
+                                    ],
+                                    geo_affinity_mode: "pool_aligned".to_string(),
+                                    session_stickiness: "stable_per_identity".to_string(),
+                                    observed_country_codes: observed_country_codes
+                                        .into_iter()
+                                        .map(str::to_string)
+                                        .collect(),
+                                    focused_page_set_size: Some(1),
+                                    top_level_action_count: None,
+                                    dwell_intervals_ms: Vec::new(),
+                                    observed_browser_locales: Vec::new(),
+                                    secondary_capture_mode: String::new(),
+                                    secondary_request_count: None,
+                                    background_request_count: None,
+                                    subresource_request_count: None,
+                                    concurrency_group_sizes: vec![1],
+                                    peak_concurrent_activities: Some(1),
+                                    session_handles: vec!["agentic-request-session".to_string()],
+                                    identity_rotation_count: None,
+                                    recurrence_strategy: "bounded_campaign_return".to_string(),
+                                    reentry_scope: "cross_window_campaign".to_string(),
+                                    dormancy_truth_mode: "accelerated_local_proof".to_string(),
+                                    session_index: Some(1),
+                                    reentry_count: Some(0),
+                                    max_reentries_per_run: Some(3),
+                                    planned_dormant_gap_seconds: Some(4),
+                                    representative_dormant_gap_seconds: Some(7_200),
+                                    stop_reason: "response_pressure_stop".to_string(),
+                                },
+                            ),
+                            latest_action_receipts: vec![
+                                crate::admin::adversary_sim_worker_plan::LlmRuntimeActionReceipt {
+                                    action_index: 1,
+                                    action_type: "http_get".to_string(),
+                                    path: "/".to_string(),
+                                    label: Some("root".to_string()),
+                                    status: Some(200),
+                                    error: None,
+                                },
+                            ],
+                        },
+                    ),
+                    execution: EventExecutionMetadata::default(),
+                },
+            );
+        };
+
+        persist_llm_runtime_record(
+            run_started_at,
+            "openai",
+            "gpt-5-mini",
+            "degraded_direct_library",
+            "no_tls_or_protocol_impersonation_support",
+            "fixed_proxy",
+            vec!["FR"],
+            2,
+            2,
+        );
+        persist_llm_runtime_record(
+            run_started_at.saturating_add(1),
+            "openai",
+            "gpt-5-mini",
+            "impersonated_request_stack",
+            "",
+            "trusted_ingress_backed",
+            vec!["GB"],
+            1,
+            1,
+        );
+
+        let recent_runs = monitoring_recent_sim_run_summaries(&store, now, 24, 10);
+        let row = recent_runs
+            .iter()
+            .find(|value| value.run_id == "simrun-llm-runtime-aggregate-proof")
+            .expect("llm runtime aggregate row");
+        assert_eq!(
+            row.identity_summary
+                .as_ref()
+                .expect("identity summary")
+                .modes,
+            vec!["fixed_proxy".to_string(), "trusted_ingress_backed".to_string()]
+        );
+        assert_eq!(
+            row.identity_summary
+                .as_ref()
+                .expect("identity summary")
+                .observed_country_codes,
+            vec!["FR".to_string(), "GB".to_string()]
+        );
+        assert_eq!(
+            row.transport_summary
+                .as_ref()
+                .expect("transport summary")
+                .modes,
+            vec![
+                "degraded_direct_library".to_string(),
+                "impersonated_request_stack".to_string()
+            ]
+        );
+        assert_eq!(
+            row.transport_summary
+                .as_ref()
+                .expect("transport summary")
+                .degraded_reasons,
+            vec!["no_tls_or_protocol_impersonation_support".to_string()]
+        );
+        assert_eq!(
+            row.llm_runtime_summary
+                .as_ref()
+                .expect("llm runtime summary")
+                .executed_action_count,
+            3
+        );
+        assert_eq!(
+            row.llm_runtime_summary
+                .as_ref()
+                .expect("llm runtime summary")
+                .latest_realism_receipt
+                .as_ref()
+                .expect("latest realism receipt")
+                .identity_provenance_mode,
+            "trusted_ingress_backed"
+        );
     }
 
     #[test]
@@ -2218,8 +2443,8 @@ mod tests {
             "scrapling_runtime_lane.bulk_scraper",
             "scrapling.bulk_scraper.v1",
             2,
-            "impersonated_request_stack",
-            "degraded_local",
+            "degraded_direct_library",
+            "pool_backed",
             vec!["request-session-0"],
         );
         persist_scrapling_receipt(
@@ -2238,6 +2463,23 @@ mod tests {
             .find(|value| value.run_id == "simrun-scrapling-realism-proof")
             .expect("scrapling realism row");
         assert_eq!(row.scrapling_activity_count, Some(9));
+        assert_eq!(
+            row.identity_summary
+                .as_ref()
+                .expect("identity summary")
+                .modes,
+            vec!["degraded_local".to_string(), "pool_backed".to_string()]
+        );
+        assert_eq!(
+            row.transport_summary
+                .as_ref()
+                .expect("transport summary")
+                .modes,
+            vec![
+                "degraded_direct_library".to_string(),
+                "impersonated_request_stack".to_string()
+            ]
+        );
         let receipt = row
             .latest_scrapling_realism_receipt
             .as_ref()
@@ -15980,6 +16222,10 @@ struct MonitoringRecentSimRunAccumulator {
     scrapling_activity_count: u64,
     defense_keys: HashSet<String>,
     ban_outcome_count: u64,
+    identity_modes: HashSet<String>,
+    observed_country_codes: HashSet<String>,
+    transport_modes: HashSet<String>,
+    transport_degraded_reasons: HashSet<String>,
     surface_observations:
         Vec<crate::observability::scrapling_owned_surface::ScraplingSurfaceObservationReceipt>,
     latest_scrapling_realism_receipt:
@@ -15995,6 +16241,51 @@ fn merge_unique_tokens(target: &mut HashSet<String>, values: impl IntoIterator<I
             target.insert(normalized);
         }
     }
+}
+
+fn merge_run_identity_and_transport_summary<'a>(
+    identity_modes: &mut HashSet<String>,
+    observed_country_codes: &mut HashSet<String>,
+    transport_modes: &mut HashSet<String>,
+    transport_degraded_reasons: &mut HashSet<String>,
+    identity_provenance_mode: &str,
+    identity_realism_status: &str,
+    observed_countries: impl IntoIterator<Item = &'a String>,
+    transport_realism_class: &str,
+    transport_profile: &str,
+    transport_degraded_reason: &str,
+) {
+    let identity_mode = if !identity_provenance_mode.trim().is_empty() {
+        identity_provenance_mode
+    } else {
+        identity_realism_status
+    };
+    if !identity_mode.trim().is_empty() {
+        identity_modes.insert(identity_mode.trim().to_string());
+    }
+    for country_code in observed_countries {
+        let normalized = country_code.trim();
+        if !normalized.is_empty() {
+            observed_country_codes.insert(normalized.to_string());
+        }
+    }
+    let transport_mode = if !transport_realism_class.trim().is_empty() {
+        transport_realism_class
+    } else {
+        transport_profile
+    };
+    if !transport_mode.trim().is_empty() {
+        transport_modes.insert(transport_mode.trim().to_string());
+    }
+    if !transport_degraded_reason.trim().is_empty() {
+        transport_degraded_reasons.insert(transport_degraded_reason.trim().to_string());
+    }
+}
+
+fn sorted_hashset_values(values: HashSet<String>) -> Vec<String> {
+    let mut rows: Vec<String> = values.into_iter().collect();
+    rows.sort();
+    rows
 }
 
 fn normalize_monitoring_event_token(value: Option<&str>) -> String {
@@ -16181,6 +16472,10 @@ fn monitoring_recent_sim_run_summaries_filtered<S: crate::challenge::KeyValueSto
                     scrapling_activity_count: 0,
                     defense_keys: HashSet::new(),
                     ban_outcome_count: 0,
+                    identity_modes: HashSet::new(),
+                    observed_country_codes: HashSet::new(),
+                    transport_modes: HashSet::new(),
+                    transport_degraded_reasons: HashSet::new(),
                     surface_observations: Vec::new(),
                     latest_scrapling_realism_receipt: None,
                     latest_scrapling_realism_receipt_ts: 0,
@@ -16224,12 +16519,38 @@ fn monitoring_recent_sim_run_summaries_filtered<S: crate::challenge::KeyValueSto
             accumulator.scrapling_activity_count = accumulator
                 .scrapling_activity_count
                 .saturating_add(receipt.activity_count);
+            merge_run_identity_and_transport_summary(
+                &mut accumulator.identity_modes,
+                &mut accumulator.observed_country_codes,
+                &mut accumulator.transport_modes,
+                &mut accumulator.transport_degraded_reasons,
+                receipt.identity_provenance_mode.as_str(),
+                receipt.identity_realism_status.as_str(),
+                receipt.observed_country_codes.iter(),
+                receipt.transport_realism_class.as_str(),
+                receipt.transport_profile.as_str(),
+                receipt.transport_degraded_reason.as_str(),
+            );
             if ts >= accumulator.latest_scrapling_realism_receipt_ts {
                 accumulator.latest_scrapling_realism_receipt = Some(receipt.clone());
                 accumulator.latest_scrapling_realism_receipt_ts = ts;
             }
         }
         if let Some(summary) = stored.record.llm_runtime_summary.as_ref() {
+            if let Some(receipt) = summary.latest_realism_receipt.as_ref() {
+                merge_run_identity_and_transport_summary(
+                    &mut accumulator.identity_modes,
+                    &mut accumulator.observed_country_codes,
+                    &mut accumulator.transport_modes,
+                    &mut accumulator.transport_degraded_reasons,
+                    receipt.identity_provenance_mode.as_str(),
+                    receipt.identity_realism_status.as_str(),
+                    receipt.observed_country_codes.iter(),
+                    receipt.transport_realism_class.as_str(),
+                    receipt.transport_profile.as_str(),
+                    receipt.transport_degraded_reason.as_str(),
+                );
+            }
             match accumulator.llm_runtime_summary.as_mut() {
                 Some(existing) => existing.merge_summary(summary),
                 None => accumulator.llm_runtime_summary = Some(summary.clone()),
@@ -16247,6 +16568,11 @@ fn monitoring_recent_sim_run_summaries_filtered<S: crate::challenge::KeyValueSto
                 let mut observed_category_ids: Vec<_> =
                     row.observed_category_ids.into_iter().collect();
                 observed_category_ids.sort();
+                let identity_modes = sorted_hashset_values(row.identity_modes);
+                let observed_country_codes = sorted_hashset_values(row.observed_country_codes);
+                let transport_modes = sorted_hashset_values(row.transport_modes);
+                let transport_degraded_reasons =
+                    sorted_hashset_values(row.transport_degraded_reasons);
                 let owned_surface_coverage = crate::observability::scrapling_owned_surface::summarize_scrapling_owned_surface_coverage(
                     observed_fulfillment_modes.as_slice(),
                     row.surface_observations.as_slice(),
@@ -16264,6 +16590,22 @@ fn monitoring_recent_sim_run_summaries_filtered<S: crate::challenge::KeyValueSto
                         .then_some(row.scrapling_activity_count),
                     defense_delta_count: row.defense_keys.len() as u64,
                     ban_outcome_count: row.ban_outcome_count,
+                    identity_summary: (!identity_modes.is_empty()
+                        || !observed_country_codes.is_empty())
+                    .then_some(
+                        crate::observability::hot_read_documents::MonitoringRecentRunIdentitySummary {
+                            modes: identity_modes,
+                            observed_country_codes,
+                        },
+                    ),
+                    transport_summary: (!transport_modes.is_empty()
+                        || !transport_degraded_reasons.is_empty())
+                    .then_some(
+                        crate::observability::hot_read_documents::MonitoringRecentRunTransportSummary {
+                            modes: transport_modes,
+                            degraded_reasons: transport_degraded_reasons,
+                        },
+                    ),
                     owned_surface_coverage,
                     latest_scrapling_realism_receipt: row.latest_scrapling_realism_receipt,
                     llm_runtime_summary: row.llm_runtime_summary,

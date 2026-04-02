@@ -3435,6 +3435,14 @@ test('monitoring view model and status module remain pure snapshot transforms', 
         monitoring_event_count: 11,
         defense_delta_count: 2,
         ban_outcome_count: 1,
+        identity_summary: {
+          modes: ['degraded_local', 'pool_backed'],
+          observed_country_codes: ['GB', 'US']
+        },
+        transport_summary: {
+          modes: ['degraded_direct_library', 'impersonated_request_stack'],
+          degraded_reasons: ['no_tls_or_protocol_impersonation_support']
+        },
         observed_fulfillment_modes: ['bulk_scraper', 'http_agent'],
         observed_category_ids: ['ai_scraper_bot', 'http_agent'],
         owned_surface_coverage: {
@@ -3527,6 +3535,14 @@ test('monitoring view model and status module remain pure snapshot transforms', 
         monitoring_event_count: 0,
         defense_delta_count: 0,
         ban_outcome_count: 0,
+        identity_summary: {
+          modes: ['fixed_proxy', 'trusted_ingress_backed'],
+          observed_country_codes: ['FR']
+        },
+        transport_summary: {
+          modes: ['degraded_direct_library', 'impersonated_request_stack'],
+          degraded_reasons: ['no_tls_or_protocol_impersonation_support']
+        },
         observed_fulfillment_modes: ['request_mode'],
         observed_category_ids: ['ai_scraper_bot', 'http_agent'],
         llm_runtime_summary: {
@@ -3579,6 +3595,14 @@ test('monitoring view model and status module remain pure snapshot transforms', 
         monitoring_event_count: 3,
         defense_delta_count: 1,
         ban_outcome_count: 0,
+        identity_summary: {
+          modes: ['degraded_local'],
+          observed_country_codes: []
+        },
+        transport_summary: {
+          modes: ['impersonated_request_stack'],
+          degraded_reasons: []
+        },
         latest_scrapling_realism_receipt: {
           profile_id: 'scrapling.bulk_scraper.v1',
           transport_profile: 'curl_impersonate',
@@ -3625,13 +3649,19 @@ test('monitoring view model and status module remain pure snapshot transforms', 
     );
     assert.equal(
       monitoringModelModule.formatTransportRealismSummary(
-        summarizedRuns.runRows[0].llmRuntimeSummary?.latestRealismReceipt
+        summarizedRuns.runRows[0].transportSummary
       ),
-      'Degraded Direct Library (No TLS Or Protocol Impersonation Support)'
+      'Mixed: Degraded Direct Library, Impersonated Request Stack (No TLS Or Protocol Impersonation Support)'
+    );
+    assert.equal(
+      monitoringModelModule.formatIdentityRealismSummary(
+        summarizedRuns.runRows[0].identitySummary
+      ),
+      'Mixed: Fixed proxy identity, Trusted ingress IP observed (FR)'
     );
     assert.equal(
       monitoringModelModule.formatTransportRealismSummary(
-        summarizedRuns.runRows[2].latestScraplingRealismReceipt
+        summarizedRuns.runRows[2].transportSummary
       ),
       'Impersonated Request Stack'
     );
@@ -3660,6 +3690,18 @@ test('monitoring view model and status module remain pure snapshot transforms', 
     assert.equal(
       summarizedRuns.runRows[2].latestScraplingRealismReceipt?.identityProvenanceMode,
       'degraded_local'
+    );
+    assert.deepEqual(
+      summarizedRuns.runRows[1].identitySummary?.modes,
+      ['degraded_local', 'pool_backed']
+    );
+    assert.deepEqual(
+      summarizedRuns.runRows[1].transportSummary?.modes,
+      ['degraded_direct_library', 'impersonated_request_stack']
+    );
+    assert.deepEqual(
+      summarizedRuns.runRows[1].transportSummary?.degradedReasons,
+      ['no_tls_or_protocol_impersonation_support']
     );
     assert.deepEqual(
       summarizedRuns.runRows[1].ownedSurfaceCoverage?.canonicalSurfaceIds,
@@ -3923,6 +3965,20 @@ test('monitoring view model formats transport realism summaries for recent adver
         transport_degraded_reason: ''
       }),
       'Impersonated Request Stack'
+    );
+    assert.equal(
+      monitoringModelModule.formatIdentityRealismSummary({
+        modes: ['fixed_proxy', 'trusted_ingress_backed'],
+        observed_country_codes: ['FR']
+      }),
+      'Mixed: Fixed proxy identity, Trusted ingress IP observed (FR)'
+    );
+    assert.equal(
+      monitoringModelModule.formatTransportRealismSummary({
+        modes: ['degraded_direct_library', 'impersonated_request_stack'],
+        degraded_reasons: ['no_tls_or_protocol_impersonation_support']
+      }),
+      'Mixed: Degraded Direct Library, Impersonated Request Stack (No TLS Or Protocol Impersonation Support)'
     );
   });
 });
