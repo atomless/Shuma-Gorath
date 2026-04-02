@@ -2969,7 +2969,7 @@ test-dashboard-red-team-pane: ## Run focused Red Team controls and recent-run su
 	fi
 	@$(MAKE) --no-print-directory test-dashboard-svelte-check
 	@node --test \
-		--test-name-pattern='dashboard API client preserves adversary-sim lane status and diagnostics fields|dashboard adversary-sim runtime normalizes orchestration status|monitoring view model formats transport realism summaries for recent adversary runs|red team tab reuses verification-style config panel primitives for its adversary sim pane|red team tab keeps only controls and recent adversary runs after diagnostic-surface retirement' \
+		--test-name-pattern='dashboard API client preserves adversary-sim lane status and diagnostics fields|dashboard adversary-sim runtime normalizes orchestration status|monitoring view model formats transport realism summaries for recent adversary runs|recent adversary run summaries preserve whole-run scrapling activity totals over latest receipt counts|red team tab reuses verification-style config panel primitives for its adversary sim pane|red team tab keeps only controls and recent adversary runs after diagnostic-surface retirement' \
 		e2e/dashboard.modules.unit.test.js
 	@if $(MAKE) --no-print-directory spin-wait-ready; then \
 		$(MAKE) --no-print-directory dashboard-verify-freshness || exit 1; \

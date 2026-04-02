@@ -457,6 +457,7 @@ const shapeAdversaryRunRows = (rows = [], activeBans = []) => {
         profile: row.profile,
         firstTs: row.firstTs,
         lastTs: row.lastTs,
+        scraplingActivityCount: row.scraplingActivityCount,
         monitoringEventCount: row.monitoringEventCount,
         defenseDeltaCount,
         defenseRows,

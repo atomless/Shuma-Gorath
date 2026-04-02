@@ -4,6 +4,20 @@ Moved from active TODO files on 2026-02-14.
 
 ## Additional completions (2026-04-02)
 
+### Dashboard Recent Red Team Runs Scrapling Aggregate Execution Rendering
+
+- [x] Repaired the Recent Red Team Runs execution column so Scrapling rows now preserve and render the whole-run `scrapling_activity_count` instead of silently falling back to the latest realism receipt's smaller `activity_count`.
+- [x] What landed:
+  - [`../dashboard/src/lib/components/dashboard/monitoring-view-model.js`](../dashboard/src/lib/components/dashboard/monitoring-view-model.js) now carries `scraplingActivityCount` through the final `shapeAdversaryRunRows(...)` path, which was the exact row-shaping seam dropping the aggregate before it reached the shared run panel.
+  - [`../e2e/dashboard.modules.unit.test.js`](../e2e/dashboard.modules.unit.test.js) now includes a focused contract proving a Scrapling run can legitimately carry `scrapling_activity_count = 22` while its latest realism receipt still only reports `activity_count = 2`, and that the shaped dashboard row preserves both truths distinctly.
+  - [`../e2e/dashboard.smoke.spec.js`](../e2e/dashboard.smoke.spec.js) now proves the rendered Recent Red Team Runs table prefers the run-level total by asserting the Scrapling execution cell shows `22 activities executed` even when the latest receipt only reports `2`.
+  - [`../Makefile`](../Makefile) now includes that focused aggregate-preservation unit contract under `make test-dashboard-red-team-pane` so the exact table regression remains on the normal red-team pane proof path.
+- [x] Why:
+  - live admin monitoring payloads were already materializing the correct whole-run Scrapling aggregate, but the dashboard row shaper dropped that field before rendering, which made the UI show the latest receipt's small trailing count and gave operators a misleading execution summary.
+- [x] Evidence:
+  - `make test-dashboard-red-team-pane`
+  - `make test-code-quality`
+
 ### Adversary Sim Request-Mode Failure Materialization And Duration Default Alignment
 
 - [x] Recovered agentic request-mode failure materialization so empty container-runner reports no longer crash the LLM runtime worker with a raw `JSONDecodeError`, and aligned the dashboard-side default sim duration back to the canonical 30-second backend default.

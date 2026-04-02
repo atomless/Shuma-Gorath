@@ -3983,6 +3983,40 @@ test('monitoring view model formats transport realism summaries for recent adver
   });
 });
 
+test('recent adversary run summaries preserve whole-run scrapling activity totals over latest receipt counts', { concurrency: false }, async () => {
+  await withBrowserGlobals({}, async () => {
+    const monitoringModelModule = await importBrowserModule('dashboard/src/lib/components/dashboard/monitoring-view-model.js');
+
+    const summarizedRuns = monitoringModelModule.deriveAdversaryRunRowsFromSummaries([
+      {
+        run_id: 'simrun-scrapling-aggregate',
+        lane: 'scrapling_traffic',
+        profile: 'scrapling_runtime_lane',
+        first_ts: 1710000100,
+        last_ts: 1710000200,
+        scrapling_activity_count: 22,
+        monitoring_event_count: 11,
+        defense_delta_count: 2,
+        ban_outcome_count: 1,
+        latest_scrapling_realism_receipt: {
+          profile_id: 'scrapling.bulk_scraper.v1',
+          activity_count: 2,
+          identity_realism_status: 'degraded_local',
+          identity_provenance_mode: 'degraded_local',
+          transport_profile: 'curl_impersonate',
+          transport_realism_class: 'impersonated_request_stack',
+          transport_emission_basis: 'curl_cffi_impersonate',
+          transport_degraded_reason: '',
+          observed_country_codes: []
+        }
+      }
+    ], []);
+
+    assert.equal(summarizedRuns.runRows[0].scraplingActivityCount, 22);
+    assert.equal(summarizedRuns.runRows[0].latestScraplingRealismReceipt?.activityCount, 2);
+  });
+});
+
 test('dashboard llm surface projection treats root-hosted public pages as public traversal', { concurrency: false }, async () => {
   await withBrowserGlobals({}, async () => {
     const monitoringModelModule = await importBrowserModule('dashboard/src/lib/components/dashboard/monitoring-view-model.js');

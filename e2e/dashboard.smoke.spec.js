@@ -5143,13 +5143,14 @@ test("red team recent runs label identity and transport realism truthfully", asy
             observed_category_ids: ["ai_scraper_bot"],
             first_ts: now - 40,
             last_ts: now - 10,
+            scrapling_activity_count: 22,
             monitoring_event_count: 3,
             defense_delta_count: 1,
             ban_outcome_count: 1,
             latest_scrapling_realism_receipt: {
               profile_id: "scrapling.bulk_scraper.v1",
               activity_unit: "request",
-              activity_count: 6,
+              activity_count: 2,
               identity_realism_status: "degraded_local",
               identity_provenance_mode: "degraded_local",
               transport_profile: "curl_impersonate",
@@ -5215,6 +5216,7 @@ test("red team recent runs label identity and transport realism truthfully", asy
   await expect(rows.nth(0)).toContainText("FR");
   await expect(rows.nth(0)).toContainText("Degraded Direct Library");
   await expect(rows.nth(0)).toContainText("No TLS Or Protocol Impersonation Support");
+  await expect(rows.nth(1)).toContainText("22 activities executed");
   await expect(rows.nth(1)).toContainText("Degraded local identity");
   await expect(rows.nth(1)).toContainText("Impersonated Request Stack");
 });
