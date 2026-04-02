@@ -137,7 +137,6 @@
         <tr>
           <th class="caps-label">Run <abbr title="Identifier">ID</abbr></th>
           <th class="caps-label">Lane</th>
-          <th class="caps-label">Profile</th>
           <th class="caps-label">Modes</th>
           <th class="caps-label">Categories</th>
           <th class="caps-label">Runtime</th>
@@ -149,13 +148,12 @@
       </thead>
       <tbody>
         {#if runRows.length === 0}
-          <TableEmptyRow colspan={10}>No adversary runs</TableEmptyRow>
+          <TableEmptyRow colspan={9}>No adversary runs</TableEmptyRow>
         {:else}
           {#each runRows as row}
             <tr>
               <td><code>{row.runId}</code></td>
               <td>{formatLaneLabel(row.lane)}</td>
-              <td>{row.profile || '-'}</td>
               <td>{formatTokenList(row.observedFulfillmentModes)}</td>
               <td>{formatTokenList(row.observedCategoryIds)}</td>
               <td>{formatRuntimeSummary(row)}</td>

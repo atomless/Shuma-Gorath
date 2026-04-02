@@ -4,6 +4,19 @@ Moved from active TODO files on 2026-02-14.
 
 ## Additional completions (2026-04-02)
 
+### Dashboard Recent Red Team Runs Profile Column Removal
+
+- [x] Removed the redundant `Profile` column from the shared Recent Red Team Runs table so the panel keeps only operator-useful columns not already duplicated by lane, modes, and runtime detail.
+- [x] What landed:
+  - [`../dashboard/src/lib/components/dashboard/monitoring/AdversaryRunPanel.svelte`](../dashboard/src/lib/components/dashboard/monitoring/AdversaryRunPanel.svelte) no longer renders the `Profile` header or per-row profile cell, and tightens the empty-state table span from `10` to `9`.
+  - [`../e2e/dashboard.modules.unit.test.js`](../e2e/dashboard.modules.unit.test.js) now proves the shared panel omits the profile column while preserving the runtime-truth column and correct empty-state span.
+  - [`../Makefile`](../Makefile) keeps that table-shape contract inside the focused `make test-dashboard-adversary-sim-lane-contract` gate.
+- [x] Why:
+  - the profile text was not adding useful operator signal beyond the existing lane, modes, categories, and runtime columns, and it exposed internal-sounding metadata that increased noise in the main Recent Red Team Runs surface.
+- [x] Evidence:
+  - `make test-dashboard-adversary-sim-lane-contract`
+  - `make test-code-quality`
+
 ### Dashboard Sim-Lane Canonical Labeling For Legacy History
 
 - [x] Collapsed the retained legacy `deterministic_black_box` lane label onto the canonical operator term `Synthetic Traffic` at the shared dashboard formatter layer so recent-run history and other lane-rendering surfaces use one consistent vocabulary.

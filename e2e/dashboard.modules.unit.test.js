@@ -6741,17 +6741,20 @@ test('red team tab keeps only controls and recent adversary runs after diagnosti
   assert.doesNotMatch(source, /ScraplingEvidencePanel/);
 });
 
-test('adversary run panel reserves a runtime column for additive llm runtime truth', () => {
+test('adversary run panel omits redundant profile column while keeping runtime truth', () => {
   const source = fs.readFileSync(
     path.join(DASHBOARD_ROOT, 'src/lib/components/dashboard/monitoring/AdversaryRunPanel.svelte'),
     'utf8'
   );
 
   assert.match(source, /<th class="caps-label">Runtime<\/th>/);
+  assert.doesNotMatch(source, /<th class="caps-label">Profile<\/th>/);
   assert.match(source, /const formatLaneLabel = \(value\) => \{/);
   assert.match(source, /\{formatLaneLabel\(row\.lane\)\}/);
   assert.match(source, /const formatRuntimeSummary = \(row = \{\}\) => \{/);
   assert.match(source, /\{formatRuntimeSummary\(row\)\}/);
+  assert.doesNotMatch(source, /\{row\.profile \|\| '-'\}/);
+  assert.match(source, /<TableEmptyRow colspan=\{9\}>No adversary runs<\/TableEmptyRow>/);
 });
 
 test('primary charts reuse the shared half doughnut shell for event-type readouts', () => {
