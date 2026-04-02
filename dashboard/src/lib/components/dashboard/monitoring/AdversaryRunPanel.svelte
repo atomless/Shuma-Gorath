@@ -15,7 +15,7 @@
   export let freshnessStateKey = 'stale';
   export let formatTime = () => '-';
   export let title = 'Recent Adversary Runs';
-  export let description = 'Run identifiers linked to defense deltas in monitoring and ban workflows.';
+  export let description = 'Recent runs linked to defense deltas in monitoring and ban workflows.';
   export let summaryLabel = 'Active bans visible in <a href="#ip-bans">IP Bans</a>';
   export let emptyText = 'No adversary run identifiers were observed in the current monitoring window.';
   export let degradedText =
@@ -150,7 +150,6 @@
     <table id="adversary-runs" class="panel panel-border">
       <thead>
         <tr>
-          <th class="caps-label">Run <abbr title="Identifier">ID</abbr></th>
           <th class="caps-label">Lane</th>
           <th class="caps-label">Modes</th>
           <th class="caps-label">Categories</th>
@@ -164,11 +163,10 @@
       </thead>
       <tbody>
         {#if runRows.length === 0}
-          <TableEmptyRow colspan={10}>No adversary runs</TableEmptyRow>
+          <TableEmptyRow colspan={9}>No adversary runs</TableEmptyRow>
         {:else}
           {#each runRows as row}
             <tr>
-              <td><code>{row.runId}</code></td>
               <td>{formatLaneLabel(row.lane)}</td>
               <td>{formatTokenList(row.observedFulfillmentModes)}</td>
               <td>{formatTokenList(row.observedCategoryIds)}</td>

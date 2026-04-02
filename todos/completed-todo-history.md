@@ -4,6 +4,19 @@ Moved from active TODO files on 2026-02-14.
 
 ## Additional completions (2026-04-02)
 
+### Dashboard Recent Red Team Runs Run-ID Column Removal
+
+- [x] Removed the operator-unhelpful `Run ID` column from Recent Red Team Runs so the table keeps only UI-facing columns that explain the run rather than exposing internal identifiers.
+- [x] What landed:
+  - [`../dashboard/src/lib/components/dashboard/monitoring/AdversaryRunPanel.svelte`](../dashboard/src/lib/components/dashboard/monitoring/AdversaryRunPanel.svelte) no longer renders the `Run ID` header or per-row `runId` cell, tightens the empty-state span from `10` to `9`, and aligns the panel description with the now-visible columns.
+  - [`../e2e/dashboard.modules.unit.test.js`](../e2e/dashboard.modules.unit.test.js) now proves the shared panel omits `Run ID` while keeping the focused `Lane`, `Execution`, and `Realism` contract intact.
+  - [`../Makefile`](../Makefile) keeps that reduced operator-column contract under the focused `make test-dashboard-adversary-sim-lane-contract` gate.
+- [x] Why:
+  - the run identifier is useful for backend correlation and telemetry internals, but it was not adding meaningful value to the operator-facing dashboard table and was displacing more interpretable summary information.
+- [x] Evidence:
+  - `make test-dashboard-adversary-sim-lane-contract`
+  - `make test-code-quality`
+
 ### Dashboard Recent Red Team Runs Execution And Realism Column Split
 
 - [x] Replaced the overloaded `Runtime` column in Recent Red Team Runs with separate `Execution` and `Realism` columns so each column now carries one operator-facing purpose instead of flattening execution lineage and realism fidelity into the same cell.
