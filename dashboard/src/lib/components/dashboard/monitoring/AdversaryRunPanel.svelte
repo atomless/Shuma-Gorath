@@ -17,7 +17,7 @@
   export let title = 'Recent Adversary Runs';
   export let description = 'Recent runs linked to defense deltas in monitoring and ban workflows.';
   export let summaryLabel = 'Active bans visible in <a href="#ip-bans">IP Bans</a>';
-  export let emptyText = 'No adversary run identifiers were observed in the current monitoring window.';
+  export let emptyText = 'No recent adversary runs were observed in the current monitoring window.';
   export let degradedText =
     'Monitoring freshness is degraded or stale. Missing run rows may indicate delayed telemetry rather than no attacks.';
 
@@ -74,6 +74,18 @@
     const filtered = parts.filter(Boolean);
     return filtered.length > 0 ? filtered.join(' | ') : 'Not materialized';
   };
+  const extractRealismReceipt = (row = {}) => {
+    const llmReceipt =
+      row?.llmRuntimeSummary?.latestRealismReceipt
+      && typeof row.llmRuntimeSummary.latestRealismReceipt === 'object'
+        ? row.llmRuntimeSummary.latestRealismReceipt
+        : null;
+    return llmReceipt || (
+      row?.latestScraplingRealismReceipt && typeof row.latestScraplingRealismReceipt === 'object'
+        ? row.latestScraplingRealismReceipt
+        : null
+    );
+  };
   const formatExecutionSummary = (row = {}) => {
     const summary = row?.llmRuntimeSummary && typeof row.llmRuntimeSummary === 'object'
       ? row.llmRuntimeSummary
@@ -109,24 +121,17 @@
     if (activityCount > 0) parts.push(`${formatCompactNumber(activityCount, '0')} activities observed`);
     return joinSummaryParts(parts);
   };
-  const formatRealismSummary = (row = {}) => {
-    const llmReceipt =
-      row?.llmRuntimeSummary?.latestRealismReceipt
-      && typeof row.llmRuntimeSummary.latestRealismReceipt === 'object'
-        ? row.llmRuntimeSummary.latestRealismReceipt
-        : null;
-    const receipt = llmReceipt || (
-      row?.latestScraplingRealismReceipt && typeof row.latestScraplingRealismReceipt === 'object'
-        ? row.latestScraplingRealismReceipt
-        : null
-    );
+  const formatIdentitySummary = (row = {}) => {
+    const receipt = extractRealismReceipt(row);
     if (!receipt) return 'Not materialized';
     const identitySummary = formatIdentityRealismSummary(receipt);
+    return identitySummary || 'Not materialized';
+  };
+  const formatTransportSummary = (row = {}) => {
+    const receipt = extractRealismReceipt(row);
+    if (!receipt) return 'Not materialized';
     const transportSummary = formatTransportRealismSummary(receipt);
-    const parts = [];
-    if (identitySummary) parts.push(`Identity: ${identitySummary}`);
-    if (transportSummary) parts.push(`Transport: ${transportSummary}`);
-    return joinSummaryParts(parts);
+    return transportSummary || 'Not materialized';
   };
 </script>
 
@@ -154,7 +159,8 @@
           <th class="caps-label">Modes</th>
           <th class="caps-label">Categories</th>
           <th class="caps-label">Execution</th>
-          <th class="caps-label">Realism</th>
+          <th class="caps-label">Identity</th>
+          <th class="caps-label">Transport</th>
           <th class="caps-label">Coverage</th>
           <th class="caps-label">Last Event</th>
           <th class="caps-label">Monitoring Deltas</th>
@@ -163,7 +169,7 @@
       </thead>
       <tbody>
         {#if runRows.length === 0}
-          <TableEmptyRow colspan={9}>No adversary runs</TableEmptyRow>
+          <TableEmptyRow colspan={10}>No adversary runs</TableEmptyRow>
         {:else}
           {#each runRows as row}
             <tr>
@@ -171,7 +177,8 @@
               <td>{formatTokenList(row.observedFulfillmentModes)}</td>
               <td>{formatTokenList(row.observedCategoryIds)}</td>
               <td>{formatExecutionSummary(row)}</td>
-              <td>{formatRealismSummary(row)}</td>
+              <td>{formatIdentitySummary(row)}</td>
+              <td>{formatTransportSummary(row)}</td>
               <td>{formatCoverageSummary(row.ownedSurfaceCoverage)}</td>
               <td>{formatTime(row.lastTs)}</td>
               <td>

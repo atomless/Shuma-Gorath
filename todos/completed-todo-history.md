@@ -4,6 +4,19 @@ Moved from active TODO files on 2026-02-14.
 
 ## Additional completions (2026-04-02)
 
+### Dashboard Recent Red Team Runs Identity And Transport Column Split
+
+- [x] Replaced the still-overloaded `Realism` column in Recent Red Team Runs with separate `Identity` and `Transport` columns so the table no longer crams two different realism dimensions into one operator-facing cell.
+- [x] What landed:
+  - [`../dashboard/src/lib/components/dashboard/monitoring/AdversaryRunPanel.svelte`](../dashboard/src/lib/components/dashboard/monitoring/AdversaryRunPanel.svelte) now renders `Identity` and `Transport` columns, uses a shared realism-receipt extractor plus dedicated `formatIdentitySummary(...)` and `formatTransportSummary(...)` helpers, restores the empty-state span from `9` to `10`, and cleans up the empty-state copy so it no longer references removed run identifiers.
+  - [`../e2e/dashboard.modules.unit.test.js`](../e2e/dashboard.modules.unit.test.js) now proves the shared panel omits the combined `Realism` column while preserving the focused `Execution`, `Identity`, and `Transport` split.
+  - [`../Makefile`](../Makefile) keeps that refined table contract under the focused `make test-dashboard-adversary-sim-lane-contract` gate.
+- [x] Why:
+  - identity provenance and transport realism are both important, but they answer different operator questions and were still being flattened into one cell, making the remaining column harder to scan despite the earlier `Execution` split.
+- [x] Evidence:
+  - `make test-dashboard-adversary-sim-lane-contract`
+  - `make test-code-quality`
+
 ### Dashboard Recent Red Team Runs Run-ID Column Removal
 
 - [x] Removed the operator-unhelpful `Run ID` column from Recent Red Team Runs so the table keeps only UI-facing columns that explain the run rather than exposing internal identifiers.

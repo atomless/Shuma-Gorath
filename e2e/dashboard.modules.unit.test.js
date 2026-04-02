@@ -6741,7 +6741,7 @@ test('red team tab keeps only controls and recent adversary runs after diagnosti
   assert.doesNotMatch(source, /ScraplingEvidencePanel/);
 });
 
-test('adversary run panel keeps only operator-useful columns', () => {
+test('adversary run panel separates execution identity and transport columns', () => {
   const source = fs.readFileSync(
     path.join(DASHBOARD_ROOT, 'src/lib/components/dashboard/monitoring/AdversaryRunPanel.svelte'),
     'utf8'
@@ -6749,7 +6749,9 @@ test('adversary run panel keeps only operator-useful columns', () => {
 
   assert.doesNotMatch(source, /<th class="caps-label">Run <abbr title="Identifier">ID<\/abbr><\/th>/);
   assert.match(source, /<th class="caps-label">Execution<\/th>/);
-  assert.match(source, /<th class="caps-label">Realism<\/th>/);
+  assert.match(source, /<th class="caps-label">Identity<\/th>/);
+  assert.match(source, /<th class="caps-label">Transport<\/th>/);
+  assert.doesNotMatch(source, /<th class="caps-label">Realism<\/th>/);
   assert.doesNotMatch(source, /<th class="caps-label">Runtime<\/th>/);
   assert.doesNotMatch(source, /<th class="caps-label">Profile<\/th>/);
   assert.match(source, /const formatLaneLabel = \(value\) => \{/);
@@ -6757,12 +6759,16 @@ test('adversary run panel keeps only operator-useful columns', () => {
   assert.doesNotMatch(source, /<td><code>\{row\.runId\}<\/code><\/td>/);
   assert.match(source, /const formatExecutionSummary = \(row = \{\}\) => \{/);
   assert.match(source, /\{formatExecutionSummary\(row\)\}/);
-  assert.match(source, /const formatRealismSummary = \(row = \{\}\) => \{/);
-  assert.match(source, /\{formatRealismSummary\(row\)\}/);
+  assert.match(source, /const formatIdentitySummary = \(row = \{\}\) => \{/);
+  assert.match(source, /\{formatIdentitySummary\(row\)\}/);
+  assert.match(source, /const formatTransportSummary = \(row = \{\}\) => \{/);
+  assert.match(source, /\{formatTransportSummary\(row\)\}/);
+  assert.doesNotMatch(source, /const formatRealismSummary = \(row = \{\}\) => \{/);
+  assert.doesNotMatch(source, /\{formatRealismSummary\(row\)\}/);
   assert.doesNotMatch(source, /const formatRuntimeSummary = \(row = \{\}\) => \{/);
   assert.doesNotMatch(source, /\{formatRuntimeSummary\(row\)\}/);
   assert.doesNotMatch(source, /\{row\.profile \|\| '-'\}/);
-  assert.match(source, /<TableEmptyRow colspan=\{9\}>No adversary runs<\/TableEmptyRow>/);
+  assert.match(source, /<TableEmptyRow colspan=\{10\}>No adversary runs<\/TableEmptyRow>/);
 });
 
 test('primary charts reuse the shared half doughnut shell for event-type readouts', () => {
