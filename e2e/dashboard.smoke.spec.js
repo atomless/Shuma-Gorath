@@ -325,6 +325,29 @@ async function assertActiveTabPanelVisibility(page, activeTab) {
   }
 }
 
+async function assertDirectHashAdminTabContentReady(page, activeTab) {
+  if (activeTab === "traps") {
+    const panel = page.locator("#dashboard-panel-traps");
+    await expect(panel).not.toContainText("Loading trap controls...");
+    await expect(panel.locator(".controls-grid--config")).toContainText("Maze");
+    await expect(panel.locator(".controls-grid--config")).toContainText("Honeypot Paths");
+    return;
+  }
+  if (activeTab === "rate-limiting") {
+    const panel = page.locator("#dashboard-panel-rate-limiting");
+    await expect(panel).not.toContainText("Loading rate limiting controls...");
+    await expect(panel.locator(".controls-grid--config")).toContainText("Rate Limiting");
+    await expect(panel.locator(".controls-grid--config")).toContainText("Requests Per Minute");
+    return;
+  }
+  if (activeTab === "geo") {
+    const panel = page.locator("#dashboard-panel-geo");
+    await expect(panel).not.toContainText("Loading GEO controls...");
+    await expect(panel.locator(".controls-grid--config")).toContainText("GEO");
+    await expect(panel.locator(".controls-grid--config")).toContainText("Scoring Countries");
+  }
+}
+
 function dashboardRelativePath(url) {
   try {
     const parsed = new URL(url);
@@ -5423,6 +5446,7 @@ test("direct hash loads admin tabs on first render", async ({ page }) => {
     await page.waitForSelector("#logout-btn", { timeout: 15000 });
     await expect(page).toHaveURL(new RegExp(`#${escapeForHashPattern(tab)}$`));
     await assertActiveTabPanelVisibility(page, tab);
+    await assertDirectHashAdminTabContentReady(page, tab);
     assertNoRuntimeFailures(page);
   }
 });

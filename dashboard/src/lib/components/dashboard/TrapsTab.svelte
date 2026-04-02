@@ -12,6 +12,7 @@
   import SaveChangesBar from './primitives/SaveChangesBar.svelte';
   import TabStateMessage from './primitives/TabStateMessage.svelte';
   import { isAdminConfigWritable } from '../../domain/config-runtime.js';
+  import { hasHydratedConfigEnvelope } from '../../domain/config-envelope.js';
 
   export let managed = false;
   export let isActive = false;
@@ -75,8 +76,7 @@
 
   const readBool = (value) => value === true;
 
-  const applyConfig = (config = {}, runtime = {}) => {
-    writable = isAdminConfigWritable(runtime);
+  const applyConfig = (config = {}) => {
     honeypotEnabled = config.honeypot_enabled !== false;
     honeypotPaths = formatListTextarea(config.honeypots);
     mazeEnabled = config.maze_enabled !== false;
@@ -146,10 +146,7 @@
     try {
       const nextConfig = await onSaveConfig(payload, { successMessage: 'Trap settings saved' });
       if (nextConfig && typeof nextConfig === 'object') {
-        applyConfig(
-          nextConfig,
-          configRuntimeSnapshot && typeof configRuntimeSnapshot === 'object' ? configRuntimeSnapshot : {}
-        );
+        applyConfig(nextConfig);
       } else {
         baseline = {
           honeypot: {
@@ -236,6 +233,11 @@
     warnOnUnload = writable && hasUnsavedChanges;
   }
   $: hasConfigSnapshot = configSnapshot && typeof configSnapshot === 'object' && Object.keys(configSnapshot).length > 0;
+  $: writable = isAdminConfigWritable(configRuntimeSnapshot);
+  $: configEnvelopeReady = hasHydratedConfigEnvelope(configSnapshot, configRuntimeSnapshot);
+  $: tabState = tabStatus && typeof tabStatus === 'object' ? tabStatus : {};
+  $: tabStateVisible = tabState.loading === true || Boolean(String(tabState.error || '').trim()) || tabState.empty === true;
+  $: showBootstrapLoadingMessage = !configEnvelopeReady && !tabStateVisible;
 
   $: {
     const nextVersion = Number(configVersion || 0);
@@ -245,10 +247,7 @@
   }
 
   $: if (pendingConfigVersion !== -1 && hasConfigSnapshot && !hasUnsavedChanges && !savingTraps) {
-    applyConfig(
-      configSnapshot && typeof configSnapshot === 'object' ? configSnapshot : {},
-      configRuntimeSnapshot && typeof configRuntimeSnapshot === 'object' ? configRuntimeSnapshot : {}
-    );
+    applyConfig(configSnapshot && typeof configSnapshot === 'object' ? configSnapshot : {});
     lastAppliedConfigVersion = pendingConfigVersion;
     pendingConfigVersion = -1;
   }
@@ -263,43 +262,49 @@
   aria-hidden={managed ? (isActive ? 'false' : 'true') : 'true'}
 >
   <TabStateMessage tab="traps" status={tabStatus} noticeText={noticeText} noticeKind={noticeKind} />
-  <div class="controls-grid controls-grid--config">
-    <ConfigMazeSection
-      writable={writable}
-      mazeDirty={mazeDirty}
-      tarpitDirty={tarpitDirty}
-      mazeEnabled={mazeEnabled}
-      mazeAutoBan={mazeAutoBan}
-      mazeThreshold={mazeThreshold}
-      mazeThresholdValid={mazeThresholdValid}
-      tarpitEnabled={tarpitEnabled}
-      onFieldChange={applyTrapFieldChange}
-    />
+  {#if showBootstrapLoadingMessage}
+    <p class="message info">Loading trap controls...</p>
+  {:else if !writable}
+    <p class="message info">Trap controls are read-only because admin config writes are disabled in this runtime.</p>
+  {:else}
+    <div class="controls-grid controls-grid--config">
+      <ConfigMazeSection
+        writable={writable}
+        mazeDirty={mazeDirty}
+        tarpitDirty={tarpitDirty}
+        mazeEnabled={mazeEnabled}
+        mazeAutoBan={mazeAutoBan}
+        mazeThreshold={mazeThreshold}
+        mazeThresholdValid={mazeThresholdValid}
+        tarpitEnabled={tarpitEnabled}
+        onFieldChange={applyTrapFieldChange}
+      />
 
-    <ConfigNetworkSection
-      writable={writable}
-      showHoneypot={true}
-      showBrowserPolicy={false}
-      honeypotDirty={honeypotDirty}
-      honeypotEnabled={honeypotEnabled}
-      honeypotPaths={honeypotPaths}
-      honeypotPathsValid={honeypotValid}
-      honeypotInvalidMessage={honeypotInvalidMessage}
-      onFieldChange={applyTrapFieldChange}
-    />
+      <ConfigNetworkSection
+        writable={writable}
+        showHoneypot={true}
+        showBrowserPolicy={false}
+        honeypotDirty={honeypotDirty}
+        honeypotEnabled={honeypotEnabled}
+        honeypotPaths={honeypotPaths}
+        honeypotPathsValid={honeypotValid}
+        honeypotInvalidMessage={honeypotInvalidMessage}
+        onFieldChange={applyTrapFieldChange}
+      />
 
-    <SaveChangesBar
-      containerId="traps-save-bar"
-      isHidden={!writable || !hasUnsavedChanges}
-      summaryId="traps-unsaved-summary"
-      summaryText={saveTrapsSummary}
-      summaryClass="text-unsaved-changes"
-      invalidId="traps-invalid-summary"
-      invalidText={saveTrapsInvalidText}
-      buttonId="save-traps-config"
-      buttonLabel={saveTrapsLabel}
-      buttonDisabled={saveTrapsDisabled}
-      onSave={saveTrapsConfig}
-    />
-  </div>
+      <SaveChangesBar
+        containerId="traps-save-bar"
+        isHidden={!writable || !hasUnsavedChanges}
+        summaryId="traps-unsaved-summary"
+        summaryText={saveTrapsSummary}
+        summaryClass="text-unsaved-changes"
+        invalidId="traps-invalid-summary"
+        invalidText={saveTrapsInvalidText}
+        buttonId="save-traps-config"
+        buttonLabel={saveTrapsLabel}
+        buttonDisabled={saveTrapsDisabled}
+        onSave={saveTrapsConfig}
+      />
+    </div>
+  {/if}
 </section>

@@ -15,6 +15,7 @@
   import NumericInputRow from './primitives/NumericInputRow.svelte';
   import SaveChangesBar from './primitives/SaveChangesBar.svelte';
   import TabStateMessage from './primitives/TabStateMessage.svelte';
+  import { hasHydratedConfigEnvelope } from '../../domain/config-envelope.js';
 
   export let managed = false;
   export let isActive = false;
@@ -56,9 +57,7 @@
     event.returnValue = '';
   };
 
-  const applyConfig = (config = {}, runtime = {}) => {
-    writable = isAdminConfigWritable(runtime);
-    akamaiEdgeAvailable = isAkamaiEdgeAvailable(runtime);
+  const applyConfig = (config = {}) => {
     rateLimitThreshold = parseInteger(config.rate_limit, 80);
     rateLimitingEnabled = rateEnforcementEnabledFromMode(config?.defence_modes?.rate ?? 'both');
     externalRateBackendEnabled =
@@ -95,10 +94,7 @@
     try {
       const nextConfig = await onSaveConfig(payload, { successMessage: 'Rate limiting settings saved' });
       if (nextConfig && typeof nextConfig === 'object') {
-        applyConfig(
-          nextConfig,
-          configRuntimeSnapshot && typeof configRuntimeSnapshot === 'object' ? configRuntimeSnapshot : {}
-        );
+        applyConfig(nextConfig);
       } else {
         baseline = {
           rate: {
@@ -147,6 +143,12 @@
     : 'Requests per minute must be between 1 and 1,000,000.';
   $: warnOnUnload = writable && hasUnsavedChanges;
   $: hasConfigSnapshot = configSnapshot && typeof configSnapshot === 'object' && Object.keys(configSnapshot).length > 0;
+  $: writable = isAdminConfigWritable(configRuntimeSnapshot);
+  $: akamaiEdgeAvailable = isAkamaiEdgeAvailable(configRuntimeSnapshot);
+  $: configEnvelopeReady = hasHydratedConfigEnvelope(configSnapshot, configRuntimeSnapshot);
+  $: tabState = tabStatus && typeof tabStatus === 'object' ? tabStatus : {};
+  $: tabStateVisible = tabState.loading === true || Boolean(String(tabState.error || '').trim()) || tabState.empty === true;
+  $: showBootstrapLoadingMessage = !configEnvelopeReady && !tabStateVisible;
 
   $: {
     const nextVersion = Number(configVersion || 0);
@@ -156,10 +158,7 @@
   }
 
   $: if (pendingConfigVersion !== -1 && hasConfigSnapshot && !hasUnsavedChanges && !savingRateLimiting) {
-    applyConfig(
-      configSnapshot && typeof configSnapshot === 'object' ? configSnapshot : {},
-      configRuntimeSnapshot && typeof configRuntimeSnapshot === 'object' ? configRuntimeSnapshot : {}
-    );
+    applyConfig(configSnapshot && typeof configSnapshot === 'object' ? configSnapshot : {});
     lastAppliedConfigVersion = pendingConfigVersion;
     pendingConfigVersion = -1;
   }
@@ -174,75 +173,81 @@
   aria-hidden={managed ? (isActive ? 'false' : 'true') : 'true'}
 >
   <TabStateMessage tab="rate-limiting" status={tabStatus} noticeText={noticeText} noticeKind={noticeKind} />
-  <div class="controls-grid controls-grid--config">
-    <ConfigPanel writable={writable} dirty={externalRateBackendDirty}>
-      <ConfigPanelHeading title="External Rate Limiter Backend">
+  {#if showBootstrapLoadingMessage}
+    <p class="message info">Loading rate limiting controls...</p>
+  {:else if !writable}
+    <p class="message info">Rate limiting controls are read-only because admin config writes are disabled in this runtime.</p>
+  {:else}
+    <div class="controls-grid controls-grid--config">
+      <ConfigPanel writable={writable} dirty={externalRateBackendDirty}>
+        <ConfigPanelHeading title="External Rate Limiter Backend">
+          {#if rateEdgeControlsVisible}
+            <label class="toggle-switch" for="rate-external-backend-enabled-toggle">
+              <input
+                type="checkbox"
+                id="rate-external-backend-enabled-toggle"
+                aria-label="Enable external rate limiter backend"
+                bind:checked={externalRateBackendEnabled}
+              >
+              <span class="toggle-slider"></span>
+            </label>
+          {/if}
+        </ConfigPanelHeading>
         {#if rateEdgeControlsVisible}
-          <label class="toggle-switch" for="rate-external-backend-enabled-toggle">
+          <p class="control-desc text-muted">Enable this when the deployment provides a trusted distributed rate-limiter backend path. Today this switches Shuma-Gorath between its internal limiter and the external provider backend on <code>provider_backends.rate_limiter</code>; it is not yet direct Akamai rate-signal ingestion.</p>
+        {:else}
+          <p id="rate-edge-unavailable-message" class="control-desc text-muted">External rate-backend controls are available only when Shuma-Gorath is deployed on Akamai edge (`gateway_deployment_profile=edge-fermyon`). Shared-server and other non-edge postures keep this integration hidden.</p>
+        {/if}
+      </ConfigPanel>
+
+      <ConfigPanel writable={writable} dirty={rateLimitDirty}>
+        <ConfigPanelHeading title="Rate Limiting">
+          <label class="toggle-switch" for="rate-limiting-enabled-toggle">
             <input
               type="checkbox"
-              id="rate-external-backend-enabled-toggle"
-              aria-label="Enable external rate limiter backend"
-              bind:checked={externalRateBackendEnabled}
+              id="rate-limiting-enabled-toggle"
+              aria-label="Enable rate limiting"
+              bind:checked={rateLimitingEnabled}
             >
             <span class="toggle-slider"></span>
           </label>
+        </ConfigPanelHeading>
+        <p class="control-desc text-muted">Define the allowed requests per minute per <abbr title="Internet Protocol">IP</abbr> bucket (<abbr title="Internet Protocol Version 4">IPv4</abbr> /24, <abbr title="Internet Protocol Version 6">IPv6</abbr> /64), not a single host <abbr title="Internet Protocol">IP</abbr>. Default budget is <code>80</code> requests; lower values are more strict but can affect legitimate burst traffic and innocent visitors when the budget of their <abbr title="Internet Protocol">IP</abbr> bucket is exhausted by a malicious bot.</p>
+        <div class="admin-controls">
+          <NumericInputRow
+            id="rate-limit-threshold"
+            label='Requests Per Minute (per <abbr title="Internet Protocol">IP</abbr> bucket)'
+            labelClass="control-label control-label--wide"
+            min="1"
+            max="1000000"
+            step="1"
+            inputmode="numeric"
+            ariaLabel="Rate limit requests per minute"
+            ariaInvalid={rateLimitValid ? 'false' : 'true'}
+            bind:value={rateLimitThreshold}
+          />
+        </div>
+        {#if !rateLimitingEnabled}
+          <p class="message warning">
+            Rate limiting is strongly advised. Disable only if upstream already enforces it or for temporary
+            testing. Scoring still stays active.
+          </p>
         {/if}
-      </ConfigPanelHeading>
-      {#if rateEdgeControlsVisible}
-        <p class="control-desc text-muted">Enable this when the deployment provides a trusted distributed rate-limiter backend path. Today this switches Shuma-Gorath between its internal limiter and the external provider backend on <code>provider_backends.rate_limiter</code>; it is not yet direct Akamai rate-signal ingestion.</p>
-      {:else}
-        <p id="rate-edge-unavailable-message" class="control-desc text-muted">External rate-backend controls are available only when Shuma-Gorath is deployed on Akamai edge (`gateway_deployment_profile=edge-fermyon`). Shared-server and other non-edge postures keep this integration hidden.</p>
-      {/if}
-    </ConfigPanel>
+      </ConfigPanel>
 
-    <ConfigPanel writable={writable} dirty={rateLimitDirty}>
-      <ConfigPanelHeading title="Rate Limiting">
-        <label class="toggle-switch" for="rate-limiting-enabled-toggle">
-          <input
-            type="checkbox"
-            id="rate-limiting-enabled-toggle"
-            aria-label="Enable rate limiting"
-            bind:checked={rateLimitingEnabled}
-          >
-          <span class="toggle-slider"></span>
-        </label>
-      </ConfigPanelHeading>
-      <p class="control-desc text-muted">Define the allowed requests per minute per <abbr title="Internet Protocol">IP</abbr> bucket (<abbr title="Internet Protocol Version 4">IPv4</abbr> /24, <abbr title="Internet Protocol Version 6">IPv6</abbr> /64), not a single host <abbr title="Internet Protocol">IP</abbr>. Default budget is <code>80</code> requests; lower values are more strict but can affect legitimate burst traffic and innocent visitors when the budget of their <abbr title="Internet Protocol">IP</abbr> bucket is exhausted by a malicious bot.</p>
-      <div class="admin-controls">
-        <NumericInputRow
-          id="rate-limit-threshold"
-          label='Requests Per Minute (per <abbr title="Internet Protocol">IP</abbr> bucket)'
-          labelClass="control-label control-label--wide"
-          min="1"
-          max="1000000"
-          step="1"
-          inputmode="numeric"
-          ariaLabel="Rate limit requests per minute"
-          ariaInvalid={rateLimitValid ? 'false' : 'true'}
-          bind:value={rateLimitThreshold}
-        />
-      </div>
-      {#if !rateLimitingEnabled}
-        <p class="message warning">
-          Rate limiting is strongly advised. Disable only if upstream already enforces it or for temporary
-          testing. Scoring still stays active.
-        </p>
-      {/if}
-    </ConfigPanel>
-
-    <SaveChangesBar
-      containerId="rate-limiting-save-bar"
-      isHidden={!writable || !hasUnsavedChanges}
-      summaryId="rate-limiting-unsaved-summary"
-      summaryText={saveRateLimitingSummary}
-      summaryClass="text-unsaved-changes"
-      invalidId="rate-limiting-invalid-summary"
-      invalidText={saveRateLimitingInvalidText}
-      buttonId="save-rate-limiting-config"
-      buttonLabel={saveRateLimitingLabel}
-      buttonDisabled={saveRateLimitingDisabled}
-      onSave={saveRateLimitingConfig}
-    />
-  </div>
+      <SaveChangesBar
+        containerId="rate-limiting-save-bar"
+        isHidden={!writable || !hasUnsavedChanges}
+        summaryId="rate-limiting-unsaved-summary"
+        summaryText={saveRateLimitingSummary}
+        summaryClass="text-unsaved-changes"
+        invalidId="rate-limiting-invalid-summary"
+        invalidText={saveRateLimitingInvalidText}
+        buttonId="save-rate-limiting-config"
+        buttonLabel={saveRateLimitingLabel}
+        buttonDisabled={saveRateLimitingDisabled}
+        onSave={saveRateLimitingConfig}
+      />
+    </div>
+  {/if}
 </section>

@@ -18,6 +18,7 @@
   import ConfigPanelHeading from './primitives/ConfigPanelHeading.svelte';
   import SaveChangesBar from './primitives/SaveChangesBar.svelte';
   import TabStateMessage from './primitives/TabStateMessage.svelte';
+  import { hasHydratedConfigEnvelope } from '../../domain/config-envelope.js';
 
   export let managed = false;
   export let isActive = false;
@@ -69,9 +70,7 @@
     event.returnValue = '';
   };
 
-  const applyConfig = (config = {}, runtime = {}) => {
-    writable = isAdminConfigWritable(runtime);
-    akamaiEdgeAvailable = isAkamaiEdgeAvailable(runtime);
+  const applyConfig = (config = {}) => {
     geoRiskList = formatCountryCodes(config.geo_risk);
     geoAllowList = formatCountryCodes(config.geo_allow);
     geoChallengeList = formatCountryCodes(config.geo_challenge);
@@ -124,10 +123,7 @@
     try {
       const nextConfig = await onSaveConfig(payload, { successMessage: 'GEO settings saved' });
       if (nextConfig && typeof nextConfig === 'object') {
-        applyConfig(
-          nextConfig,
-          configRuntimeSnapshot && typeof configRuntimeSnapshot === 'object' ? configRuntimeSnapshot : {}
-        );
+        applyConfig(nextConfig);
       } else {
         baseline = {
           geo: {
@@ -242,6 +238,12 @@
     : 'Fix invalid GEO country lists before saving.';
   $: warnOnUnload = writable && hasUnsavedChanges;
   $: hasConfigSnapshot = configSnapshot && typeof configSnapshot === 'object' && Object.keys(configSnapshot).length > 0;
+  $: writable = isAdminConfigWritable(configRuntimeSnapshot);
+  $: akamaiEdgeAvailable = isAkamaiEdgeAvailable(configRuntimeSnapshot);
+  $: configEnvelopeReady = hasHydratedConfigEnvelope(configSnapshot, configRuntimeSnapshot);
+  $: tabState = tabStatus && typeof tabStatus === 'object' ? tabStatus : {};
+  $: tabStateVisible = tabState.loading === true || Boolean(String(tabState.error || '').trim()) || tabState.empty === true;
+  $: showBootstrapLoadingMessage = !configEnvelopeReady && !tabStateVisible;
 
   $: {
     const nextVersion = Number(configVersion || 0);
@@ -251,10 +253,7 @@
   }
 
   $: if (pendingConfigVersion !== -1 && hasConfigSnapshot && !hasUnsavedChanges && !savingGeo) {
-    applyConfig(
-      configSnapshot && typeof configSnapshot === 'object' ? configSnapshot : {},
-      configRuntimeSnapshot && typeof configRuntimeSnapshot === 'object' ? configRuntimeSnapshot : {}
-    );
+    applyConfig(configSnapshot && typeof configSnapshot === 'object' ? configSnapshot : {});
     lastAppliedConfigVersion = pendingConfigVersion;
     pendingConfigVersion = -1;
   }
@@ -269,58 +268,64 @@
   aria-hidden={managed ? (isActive ? 'false' : 'true') : 'true'}
 >
   <TabStateMessage tab="geo" status={tabStatus} noticeText={noticeText} noticeKind={noticeKind} />
-  <div class="controls-grid controls-grid--config">
-    <ConfigPanel writable={writable} dirty={geoEdgeHeaderDirty}>
-      <ConfigPanelHeading title="Trusted GEO Edge Header Signal">
+  {#if showBootstrapLoadingMessage}
+    <p class="message info">Loading GEO controls...</p>
+  {:else if !writable}
+    <p class="message info">GEO controls are read-only because admin config writes are disabled in this runtime.</p>
+  {:else}
+    <div class="controls-grid controls-grid--config">
+      <ConfigPanel writable={writable} dirty={geoEdgeHeaderDirty}>
+        <ConfigPanelHeading title="Trusted GEO Edge Header Signal">
+          {#if geoEdgeControlsVisible}
+            <label class="toggle-switch" for="geo-edge-header-enabled-toggle">
+              <input
+                type="checkbox"
+                id="geo-edge-header-enabled-toggle"
+                aria-label="Enable trusted GEO edge header signal ingestion"
+                bind:checked={geoEdgeHeaderSignalEnabled}
+              >
+              <span class="toggle-slider"></span>
+            </label>
+          {/if}
+        </ConfigPanelHeading>
         {#if geoEdgeControlsVisible}
-          <label class="toggle-switch" for="geo-edge-header-enabled-toggle">
-            <input
-              type="checkbox"
-              id="geo-edge-header-enabled-toggle"
-              aria-label="Enable trusted GEO edge header signal ingestion"
-              bind:checked={geoEdgeHeaderSignalEnabled}
-            >
-            <span class="toggle-slider"></span>
-          </label>
+          <p class="control-desc text-muted">When enabled, Shuma-Gorath accepts a trusted edge-provided country header for GEO scoring and routing decisions. The current runtime expects the upstream edge layer to map provider-native GEO data into <code>X-Geo-Country</code>; this is not yet a direct Akamai EdgeScape parser.</p>
+        {:else}
+          <p id="geo-edge-unavailable-message" class="control-desc text-muted">Trusted GEO edge-header controls are available only when Shuma-Gorath is deployed on Akamai edge (`gateway_deployment_profile=edge-fermyon`). Shared-server and other non-edge postures keep this integration hidden.</p>
         {/if}
-      </ConfigPanelHeading>
-      {#if geoEdgeControlsVisible}
-        <p class="control-desc text-muted">When enabled, Shuma-Gorath accepts a trusted edge-provided country header for GEO scoring and routing decisions. The current runtime expects the upstream edge layer to map provider-native GEO data into <code>X-Geo-Country</code>; this is not yet a direct Akamai EdgeScape parser.</p>
-      {:else}
-        <p id="geo-edge-unavailable-message" class="control-desc text-muted">Trusted GEO edge-header controls are available only when Shuma-Gorath is deployed on Akamai edge (`gateway_deployment_profile=edge-fermyon`). Shared-server and other non-edge postures keep this integration hidden.</p>
-      {/if}
-    </ConfigPanel>
+      </ConfigPanel>
 
-    <ConfigGeoSection
-      bind:writable
-      bind:geoScoringDirty
-      bind:geoRoutingDirty
-      bind:geoScoringEnabled
-      bind:geoRoutingEnabled
-      bind:geoRiskList
-      bind:geoAllowList
-      bind:geoChallengeList
-      bind:geoMazeList
-      bind:geoBlockList
-      {geoRiskListValid}
-      {geoAllowListValid}
-      {geoChallengeListValid}
-      {geoMazeListValid}
-      {geoBlockListValid}
-    />
+      <ConfigGeoSection
+        bind:writable
+        bind:geoScoringDirty
+        bind:geoRoutingDirty
+        bind:geoScoringEnabled
+        bind:geoRoutingEnabled
+        bind:geoRiskList
+        bind:geoAllowList
+        bind:geoChallengeList
+        bind:geoMazeList
+        bind:geoBlockList
+        {geoRiskListValid}
+        {geoAllowListValid}
+        {geoChallengeListValid}
+        {geoMazeListValid}
+        {geoBlockListValid}
+      />
 
-    <SaveChangesBar
-      containerId="geo-save-bar"
-      isHidden={!writable || !hasUnsavedChanges}
-      summaryId="geo-unsaved-summary"
-      summaryText={saveGeoSummary}
-      summaryClass="text-unsaved-changes"
-      invalidId="geo-invalid-summary"
-      invalidText={saveGeoInvalidText}
-      buttonId="save-geo-config"
-      buttonLabel={saveGeoLabel}
-      buttonDisabled={saveGeoDisabled}
-      onSave={saveGeoConfig}
-    />
-  </div>
+      <SaveChangesBar
+        containerId="geo-save-bar"
+        isHidden={!writable || !hasUnsavedChanges}
+        summaryId="geo-unsaved-summary"
+        summaryText={saveGeoSummary}
+        summaryClass="text-unsaved-changes"
+        invalidId="geo-invalid-summary"
+        invalidText={saveGeoInvalidText}
+        buttonId="save-geo-config"
+        buttonLabel={saveGeoLabel}
+        buttonDisabled={saveGeoDisabled}
+        onSave={saveGeoConfig}
+      />
+    </div>
+  {/if}
 </section>

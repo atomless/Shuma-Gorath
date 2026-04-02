@@ -6252,6 +6252,60 @@ test('dashboard route preserves an empty server-side hash bootstrap so client ha
   );
 });
 
+test('config envelope helper requires both config data and runtime truth before config-backed panes are treated as ready', { concurrency: false }, async () => {
+  await withBrowserGlobals({}, async () => {
+    const module = await importBrowserModule('dashboard/src/lib/domain/config-envelope.js');
+
+    assert.equal(module.hasHydratedConfigEnvelope({}, {}), false);
+    assert.equal(
+      module.hasHydratedConfigEnvelope(
+        { honeypot_enabled: true },
+        {}
+      ),
+      false
+    );
+    assert.equal(
+      module.hasHydratedConfigEnvelope(
+        { honeypot_enabled: true },
+        {
+          admin_config_write_enabled: false,
+          runtime_environment: 'runtime-dev'
+        }
+      ),
+      true
+    );
+  });
+});
+
+test('direct-hash vulnerable config tabs derive runtime-owned pane visibility from configRuntimeSnapshot', () => {
+  const trapsSource = fs.readFileSync(
+    path.join(DASHBOARD_ROOT, 'src/lib/components/dashboard/TrapsTab.svelte'),
+    'utf8'
+  );
+  const rateLimitingSource = fs.readFileSync(
+    path.join(DASHBOARD_ROOT, 'src/lib/components/dashboard/RateLimitingTab.svelte'),
+    'utf8'
+  );
+  const geoSource = fs.readFileSync(
+    path.join(DASHBOARD_ROOT, 'src/lib/components/dashboard/GeoTab.svelte'),
+    'utf8'
+  );
+
+  assert.match(trapsSource, /\$:\s*writable\s*=\s*isAdminConfigWritable\(configRuntimeSnapshot\);/);
+  assert.match(rateLimitingSource, /\$:\s*writable\s*=\s*isAdminConfigWritable\(configRuntimeSnapshot\);/);
+  assert.match(rateLimitingSource, /\$:\s*akamaiEdgeAvailable\s*=\s*isAkamaiEdgeAvailable\(configRuntimeSnapshot\);/);
+  assert.match(geoSource, /\$:\s*writable\s*=\s*isAdminConfigWritable\(configRuntimeSnapshot\);/);
+  assert.match(geoSource, /\$:\s*akamaiEdgeAvailable\s*=\s*isAkamaiEdgeAvailable\(configRuntimeSnapshot\);/);
+
+  assert.match(trapsSource, /\$:\s*showBootstrapLoadingMessage\s*=\s*!configEnvelopeReady\s*&&\s*!tabStateVisible;/);
+  assert.match(rateLimitingSource, /\$:\s*showBootstrapLoadingMessage\s*=\s*!configEnvelopeReady\s*&&\s*!tabStateVisible;/);
+  assert.match(geoSource, /\$:\s*showBootstrapLoadingMessage\s*=\s*!configEnvelopeReady\s*&&\s*!tabStateVisible;/);
+
+  assert.match(trapsSource, /\{#if showBootstrapLoadingMessage\}[\s\S]*Loading trap controls\.\.\./);
+  assert.match(rateLimitingSource, /\{#if showBootstrapLoadingMessage\}[\s\S]*Loading rate limiting controls\.\.\./);
+  assert.match(geoSource, /\{#if showBootstrapLoadingMessage\}[\s\S]*Loading GEO controls\.\.\./);
+});
+
 test('login route exposes native password-manager-friendly form-post semantics', () => {
   const source = fs.readFileSync(
     path.join(DASHBOARD_ROOT, 'src/routes/login.html/+page.svelte'),

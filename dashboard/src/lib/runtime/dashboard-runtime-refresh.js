@@ -1,4 +1,9 @@
 import { deriveDashboardRequestBudgets } from './dashboard-request-budgets.js';
+import {
+  hasHydratedConfigEnvelope,
+  isConfigRuntimeSnapshotEmpty,
+  isConfigSnapshotEmpty
+} from '../domain/config-envelope.js';
 
 export function createDashboardRefreshRuntime(options = {}) {
   const MONITORING_CACHE_KEY = 'shuma_dashboard_cache_monitoring_v2';
@@ -63,21 +68,9 @@ export function createDashboardRefreshRuntime(options = {}) {
     return Math.max(1000, Math.floor(numeric));
   })();
 
-  const isConfigSnapshotEmpty = (config) =>
-    !config || typeof config !== 'object' || Object.keys(config).length === 0;
-  const hasRequiredSharedConfigRuntimeTruth = (runtime) => {
-    if (!runtime || typeof runtime !== 'object') return false;
-    if (!Object.prototype.hasOwnProperty.call(runtime, 'admin_config_write_enabled')) return false;
-    return typeof runtime.runtime_environment === 'string' && runtime.runtime_environment.trim().length > 0;
-  };
-  const isConfigRuntimeSnapshotEmpty = (runtime) =>
-    !runtime ||
-    typeof runtime !== 'object' ||
-    Object.keys(runtime).length === 0 ||
-    !hasRequiredSharedConfigRuntimeTruth(runtime);
   const hasConfigEnvelope = (configEnvelope) => {
     const source = configEnvelope && typeof configEnvelope === 'object' ? configEnvelope : {};
-    return !isConfigSnapshotEmpty(source.config) && !isConfigRuntimeSnapshotEmpty(source.runtime);
+    return hasHydratedConfigEnvelope(source.config, source.runtime);
   };
   const toArray = (value) => (Array.isArray(value) ? value : []);
   const toTabCursorKey = (tab) => (tab === 'ip-bans' ? 'ipBans' : 'monitoring');

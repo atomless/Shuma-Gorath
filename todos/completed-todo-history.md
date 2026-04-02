@@ -4,6 +4,20 @@ Moved from active TODO files on 2026-02-14.
 
 ## Additional completions (2026-04-02)
 
+### Dashboard Direct-Hash Config Tab Content Hydration Fix
+
+- [x] Fixed the remaining direct-hash content gap for `#traps`, `#rate-limiting`, and `#geo` so those tabs now render meaningful body content on first authenticated load instead of appearing selected-but-empty while shared config runtime truth is still hydrating.
+- [x] What landed:
+  - [`../dashboard/src/lib/domain/config-envelope.js`](../dashboard/src/lib/domain/config-envelope.js) now centralizes the shared definition of a hydrated config envelope so config-backed panes and refresh runtime use the same readiness rule.
+  - [`../dashboard/src/lib/runtime/dashboard-runtime-refresh.js`](../dashboard/src/lib/runtime/dashboard-runtime-refresh.js) now reuses that shared config-envelope readiness helper instead of carrying duplicated local logic.
+  - [`../dashboard/src/lib/components/dashboard/TrapsTab.svelte`](../dashboard/src/lib/components/dashboard/TrapsTab.svelte), [`../dashboard/src/lib/components/dashboard/RateLimitingTab.svelte`](../dashboard/src/lib/components/dashboard/RateLimitingTab.svelte), and [`../dashboard/src/lib/components/dashboard/GeoTab.svelte`](../dashboard/src/lib/components/dashboard/GeoTab.svelte) now derive runtime-owned pane visibility directly from `configRuntimeSnapshot` and render an explicit bootstrap-loading fallback until both config data and runtime truth are present.
+  - [`../e2e/dashboard.modules.unit.test.js`](../e2e/dashboard.modules.unit.test.js) and [`../e2e/dashboard.smoke.spec.js`](../e2e/dashboard.smoke.spec.js) now lock the actual regression seam: those historically affected tabs must not remain on a bootstrap placeholder and must render meaningful config-body content when loaded directly by hash.
+- [x] Why:
+  - the earlier route-bootstrap fix preserved the requested hash correctly, but the remaining observed issue was narrower and tab-specific: Traps, Rate Limiting, and GEO all hid their editable bodies behind `ConfigPanel` visibility that depended on runtime-backed writability and edge availability, so they were the ones most likely to look selected-but-empty during first-load config-envelope hydration.
+- [x] Evidence:
+  - `make test-dashboard-hash-tab-boot-contract`
+  - `make test-code-quality`
+
 ### Dashboard Direct-Hash Tab Bootstrap Fix
 
 - [x] Restored truthful first-load dashboard hash routing so authenticated direct loads such as `#traps`, `#rate-limiting`, and `#geo` now boot the requested tab instead of collapsing to the default `game-loop` tab before the browser hash is read.
