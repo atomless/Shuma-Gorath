@@ -7097,6 +7097,10 @@ test('adversary run panel separates execution identity and transport columns', (
   assert.match(source, /\{formatCoverageSummary\(row\)\}/);
   assert.match(source, /const formatMonitoringDeltasSummary = \(row = \{\}\) => \{/);
   assert.match(source, /No shared telemetry observed/);
+  assert.match(
+    source,
+    /return `\$\{formatCountLabel\(row\.monitoringEventCount, 'event', 'events'\)\} across \$\{formatCountLabel\(row\.defenseDeltaCount, 'defense', 'defenses'\)\}`;/
+  );
   assert.match(source, /\{formatMonitoringDeltasSummary\(row\)\}/);
   assert.match(source, /<td>\{formatTime\(row\.firstTs\)\}<\/td>\s*<td>\{formatLaneLabel\(row\.lane\)\}<\/td>/);
   assert.doesNotMatch(source, /\{formatTime\(row\.lastTs\)\}/);

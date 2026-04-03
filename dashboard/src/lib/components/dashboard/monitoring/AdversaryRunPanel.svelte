@@ -64,11 +64,17 @@
       .filter(Boolean)
       .join(' | ');
   };
+  const formatCountLabel = (value, singular, plural) => {
+    const count = Number(value || 0);
+    const normalized = Number.isFinite(count) ? count : 0;
+    const label = normalized === 1 ? singular : plural;
+    return `${formatCompactNumber(normalized, '0')} ${label}`;
+  };
   const formatMonitoringDeltasSummary = (row = {}) => {
     if (row?.hasSharedObservedTelemetry === false) {
       return 'No shared telemetry observed';
     }
-    return `${formatCompactNumber(row.monitoringEventCount, '0')} events · ${formatCompactNumber(row.defenseDeltaCount, '0')} defenses`;
+    return `${formatCountLabel(row.monitoringEventCount, 'event', 'events')} across ${formatCountLabel(row.defenseDeltaCount, 'defense', 'defenses')}`;
   };
   const formatProviderLabel = (value) => {
     const normalized = String(value || '').trim().toLowerCase();

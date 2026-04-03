@@ -16,11 +16,11 @@ Panel:
   - backend-timed run progress bar derived from `started_at`, `ends_at`, and `remaining_seconds`,
   - lane selector for the currently supported operator-selectable lanes, with `bot_red_team` presented in the menu as `Agentic Traffic`,
   - and a bounded warning when ban-state freshness is unavailable.
-- `Recent Red Team Runs`:
+  - `Recent Red Team Runs`:
   - recent adversary simulation rows derived from a compact monitoring-backed run-history summary,
   - the lane column uses the same operator-facing lane names as the control surface, so `bot_red_team` rows read as `Agentic Traffic`,
   - observed fulfillment modes plus preserved category targets for each bounded run row,
-  - monitoring-event, defence-reaction, and ban counts for quick run comparison,
+  - monitoring-event, defence-reaction, and ban counts for quick run comparison, with `Monitoring Deltas` rendered explicitly as `X events across Y defenses`,
   - `Coverage` now prefers shared observed-traffic evidence for both lanes:
     - when shared observed request-outcome or monitoring evidence exists, the cell reflects those reached surfaces rather than worker receipts,
     - if the dashboard must temporarily fall back to receipt-backed coverage because shared observed evidence has not yet materialized for that row, the cell explicitly labels that state as `Receipt projected`,

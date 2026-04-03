@@ -4,6 +4,17 @@ Moved from active TODO files on 2026-02-14.
 
 ## Additional completions (2026-04-03)
 
+### Recent Red Team Monitoring Delta Copy Clarification
+
+- [x] Clarified the `Monitoring Deltas` cell copy in Recent Red Team Runs so operators no longer have to infer that the second number is the count of distinct defenses implicated by the monitoring events.
+- [x] What landed:
+  - [`../dashboard/src/lib/components/dashboard/monitoring/AdversaryRunPanel.svelte`](../dashboard/src/lib/components/dashboard/monitoring/AdversaryRunPanel.svelte) now renders the summary as `X events across Y defenses`, with singular/plural handled explicitly, instead of the ambiguous `X events · Y defenses`.
+  - [`../e2e/dashboard.smoke.spec.js`](../e2e/dashboard.smoke.spec.js) and [`../e2e/dashboard.modules.unit.test.js`](../e2e/dashboard.modules.unit.test.js) now lock the clearer operator wording in both rendered and source-level panel proofs.
+  - [`../docs/dashboard-tabs/red-team.md`](../docs/dashboard-tabs/red-team.md) now documents that `Monitoring Deltas` is an event count across distinct defenses.
+- [x] Evidence:
+  - `make test-dashboard-red-team-pane`
+  - `make test-code-quality`
+
 ### Recent Red Team Coverage Denominator Normalization
 
 - [x] Normalized the Recent Red Team `Coverage` ratio to one fixed Shuma-wide adversary-surface denominator so the `x / y surfaces` cell no longer changes meaning by lane or evidence class.

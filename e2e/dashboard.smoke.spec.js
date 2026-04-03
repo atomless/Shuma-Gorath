@@ -4311,7 +4311,7 @@ test("adversary sim agentic toggle materializes shared recent-run telemetry in r
         .filter({ hasText: "Agentic Traffic" })
         .filter({ hasText: expectedCoverageSummary })
         .filter({
-          hasText: `${recentRun.monitoring_event_count} events · ${recentRun.defense_delta_count} defenses`
+          hasText: `${recentRun.monitoring_event_count} events across ${recentRun.defense_delta_count} defenses`
         })
         .first();
       await expect(matchingRow).toBeVisible();
@@ -5441,7 +5441,7 @@ test("red team recent runs label identity and transport realism truthfully", asy
   await expect(rows.nth(0)).toContainText("Degraded Direct Library");
   await expect(rows.nth(0)).toContainText("No TLS Or Protocol Impersonation Support");
   await expect(rows.nth(0)).toContainText("Receipt projected only | Partial Progress | 2 / 12 surfaces");
-  await expect(rows.nth(0)).toContainText("1 events · 1 defenses");
+  await expect(rows.nth(0)).toContainText("1 event across 1 defense");
   await expect(rows.nth(1)).toContainText("Receipt projected only | Response Observed | 1 / 12 surfaces");
   await expect(rows.nth(1)).toContainText("No shared telemetry observed");
   await expect(rows.nth(2)).toContainText("22 activities executed");
