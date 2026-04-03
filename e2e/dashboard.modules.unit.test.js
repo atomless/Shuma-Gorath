@@ -4047,9 +4047,9 @@ test('monitoring view model formats transport realism summaries for recent adver
     ], []);
     assert.equal(summarizedRuns.runRows[0].coverageSummary?.kind, 'llm_surface_observation');
     assert.equal(summarizedRuns.runRows[0].coverageSummary?.overallStatus, 'partial_progress');
-    assert.equal(summarizedRuns.runRows[0].coverageSummary?.coveredSurfaceCount, 1);
+    assert.equal(summarizedRuns.runRows[0].coverageSummary?.coveredSurfaceCount, 2);
     assert.equal(summarizedRuns.runRows[0].coverageSummary?.totalSurfaceCount, 2);
-    assert.equal(summarizedRuns.runRows[0].coverageSummary?.evidenceLabel, 'Receipt projected');
+    assert.equal(summarizedRuns.runRows[0].coverageSummary?.evidenceLabel, 'Receipt projected only');
   });
 });
 
@@ -4132,6 +4132,67 @@ test('recent adversary run summaries prefer shared observed coverage over receip
     assert.equal(summarizedRuns.runRows[0].coverageSummary?.coveredSurfaceCount, 3);
     assert.equal(summarizedRuns.runRows[0].coverageSummary?.totalSurfaceCount, 3);
     assert.equal(summarizedRuns.runRows[0].coverageSummary?.evidenceLabel, '');
+  });
+});
+
+test('recent adversary run summaries mark receipt-only agentic rows as unobserved shared telemetry and count response coverage honestly', { concurrency: false }, async () => {
+  await withBrowserGlobals({}, async () => {
+    const monitoringModelModule = await importBrowserModule('dashboard/src/lib/components/dashboard/monitoring-view-model.js');
+
+    const summarizedRuns = monitoringModelModule.deriveAdversaryRunRowsFromSummaries([
+      {
+        run_id: 'simrun-llm-receipt-only-response',
+        lane: 'bot_red_team',
+        profile: 'llm_runtime_lane',
+        first_ts: 1710000300,
+        last_ts: 1710000400,
+        monitoring_event_count: 0,
+        defense_delta_count: 0,
+        ban_outcome_count: 0,
+        llm_surface_coverage: {
+          overall_status: 'response_observed',
+          observed_surface_ids: ['public_path_traversal'],
+          response_surface_ids: ['public_path_traversal'],
+          progress_surface_ids: [],
+          surface_labels: {
+            public_path_traversal: 'Public Path Traversal'
+          },
+          receipts: [
+            {
+              surface_id: 'public_path_traversal',
+              coverage_status: 'response_observed',
+              surface_state: 'held',
+              attempt_count: 1,
+              sample_request_method: 'GET',
+              sample_request_path: '/',
+              sample_response_status: 403
+            }
+          ]
+        },
+        llm_runtime_summary: {
+          receipt_count: 1,
+          fulfillment_mode: 'request_mode',
+          category_targets: ['http_agent'],
+          backend_kind: 'frontier_reference',
+          backend_state: 'configured',
+          generation_source: 'provider_response',
+          provider: 'openai',
+          model_id: 'gpt-5-mini',
+          generated_action_count: 1,
+          executed_action_count: 1,
+          failed_action_count: 0,
+          passed_tick_count: 1,
+          failed_tick_count: 0
+        }
+      }
+    ], []);
+
+    assert.equal(summarizedRuns.runRows[0].coverageSummary?.kind, 'llm_surface_observation');
+    assert.equal(summarizedRuns.runRows[0].coverageSummary?.overallStatus, 'response_observed');
+    assert.equal(summarizedRuns.runRows[0].coverageSummary?.coveredSurfaceCount, 1);
+    assert.equal(summarizedRuns.runRows[0].coverageSummary?.totalSurfaceCount, 1);
+    assert.equal(summarizedRuns.runRows[0].coverageSummary?.evidenceLabel, 'Receipt projected only');
+    assert.equal(summarizedRuns.runRows[0].hasSharedObservedTelemetry, false);
   });
 });
 
@@ -6578,7 +6639,7 @@ test('dashboard adversary-sim telemetry smoke uses synthetic traffic instead of 
   assert.match(match[0], /setAdversarySimDesiredLane\(page,\s*request,\s*"synthetic_traffic"\)/);
 });
 
-test('dashboard adversary-sim lifecycle smokes use synthetic traffic unless they are explicitly proving Scrapling coverage', () => {
+test('dashboard adversary-sim lifecycle smokes use synthetic traffic unless they are explicitly proving lane-specific recent-run materialization', () => {
   const source = fs.readFileSync(
     path.join(WORKSPACE_ROOT, 'e2e/dashboard.smoke.spec.js'),
     'utf8'
@@ -6593,6 +6654,22 @@ test('dashboard adversary-sim lifecycle smokes use synthetic traffic unless they
   assert.ok(lifecycleBlock, 'expected adversary lifecycle smoke block');
   assert.match(classContractBlock[0], /setAdversarySimDesiredLane\(page,\s*request,\s*"synthetic_traffic"\)/);
   assert.match(lifecycleBlock[0], /setAdversarySimDesiredLane\(page,\s*request,\s*"synthetic_traffic"\)/);
+});
+
+test('dashboard adversary-sim agentic telemetry smoke explicitly drives bot_red_team recent-run proof', () => {
+  const source = fs.readFileSync(
+    path.join(WORKSPACE_ROOT, 'e2e/dashboard.smoke.spec.js'),
+    'utf8'
+  );
+  const match = source.match(
+    /test\("adversary sim agentic toggle materializes shared recent-run telemetry in red team table"[\s\S]*?\n}\);/
+  );
+  assert.ok(match, 'expected agentic recent-run telemetry smoke block');
+  assert.match(match[0], /setAdversarySimDesiredLane\(page,\s*request,\s*"bot_red_team"\)/);
+  assert.match(match[0], /deriveObservedCoverageSummaryText\(row\)/);
+  assert.match(match[0], /const expectedCoverageSummary = deriveObservedCoverageSummaryText\(recentRun\)/);
+  assert.match(match[0], /No shared telemetry observed/);
+  assert.match(match[0], /Receipt projected only/);
 });
 
 test('dashboard hosted live smoke pins synthetic traffic before UI-only adversary toggle proof', () => {
@@ -7018,6 +7095,9 @@ test('adversary run panel separates execution identity and transport columns', (
   assert.match(source, /row\?\.coverageSummary/);
   assert.match(source, /record\.evidenceLabel/);
   assert.match(source, /\{formatCoverageSummary\(row\)\}/);
+  assert.match(source, /const formatMonitoringDeltasSummary = \(row = \{\}\) => \{/);
+  assert.match(source, /No shared telemetry observed/);
+  assert.match(source, /\{formatMonitoringDeltasSummary\(row\)\}/);
   assert.match(source, /<td>\{formatTime\(row\.firstTs\)\}<\/td>\s*<td>\{formatLaneLabel\(row\.lane\)\}<\/td>/);
   assert.doesNotMatch(source, /\{formatTime\(row\.lastTs\)\}/);
   assert.doesNotMatch(source, /const formatRealismSummary = \(row = \{\}\) => \{/);

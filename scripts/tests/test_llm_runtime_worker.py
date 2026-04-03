@@ -885,7 +885,12 @@ class LlmRuntimeWorkerUnitTests(unittest.TestCase):
 
         with mock.patch.dict(
             "os.environ",
-            {"SHUMA_SIM_TELEMETRY_SECRET": "browser-mode-test-secret"},
+            {
+                "SHUMA_SIM_TELEMETRY_SECRET": "browser-mode-test-secret",
+                "SHUMA_FORWARDED_IP_SECRET": "forwarded-secret",
+                "SHUMA_LOCAL_CONTRIBUTOR_INGRESS_ENABLE": "true",
+                "SHUMA_LOCAL_CONTRIBUTOR_ALLOW_TRUSTED_FORWARDING": "true",
+            },
             clear=False,
         ):
             with mock.patch(
@@ -908,9 +913,18 @@ class LlmRuntimeWorkerUnitTests(unittest.TestCase):
             observed["input"]["action"],
             "agentic_browser_session",
         )
+        self.assertIsNone(observed["input"]["proxy_url"])
         self.assertEqual(
-            observed["input"]["proxy_url"],
-            "http://198.51.100.55:trusted-token@127.0.0.1:3871",
+            observed["input"]["trusted_forwarded_secret"],
+            "forwarded-secret",
+        )
+        self.assertEqual(
+            observed["input"]["headers"]["X-Forwarded-For"],
+            "198.51.100.55",
+        )
+        self.assertEqual(
+            observed["input"]["headers"]["X-Forwarded-Proto"],
+            "https",
         )
         self.assertEqual(
             observed["input"]["session_plan"]["profile_id"],

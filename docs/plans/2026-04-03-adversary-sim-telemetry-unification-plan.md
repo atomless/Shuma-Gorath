@@ -34,6 +34,32 @@ The end state must be:
 2. origin-aware filtering at read time rather than lane-specific collection stacks,
 3. and simulator receipts retained only for privileged attacker-internal metadata.
 
+## Live evidence update (2026-04-03)
+
+Fresh local proofs changed the sequencing pressure for this plan:
+
+1. direct browser-mode proof against the running local runtime (`simrun-browser-observed-proof-1775208814`) did materialize shared observed coverage and non-zero monitoring deltas without any worker receipt, which proves the shared Shuma request-outcome telemetry spine is capable of carrying Agentic browser traffic truth when that traffic is driven directly,
+2. but a fresh dashboard-equivalent `POST /shuma/admin/adversary-sim/control` run for `bot_red_team` (`simrun-1775208948-f0a6b602c57d9537`) still landed as an unhelpful receipt-only row with `monitoring_event_count = 0`, `defense_delta_count = 0`, no `observed_surface_coverage`, `fallback_reason = no_configured_frontier_provider`, and `terminal_failure = request_mode_execution_failed`,
+3. therefore the remaining gap is not "shared telemetry is impossible for Agentic traffic"; it is that contributor-local full-run orchestration is still degrading into the wrong execution mix and the operator table still reads too optimistically when only receipt-sidecar evidence exists.
+
+That means tranche closure now requires both:
+
+1. local frontier env parity so the dashboard-started host-side Agentic worker sees the same configured providers as the Spin runtime,
+2. and operator-surface truth that does not present receipt-only Agentic evidence as if shared observed telemetry had actually been recorded.
+
+## Closure update (later on 2026-04-03)
+
+The later closure proof for that env-parity branch is now directly observed:
+
+1. `make test-adversarial-llm-runtime-frontier-env-parity` now passes end to end, including the rendered smoke `adversary sim agentic toggle materializes shared recent-run telemetry in red team table`,
+2. fresh dashboard-equivalent local `bot_red_team` runs such as `simrun-1775210722-0a322c6a771a2965`, `simrun-1775210923-b214cd9fdd009488`, and `simrun-1775211809-a7fcb74da6074ab7` now materialize shared observed coverage plus non-zero monitoring deltas instead of the earlier dead receipt-only row shape,
+3. and the stale-runtime process snag that briefly hid that truth was traced to `scripts/set_crate_type.sh` rewriting `Cargo.toml` on no-op crate-type requests, which caused `runtime-verify-freshness` to fail after otherwise successful proofs.
+
+Resulting tranche status:
+
+1. Tranche 5 is now complete and should no longer be treated as an open blocker for local Agentic recent-run truth,
+2. Tranche 4 remains open because later operator surfaces still need the fuller shared-evidence-versus-sidecar separation work beyond the repaired Red Team pane proof.
+
 ## Architecture Contract
 
 ### Shared observed telemetry owns
@@ -222,7 +248,8 @@ Acceptance criteria:
 
 1. when local env or Make config exposes frontier provider keys, the host-side LLM runtime worker sees the same configured providers as the Spin runtime,
 2. local Agentic rows no longer report `no_configured_frontier_provider` under a configured frontier setup,
-3. and verification proves both the env propagation seam and the rendered operator truth.
+3. fresh dashboard-equivalent local `bot_red_team` runs no longer collapse into the reproduced receipt-only dead row shape (`0 events · 0 defenses`, no shared observed coverage) when the contributor machine already has frontier credentials configured,
+4. and verification proves both the env propagation seam and the rendered operator truth.
 
 Proof surface:
 

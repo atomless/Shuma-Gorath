@@ -8,14 +8,54 @@ MAKEFILE = REPO_ROOT / "Makefile"
 
 
 class AdversarySimMakeTargetTests(unittest.TestCase):
-    def test_local_scrapling_runtime_env_exports_sim_tag_secret_to_host_supervisor(self) -> None:
+    def test_local_adversary_sim_runtime_env_exports_frontier_and_sim_tag_env_to_host_supervisor(self) -> None:
         source = MAKEFILE.read_text(encoding="utf-8")
         self.assertIn(
-            "SCRAPLING_LOCAL_RUNTIME_ENV := SHUMA_SIM_TELEMETRY_SECRET=$(SHUMA_SIM_TELEMETRY_SECRET)",
+            "ADVERSARY_SIM_LOCAL_RUNTIME_ENV := SHUMA_SIM_TELEMETRY_SECRET=$(SHUMA_SIM_TELEMETRY_SECRET)",
             source,
         )
         self.assertIn(
-            "SHUMA_ADVERSARY_SIM_AVAILABLE=$(DEV_ADVERSARY_SIM_AVAILABLE) $(LOCAL_CONTRIBUTOR_INGRESS_ENV) $(SCRAPLING_LOCAL_RUNTIME_ENV) SPIN_ALWAYS_BUILD=0 ./scripts/run_with_oversight_supervisor.sh",
+            "SHUMA_FORWARDED_IP_SECRET=$(SHUMA_FORWARDED_IP_SECRET)",
+            source,
+        )
+        self.assertIn(
+            "SHUMA_FRONTIER_OPENAI_API_KEY=$(SHUMA_FRONTIER_OPENAI_API_KEY)",
+            source,
+        )
+        self.assertIn(
+            "SHUMA_FRONTIER_ANTHROPIC_API_KEY=$(SHUMA_FRONTIER_ANTHROPIC_API_KEY)",
+            source,
+        )
+        self.assertIn(
+            "SHUMA_FRONTIER_GOOGLE_API_KEY=$(SHUMA_FRONTIER_GOOGLE_API_KEY)",
+            source,
+        )
+        self.assertIn(
+            "SHUMA_FRONTIER_XAI_API_KEY=$(SHUMA_FRONTIER_XAI_API_KEY)",
+            source,
+        )
+        self.assertIn(
+            "SHUMA_FRONTIER_OPENAI_MODEL=$(SHUMA_FRONTIER_OPENAI_MODEL)",
+            source,
+        )
+        self.assertIn(
+            "SHUMA_FRONTIER_ANTHROPIC_MODEL=$(SHUMA_FRONTIER_ANTHROPIC_MODEL)",
+            source,
+        )
+        self.assertIn(
+            "SHUMA_FRONTIER_GOOGLE_MODEL=$(SHUMA_FRONTIER_GOOGLE_MODEL)",
+            source,
+        )
+        self.assertIn(
+            "SHUMA_FRONTIER_XAI_MODEL=$(SHUMA_FRONTIER_XAI_MODEL)",
+            source,
+        )
+        self.assertIn(
+            "$(LOCAL_CONTRIBUTOR_INGRESS_ENV)",
+            source,
+        )
+        self.assertIn(
+            "SHUMA_ADVERSARY_SIM_AVAILABLE=$(DEV_ADVERSARY_SIM_AVAILABLE) $(LOCAL_CONTRIBUTOR_INGRESS_ENV) $(ADVERSARY_SIM_LOCAL_RUNTIME_ENV) SPIN_ALWAYS_BUILD=0 ./scripts/run_with_oversight_supervisor.sh",
             source,
         )
 
@@ -324,7 +364,11 @@ class AdversarySimMakeTargetTests(unittest.TestCase):
             body,
         )
         self.assertIn(
-            "dashboard adversary-sim lifecycle smokes use synthetic traffic unless they are explicitly proving Scrapling coverage",
+            "dashboard adversary-sim lifecycle smokes use synthetic traffic unless they are explicitly proving lane-specific recent-run materialization",
+            body,
+        )
+        self.assertIn(
+            "dashboard adversary-sim agentic telemetry smoke explicitly drives bot_red_team recent-run proof",
             body,
         )
         self.assertIn(
@@ -332,7 +376,7 @@ class AdversarySimMakeTargetTests(unittest.TestCase):
             body,
         )
         self.assertIn(
-            'run_dashboard_e2e.sh --grep "adversary sim toggle emits fresh telemetry visible in monitoring raw feed"',
+            'run_dashboard_e2e.sh --grep "adversary sim toggle emits fresh telemetry visible in monitoring raw feed|adversary sim agentic toggle materializes shared recent-run telemetry in red team table"',
             body,
         )
 
@@ -582,6 +626,45 @@ class AdversarySimMakeTargetTests(unittest.TestCase):
         )
         self.assertIn("test-adversary-sim-supervisor-unit", body)
         self.assertIn("scripts/tests/test_llm_runtime_worker.py", body)
+
+    def test_llm_runtime_frontier_env_parity_target_chains_make_dispatch_and_dashboard_truth(self) -> None:
+        source = MAKEFILE.read_text(encoding="utf-8")
+        match = re.search(
+            r"^test-adversarial-llm-runtime-frontier-env-parity:.*?(?=^[A-Za-z0-9_.-]+:|\Z)",
+            source,
+            re.MULTILINE | re.DOTALL,
+        )
+        self.assertIsNotNone(match)
+        body = match.group(0)
+        self.assertIn("test-runtime-preflight-unit", body)
+        self.assertIn("test-adversary-sim-make-target-contract", body)
+        self.assertIn("test-adversarial-llm-runtime-dispatch", body)
+        self.assertIn("test-dashboard-adversary-sim-telemetry-contract", body)
+
+    def test_build_runtime_retouches_wasm_artifacts_after_restoring_rlib_manifest_state(self) -> None:
+        source = MAKEFILE.read_text(encoding="utf-8")
+        match = re.search(
+            r"^build-runtime:.*?(?=^[A-Za-z0-9_.-]+:|\Z)",
+            source,
+            re.MULTILINE | re.DOTALL,
+        )
+        self.assertIsNotNone(match)
+        body = match.group(0)
+        self.assertIn("./scripts/set_crate_type.sh cdylib", body)
+        self.assertIn("./scripts/set_crate_type.sh rlib", body)
+        self.assertIn("touch $(WASM_BUILD_OUTPUT) $(WASM_ARTIFACT)", body)
+
+    def test_runtime_preflight_unit_includes_crate_type_noop_regression_guard(self) -> None:
+        source = MAKEFILE.read_text(encoding="utf-8")
+        match = re.search(
+            r"^test-runtime-preflight-unit:.*?(?=^[A-Za-z0-9_.-]+:|\Z)",
+            source,
+            re.MULTILINE | re.DOTALL,
+        )
+        self.assertIsNotNone(match)
+        body = match.group(0)
+        self.assertIn("scripts/tests/test_verify_test_runtime_environment.py", body)
+        self.assertIn("scripts/tests/test_set_crate_type.py", body)
 
     def test_llm_runtime_projection_target_uses_recent_run_and_dashboard_selectors(self) -> None:
         source = MAKEFILE.read_text(encoding="utf-8")

@@ -65,7 +65,17 @@ Current stance:
 - Simulator-only metadata such as fulfillment modes, fulfilled categories, provider lineage, and realism envelopes should remain explicit sidecars because they are privileged attacker-internal truth that real traffic cannot supply.
 - Shared collection does not imply shared denominators: live-only operator views may still filter sim-origin traffic, but that filtering must happen after collection rather than by maintaining a second traffic-evidence stack.
 - A separate but directly relevant defect is now diagnosed: local frontier keys are present and passed into `spin up`, but host-side Agentic workers do not inherit them consistently, so `no_configured_frontier_provider` must be fixed as a runtime env-parity problem rather than treated as missing contributor setup.
-- The next active execution priority is now `SIM-TEL-UNI-1C`: recent-run coverage truth now prefers shared observed evidence, but simulator receipts still need to be reduced to explicit privileged sidecars across later operator surfaces.
+- Fresh live evidence on 2026-04-03 tightened the picture further:
+  - direct browser-mode proof against the running local runtime (`simrun-browser-observed-proof-1775208814`) did materialize shared observed coverage and non-zero monitoring deltas, so the shared Shuma telemetry spine itself is capable of carrying Agentic browser traffic truth,
+  - but a fresh dashboard-equivalent `bot_red_team` control-path run (`simrun-1775208948-f0a6b602c57d9537`) still landed as a receipt-only dead row with `0 events · 0 defenses`, no shared observed coverage, `fallback_reason = no_configured_frontier_provider`, and `terminal_failure = request_mode_execution_failed`,
+  - that meant `SIM-TEL-UNI-1D` had to land before `SIM-TEL-UNI-1C` could be closed honestly, because frontier env parity had to be fixed before the table could be judged on shared observed telemetry rather than receipt-sidecar drift.
+- `SIM-TEL-UNI-1D` is now landed: local host-side Agentic workers inherit frontier and ingress context truthfully enough for dashboard-equivalent `bot_red_team` runs to materialize shared observed coverage and non-zero monitoring deltas in the rendered Recent Red Team Runs table.
+- The tranche only closed after direct rendered proof, not just narrow source-contract success:
+  - `make test-adversarial-llm-runtime-frontier-env-parity`
+  - `make test-dashboard-red-team-pane`
+  - fresh control-path runs including `simrun-1775210722-0a322c6a771a2965`, `simrun-1775210923-b214cd9fdd009488`, and `simrun-1775211809-a7fcb74da6074ab7`
+- The earlier overclaim has been corrected: a passing narrow proof without the operator-facing acceptance check no longer counts as landed for this chain.
+- The next active execution priority is now `SIM-TEL-UNI-1C`, not another round of env-parity chasing.
 
 - [ ] SIM-TEL-UNI-1C Reduce simulator receipts to privileged sidecars and keep that separation explicit through operator surfaces.
   - Closure gate:
@@ -74,13 +84,6 @@ Current stance:
     - downstream truth: recent-run, operator snapshot, and later Game Loop or benchmark consumers must distinguish shared observed traffic evidence from simulator-sidecar enrichment without leaking simulator surrogates into runtime traffic truth
     - proof: add and pass `make test-adversary-sim-sidecar-separation-contract`
     - insufficient: deleting useful simulator metadata, or keeping receipt-backed penetration claims because they are convenient for one current dashboard table
-
-- [ ] SIM-TEL-UNI-1D Fix frontier env parity for host-side Agentic workers.
-  - Closure gate:
-    - runtime truth: when local env or Make wiring configures frontier provider keys, the host-side supervisor-launched `llm_runtime_worker.py` must see the same configured providers as the Spin runtime
-    - operator truth: Agentic execution must no longer degrade to `no_configured_frontier_provider` on a contributor machine whose local runtime is already passing those keys to `spin up`
-    - proof: add and pass `make test-adversarial-llm-runtime-frontier-env-parity`
-    - insufficient: UI wording changes, dashboard-only masking of the fallback, or leaving the host worker and Spin runtime with divergent provider visibility
 
 ## P0 Machine-First Operator Snapshot Foundations
 

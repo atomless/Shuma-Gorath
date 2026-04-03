@@ -38,7 +38,10 @@ with lock_path.open("w") as lock_file:
     replaced = False
     for i, line in enumerate(lines):
         if line.strip().startswith("crate-type"):
-            lines[i] = f'crate-type = ["{crate_type}"]'
+            replacement = f'crate-type = ["{crate_type}"]'
+            if line == replacement:
+                sys.exit(0)
+            lines[i] = replacement
             replaced = True
             break
 

@@ -1040,6 +1040,68 @@ async function fetchMonitoringSnapshot(request, hours = 24, limit = 200, ip = "1
   return response.json();
 }
 
+function recentSimRunsFromMonitoring(monitoringPayload) {
+  return Array.isArray(monitoringPayload?.details?.events?.recent_sim_runs)
+    ? monitoringPayload.details.events.recent_sim_runs
+    : [];
+}
+
+function humanizeRunSummaryToken(value) {
+  return String(value || "")
+    .trim()
+    .replace(/[_-]+/g, " ")
+    .replace(/\s+/g, " ")
+    .split(" ")
+    .filter(Boolean)
+    .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
+    .join(" ");
+}
+
+function countSummaryIds(coverage, countKey, idsKey) {
+  const numeric = Number(coverage?.[countKey] || 0);
+  if (Number.isFinite(numeric) && numeric > 0) return numeric;
+  return Array.isArray(coverage?.[idsKey]) ? coverage[idsKey].length : 0;
+}
+
+function deriveObservedCoverageSummaryText(row) {
+  const coverage = row?.observed_surface_coverage;
+  if (!coverage || typeof coverage !== "object") return "";
+  const total = countSummaryIds(coverage, "observed_surface_count", "observed_surface_ids");
+  if (total <= 0) return "";
+  const covered = countSummaryIds(coverage, "response_surface_count", "response_surface_ids") || total;
+  const status = humanizeRunSummaryToken(coverage?.overall_status || "");
+  if (!status) return "";
+  return `${status} | ${covered} / ${total} surfaces`;
+}
+
+async function waitForRecentSimRun(request, predicate, timeoutMs = 30000, ip = "127.0.0.1") {
+  const deadline = Date.now() + Math.max(1000, Number(timeoutMs || 0));
+  let lastObserved = [];
+  while (Date.now() < deadline) {
+    const monitoring = await fetchMonitoringSnapshot(request, 24, 200, ip);
+    const recentSimRuns = recentSimRunsFromMonitoring(monitoring);
+    const match = recentSimRuns.find((row, index) => predicate(row, index, recentSimRuns));
+    if (match) {
+      return match;
+    }
+    lastObserved = recentSimRuns.slice(0, 3).map((row) => ({
+      run_id: row?.run_id || "",
+      lane: row?.lane || "",
+      monitoring_event_count: row?.monitoring_event_count || 0,
+      defense_delta_count: row?.defense_delta_count || 0,
+      observed_surface_status: row?.observed_surface_coverage?.overall_status || "",
+      observed_surface_count: row?.observed_surface_coverage?.observed_surface_count || 0,
+      response_surface_count: row?.observed_surface_coverage?.response_surface_count || 0,
+      backend_state: row?.llm_runtime_summary?.backend_state || "",
+      error: row?.llm_runtime_summary?.error || ""
+    }));
+    await new Promise((resolve) => setTimeout(resolve, 1000));
+  }
+  throw new Error(
+    `recent sim run did not satisfy predicate within ${timeoutMs}ms; last_observed=${JSON.stringify(lastObserved)}`
+  );
+}
+
 function maxSimulationEventTs(monitoringPayload) {
   const rows = Array.isArray(monitoringPayload?.details?.events?.recent_events)
     ? monitoringPayload.details.events.recent_events
@@ -4200,6 +4262,68 @@ test("adversary sim toggle emits fresh telemetry visible in monitoring raw feed"
   });
 });
 
+test("adversary sim agentic toggle materializes shared recent-run telemetry in red team table", async ({ page, request }) => {
+  test.setTimeout(180_000);
+  await withRestoredAdversarySimConfig(request, async () => {
+    await forceAdversarySimDisabled(request);
+    await openDashboard(page);
+    await waitForDashboardAdversarySimUiState(page, request, false);
+    await openTab(page, "red-team");
+
+    const baselineMonitoring = await fetchMonitoringSnapshot(request, 24, 200);
+    const baselineRunIds = new Set(
+      recentSimRunsFromMonitoring(baselineMonitoring)
+        .map((row) => String(row?.run_id || "").trim())
+        .filter(Boolean)
+    );
+
+    try {
+      await setAdversarySimDesiredLane(page, request, "bot_red_team");
+      await clickAdversaryToggleWithRetry(page, true, 60000, request);
+
+      const recentRun = await waitForRecentSimRun(
+        request,
+        (row) => {
+          const runId = String(row?.run_id || "").trim();
+          const coverageSummary = deriveObservedCoverageSummaryText(row);
+          return (
+            Boolean(runId) &&
+            !baselineRunIds.has(runId) &&
+            String(row?.lane || "").trim() === "bot_red_team" &&
+            Number(row?.monitoring_event_count || 0) > 0 &&
+            Number(row?.defense_delta_count || 0) > 0 &&
+            Boolean(coverageSummary) &&
+            String(row?.llm_runtime_summary?.backend_state || "").trim() === "configured" &&
+            String(row?.llm_runtime_summary?.error || "").trim() !== "no_configured_frontier_provider"
+          );
+        },
+        90000
+      );
+
+      await forceAdversarySimDisabled(request);
+      await waitForDashboardAdversarySimUiState(page, request, false);
+      await page.reload();
+      await waitForDashboardAdversarySimUiState(page, request, false);
+      await openTab(page, "red-team");
+
+      const expectedCoverageSummary = deriveObservedCoverageSummaryText(recentRun);
+      const matchingRow = page
+        .locator("#adversary-runs tbody tr")
+        .filter({ hasText: "Agentic Traffic" })
+        .filter({ hasText: expectedCoverageSummary })
+        .filter({
+          hasText: `${recentRun.monitoring_event_count} events · ${recentRun.defense_delta_count} defenses`
+        })
+        .first();
+      await expect(matchingRow).toBeVisible();
+      await expect(matchingRow).not.toContainText("No shared telemetry observed");
+      await expect(matchingRow).not.toContainText("Receipt projected only");
+    } finally {
+      await forceAdversarySimDisabled(request);
+    }
+  });
+});
+
 test("adversary sim lane selector keeps off-state desired truth and allows agentic and parallel mixed traffic", async ({ page, request }) => {
   test.setTimeout(180_000);
   await withRestoredAdversarySimConfig(request, async () => {
@@ -5093,6 +5217,73 @@ test("red team recent runs label identity and transport realism truthfully", asy
         recent_events: [],
         recent_sim_runs: [
           {
+            run_id: "simrun-identity-llm-receipt-only",
+            lane: "bot_red_team",
+            profile: "llm_runtime_lane",
+            observed_fulfillment_modes: ["request_mode"],
+            observed_category_ids: ["http_agent"],
+            first_ts: now - 5,
+            last_ts: now - 1,
+            monitoring_event_count: 0,
+            defense_delta_count: 0,
+            ban_outcome_count: 0,
+            llm_surface_coverage: {
+              overall_status: "response_observed",
+              observed_surface_ids: ["public_path_traversal"],
+              response_surface_ids: ["public_path_traversal"],
+              progress_surface_ids: [],
+              surface_labels: {
+                public_path_traversal: "Public Path Traversal"
+              },
+              receipts: [
+                {
+                  surface_id: "public_path_traversal",
+                  coverage_status: "response_observed",
+                  surface_state: "held",
+                  attempt_count: 1,
+                  sample_request_method: "GET",
+                  sample_request_path: "/",
+                  sample_response_status: 403
+                }
+              ]
+            },
+            llm_runtime_summary: {
+              receipt_count: 1,
+              fulfillment_mode: "request_mode",
+              category_targets: ["http_agent"],
+              backend_kind: "frontier_reference",
+              backend_state: "configured",
+              generation_source: "provider_response",
+              provider: "openai",
+              model_id: "gpt-5-mini",
+              generated_action_count: 1,
+              executed_action_count: 1,
+              failed_action_count: 0,
+              passed_tick_count: 1,
+              failed_tick_count: 0,
+              latest_realism_receipt: {
+                profile_id: "agentic.request_mode.v1",
+                transport_profile: "urllib_direct",
+                transport_realism_class: "degraded_direct_library",
+                transport_emission_basis: "python_urllib_runtime",
+                transport_degraded_reason: "no_tls_or_protocol_impersonation_support",
+                identity_realism_status: "fixed_proxy",
+                identity_provenance_mode: "trusted_ingress_backed",
+                observed_country_codes: ["FR"]
+              },
+              latest_action_receipts: [
+                {
+                  action_index: 1,
+                  action_type: "http_get",
+                  path: "/",
+                  label: "root",
+                  status: 403,
+                  error: null
+                }
+              ]
+            }
+          },
+          {
             run_id: "simrun-identity-llm",
             lane: "bot_red_team",
             profile: "llm_runtime_lane",
@@ -5250,10 +5441,13 @@ test("red team recent runs label identity and transport realism truthfully", asy
   await expect(rows.nth(0)).toContainText("FR");
   await expect(rows.nth(0)).toContainText("Degraded Direct Library");
   await expect(rows.nth(0)).toContainText("No TLS Or Protocol Impersonation Support");
-  await expect(rows.nth(0)).toContainText("Receipt projected | Partial Progress | 1 / 2 surfaces");
-  await expect(rows.nth(1)).toContainText("22 activities executed");
-  await expect(rows.nth(1)).toContainText("Degraded local identity");
-  await expect(rows.nth(1)).toContainText("Impersonated Request Stack");
+  await expect(rows.nth(0)).toContainText("Receipt projected only | Partial Progress | 2 / 2 surfaces");
+  await expect(rows.nth(0)).toContainText("1 events · 1 defenses");
+  await expect(rows.nth(1)).toContainText("Receipt projected only | Response Observed | 1 / 1 surfaces");
+  await expect(rows.nth(1)).toContainText("No shared telemetry observed");
+  await expect(rows.nth(2)).toContainText("22 activities executed");
+  await expect(rows.nth(2)).toContainText("Degraded local identity");
+  await expect(rows.nth(2)).toContainText("Impersonated Request Stack");
 });
 
 test("manual refresh button appends new monitoring delta events when auto-refresh is off", async ({ page }) => {

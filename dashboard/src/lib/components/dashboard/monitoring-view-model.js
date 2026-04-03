@@ -458,6 +458,13 @@ const shapeAdversaryRunRows = (rows = [], activeBans = []) => {
       const llmRuntimeSummary = row?.llmRuntimeSummary && typeof row.llmRuntimeSummary === 'object'
         ? row.llmRuntimeSummary
         : null;
+      const monitoringEventCount = Number.isFinite(Number(row?.monitoringEventCount))
+        ? Number(row.monitoringEventCount)
+        : 0;
+      const hasSharedObservedTelemetry =
+        Boolean(observedSurfaceCoverage)
+        || monitoringEventCount > 0
+        || defenseDeltaCount > 0;
       return {
         runId: row.runId,
         lane: row.lane,
@@ -465,8 +472,9 @@ const shapeAdversaryRunRows = (rows = [], activeBans = []) => {
         firstTs: row.firstTs,
         lastTs: row.lastTs,
         scraplingActivityCount: row.scraplingActivityCount,
-        monitoringEventCount: row.monitoringEventCount,
+        monitoringEventCount,
         defenseDeltaCount,
+        hasSharedObservedTelemetry,
         defenseRows,
         observedFulfillmentModes,
         observedCategoryIds,
@@ -1147,16 +1155,17 @@ const deriveCoverageSummary = (
       overallStatus: ownedSurfaceCoverage.overallStatus,
       coveredSurfaceCount: ownedSurfaceCoverage.satisfiedSurfaceCount,
       totalSurfaceCount: ownedSurfaceCoverage.requiredSurfaceCount,
-      evidenceLabel: 'Receipt projected'
+      evidenceLabel: 'Receipt projected only'
     };
   }
   if (llmSurfaceCoverage && typeof llmSurfaceCoverage === 'object') {
     return {
       kind: 'llm_surface_observation',
       overallStatus: llmSurfaceCoverage.overallStatus,
-      coveredSurfaceCount: llmSurfaceCoverage.progressSurfaceCount,
+      coveredSurfaceCount:
+        llmSurfaceCoverage.responseSurfaceCount || llmSurfaceCoverage.observedSurfaceCount,
       totalSurfaceCount: llmSurfaceCoverage.observedSurfaceCount,
-      evidenceLabel: 'Receipt projected'
+      evidenceLabel: 'Receipt projected only'
     };
   }
   return null;

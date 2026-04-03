@@ -64,6 +64,12 @@
       .filter(Boolean)
       .join(' | ');
   };
+  const formatMonitoringDeltasSummary = (row = {}) => {
+    if (row?.hasSharedObservedTelemetry === false) {
+      return 'No shared telemetry observed';
+    }
+    return `${formatCompactNumber(row.monitoringEventCount, '0')} events · ${formatCompactNumber(row.defenseDeltaCount, '0')} defenses`;
+  };
   const formatProviderLabel = (value) => {
     const normalized = String(value || '').trim().toLowerCase();
     if (normalized === 'openai') return 'OpenAI';
@@ -194,10 +200,7 @@
               <td>{formatIdentitySummary(row)}</td>
               <td>{formatTransportSummary(row)}</td>
               <td>{formatCoverageSummary(row)}</td>
-              <td>
-                {formatCompactNumber(row.monitoringEventCount, '0')} events
-                · {formatCompactNumber(row.defenseDeltaCount, '0')} defenses
-              </td>
+              <td>{formatMonitoringDeltasSummary(row)}</td>
               <td>{formatCompactNumber(row.banOutcomeCount, '0')}</td>
             </tr>
           {/each}

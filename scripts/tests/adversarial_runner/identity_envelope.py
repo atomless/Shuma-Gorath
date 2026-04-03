@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import ipaddress
 import os
 import urllib.parse
 from typing import Any
@@ -106,6 +107,37 @@ def summarize_identity_realism(
     }
 
 
+def resolve_local_contributor_ingress_context(
+    proxy_url: str | None,
+    *,
+    country_code: str | None = None,
+    explicit_client_ip: str | None = None,
+) -> dict[str, Any]:
+    headers: dict[str, str] = {}
+    client_ip = local_contributor_client_ip(proxy_url, explicit_client_ip)
+    if client_ip is None or not _env_flag_enabled("SHUMA_LOCAL_CONTRIBUTOR_INGRESS_ENABLE"):
+        return {
+            "headers": headers,
+            "trusted_forwarded_secret": "",
+        }
+
+    normalized_country = _normalize_country_code(country_code)
+    if normalized_country:
+        headers["X-Geo-Country"] = normalized_country
+
+    trusted_forwarded_secret = ""
+    if _env_flag_enabled("SHUMA_LOCAL_CONTRIBUTOR_ALLOW_TRUSTED_FORWARDING"):
+        trusted_forwarded_secret = str(os.environ.get("SHUMA_FORWARDED_IP_SECRET") or "").strip()
+        if trusted_forwarded_secret:
+            headers["X-Forwarded-For"] = client_ip
+            headers["X-Forwarded-Proto"] = "https"
+
+    return {
+        "headers": headers,
+        "trusted_forwarded_secret": trusted_forwarded_secret,
+    }
+
+
 def _fixed_proxy_provenance_mode(fixed_proxy_url: str | None) -> str:
     proxy_url = str(fixed_proxy_url or "").strip()
     if not proxy_url:
@@ -132,3 +164,54 @@ def _same_proxy_origin(left: str, right: str) -> bool:
         right_parts.port,
         right_parts.path.rstrip("/"),
     )
+
+
+def local_contributor_client_ip(
+    proxy_url: str | None,
+    explicit_client_ip: str | None = None,
+) -> str | None:
+    parsed_explicit_ip = _parse_ip_literal(explicit_client_ip)
+    if parsed_explicit_ip is not None:
+        return parsed_explicit_ip
+    parsed = urllib.parse.urlsplit(str(proxy_url or "").strip())
+    if not parsed.scheme or not _host_is_loopback(parsed.hostname):
+        return None
+    return _parse_ip_literal(parsed.username)
+
+
+def _env_flag_enabled(name: str) -> bool:
+    return str(os.environ.get(name) or "").strip().lower() in {
+        "1",
+        "true",
+        "yes",
+        "on",
+    }
+
+
+def _normalize_country_code(country_code: str | None) -> str | None:
+    normalized = str(country_code or "").strip().upper()
+    if len(normalized) == 2 and normalized.isalpha():
+        return normalized
+    return None
+
+
+def _parse_ip_literal(value: str | None) -> str | None:
+    normalized = str(value or "").strip()
+    if not normalized:
+        return None
+    try:
+        return str(ipaddress.ip_address(normalized))
+    except ValueError:
+        return None
+
+
+def _host_is_loopback(host: str | None) -> bool:
+    normalized_host = str(host or "").strip().lower()
+    if not normalized_host:
+        return False
+    if normalized_host == "localhost":
+        return True
+    parsed_ip = _parse_ip_literal(normalized_host)
+    if parsed_ip is None:
+        return False
+    return ipaddress.ip_address(parsed_ip).is_loopback

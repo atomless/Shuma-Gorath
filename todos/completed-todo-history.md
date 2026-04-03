@@ -4,6 +4,23 @@ Moved from active TODO files on 2026-02-14.
 
 ## Additional completions (2026-04-03)
 
+### Agentic Frontier Env Parity, Freshness-Snag Recovery, And Tranche-Proof Hardening
+
+- [x] Landed `SIM-TEL-UNI-1D` by restoring host-side Agentic frontier env parity, fixing the hidden runtime-freshness snag that was poisoning tranche proof, and tightening the repo process so a slice is not called landed before the operator-facing acceptance path is actually observed.
+- [x] What landed:
+  - [`../AGENTS.md`](../AGENTS.md) now explicitly forbids claiming a tranche has "landed" unless every explicit or plainly implied acceptance criterion was directly observed, requires contradictory live evidence to reopen the tranche, and treats narrow surrogate proofs as insufficient.
+  - [`../scripts/set_crate_type.sh`](../scripts/set_crate_type.sh) now exits cleanly on no-op crate-type requests instead of rewriting `Cargo.toml`, and [`../scripts/tests/test_set_crate_type.py`](../scripts/tests/test_set_crate_type.py) plus [`../scripts/tests/test_adversary_sim_make_targets.py`](../scripts/tests/test_adversary_sim_make_targets.py) now keep that freshness guard on the normal runtime preflight proof path through [`../Makefile`](../Makefile).
+  - [`../scripts/tests/adversarial_runner/identity_envelope.py`](../scripts/tests/adversarial_runner/identity_envelope.py) and [`../scripts/supervisor/llm_runtime_worker.py`](../scripts/supervisor/llm_runtime_worker.py) now carry local contributor ingress headers, trusted-forwarded secret handling, and host-worker provider visibility truthfully enough for dashboard-equivalent Agentic runs to materialize shared observed telemetry instead of falling back to `no_configured_frontier_provider`.
+  - [`../e2e/dashboard.smoke.spec.js`](../e2e/dashboard.smoke.spec.js) and [`../e2e/dashboard.modules.unit.test.js`](../e2e/dashboard.modules.unit.test.js) now prove the rendered Recent Red Team Runs table with a real `bot_red_team` row that must show shared coverage and non-zero monitoring deltas, rather than relying on a narrower synthetic proof that could pass while the operator-facing table was still unhelpful.
+- [x] Why:
+  - the earlier tranche claim was insufficient. Shared observed Agentic telemetry was not honestly "landed" until the control-path run, the admin payload, and the rendered table all agreed.
+  - a hidden process snag was making that harder to see: no-op crate-type rewrites dirtied runtime freshness and could fail the proof surface after otherwise successful work, which is exactly the sort of contradiction the strengthened `AGENTS.md` rule now forces us to treat as tranche-reopening evidence.
+- [x] Evidence:
+  - `make test-adversarial-llm-runtime-frontier-env-parity`
+  - `make test-dashboard-red-team-pane`
+  - `make test-code-quality`
+  - live control-path evidence: `simrun-1775210722-0a322c6a771a2965`, `simrun-1775210923-b214cd9fdd009488`, and `simrun-1775211809-a7fcb74da6074ab7`
+
 ### Shared Observed Recent-Run Coverage Unification
 
 - [x] Landed `SIM-TEL-UNI-1B` by rebuilding recent-run surface coverage on shared observed traffic evidence and demoting receipt-backed coverage to an explicitly labeled fallback.

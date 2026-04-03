@@ -34,8 +34,10 @@ from scripts.tests.adversarial_runner.contracts import (
     resolve_lane_realism_profile,
 )
 from scripts.tests.adversarial_runner.identity_envelope import (
+    local_contributor_client_ip,
     normalize_optional_proxy_url,
     normalize_identity_pool_entries,
+    resolve_local_contributor_ingress_context,
     summarize_identity_realism,
 )
 from scripts.tests.adversarial_runner.realism import (
@@ -76,6 +78,19 @@ def _capability_state_for_generation(generation_result: dict[str, Any]) -> str:
     if generation_source == "provider_response":
         return "frontier_provider"
     return "runtime_generated"
+
+
+def _browser_mode_forwarded_ip(
+    fulfillment_plan: dict[str, Any],
+    realism_execution_plan: dict[str, Any],
+) -> str | None:
+    explicit_ip = str(fulfillment_plan.get("client_ip") or "").strip() or None
+    if explicit_ip:
+        return explicit_ip
+    return local_contributor_client_ip(
+        str(realism_execution_plan.get("browser_proxy_url") or "").strip() or None,
+        explicit_client_ip=None,
+    )
 
 
 def _action_targeting_strategy(actions: list[dict[str, Any]]) -> str:
@@ -1051,6 +1066,36 @@ def run_browser_mode_blackbox(
         lane=str(fulfillment_plan.get("lane") or "").strip() or "bot_red_team",
         count=sim_tag_envelope_count,
     )
+    browser_forwarded_ip = _browser_mode_forwarded_ip(
+        fulfillment_plan,
+        realism_execution_plan,
+    )
+    ingress_context = resolve_local_contributor_ingress_context(
+        str(realism_execution_plan.get("browser_proxy_url") or "").strip() or None,
+        country_code=next(
+            (
+                str(country_code).strip()
+                for country_code in list(realism_execution_plan.get("observed_country_codes") or [])
+                if str(country_code).strip()
+            ),
+            None,
+        ),
+        explicit_client_ip=browser_forwarded_ip,
+    )
+    request_headers = {
+        "accept-language": str(realism_execution_plan.get("accept_language") or "en-US,en;q=0.9"),
+        **dict(ingress_context.get("headers") or {}),
+    }
+    trusted_forwarded_secret = str(
+        ingress_context.get("trusted_forwarded_secret") or ""
+    ).strip()
+    driver_proxy_url = str(realism_execution_plan.get("browser_proxy_url") or "").strip() or None
+    if trusted_forwarded_secret:
+        # Keep browser-mode local proofs on the same public-ingress path the canonical
+        # adversarial browser harness uses. The trusted-ingress worker proxy still
+        # determines the modeled identity envelope, but the browser itself should hit the
+        # shared public ingress directly so Shuma observes one unified traffic shape.
+        driver_proxy_url = None
     command = [
         "corepack",
         "pnpm",
@@ -1063,10 +1108,9 @@ def run_browser_mode_blackbox(
         "base_url": str(base_url).strip(),
         "user_agent": str(realism_execution_plan.get("user_agent") or DEFAULT_AGENTIC_BROWSER_USER_AGENT),
         "locale": str(realism_execution_plan.get("browser_locale") or "en-US"),
-        "headers": {
-            "accept-language": str(realism_execution_plan.get("accept_language") or "en-US,en;q=0.9")
-        },
-        "proxy_url": str(realism_execution_plan.get("browser_proxy_url") or "").strip() or None,
+        "headers": request_headers,
+        "trusted_forwarded_secret": trusted_forwarded_secret or None,
+        "proxy_url": driver_proxy_url,
         "timeout_ms": min(
             60_000,
             max(
