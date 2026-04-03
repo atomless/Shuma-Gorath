@@ -58,9 +58,8 @@
     if (!record) return '-';
     const touched = formatCompactNumber(record.touchedSurfaceCount || 0, '0');
     const total = formatCompactNumber(record.totalSurfaceCount || 0, '0');
-    const status = humanizeToken(record.overallStatus || '');
     const evidenceLabel = String(record.evidenceLabel || '').trim();
-    return [evidenceLabel, `${status} | ${touched} / ${total} surfaces`]
+    return [evidenceLabel, `${touched} / ${total} surfaces`]
       .filter(Boolean)
       .join(' | ');
   };

@@ -1068,9 +1068,7 @@ function deriveObservedCoverageSummaryText(row) {
   if (!coverage || typeof coverage !== "object") return "";
   const touched = countSummaryIds(coverage, "observed_surface_count", "observed_surface_ids");
   if (touched <= 0) return "";
-  const status = humanizeRunSummaryToken(coverage?.overall_status || "");
-  if (!status) return "";
-  return `${status} | ${touched} / 12 surfaces`;
+  return `${touched} / 12 surfaces`;
 }
 
 async function waitForRecentSimRun(request, predicate, timeoutMs = 30000, ip = "127.0.0.1") {
@@ -5440,9 +5438,9 @@ test("red team recent runs label identity and transport realism truthfully", asy
   await expect(rows.nth(0)).toContainText("FR");
   await expect(rows.nth(0)).toContainText("Degraded Direct Library");
   await expect(rows.nth(0)).toContainText("No TLS Or Protocol Impersonation Support");
-  await expect(rows.nth(0)).toContainText("Receipt projected only | Partial Progress | 2 / 12 surfaces");
+  await expect(rows.nth(0)).toContainText("Receipt projected only | 2 / 12 surfaces");
   await expect(rows.nth(0)).toContainText("1 event across 1 defense");
-  await expect(rows.nth(1)).toContainText("Receipt projected only | Response Observed | 1 / 12 surfaces");
+  await expect(rows.nth(1)).toContainText("Receipt projected only | 1 / 12 surfaces");
   await expect(rows.nth(1)).toContainText("No shared telemetry observed");
   await expect(rows.nth(2)).toContainText("22 activities executed");
   await expect(rows.nth(2)).toContainText("Degraded local identity");

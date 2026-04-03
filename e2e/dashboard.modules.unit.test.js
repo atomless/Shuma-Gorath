@@ -7094,6 +7094,7 @@ test('adversary run panel separates execution identity and transport columns', (
   assert.match(source, /const formatCoverageSummary = \(row = \{\}\) => \{/);
   assert.match(source, /row\?\.coverageSummary/);
   assert.match(source, /record\.evidenceLabel/);
+  assert.doesNotMatch(source, /const status = humanizeToken\(record\.overallStatus \|\| ''\)/);
   assert.match(source, /\{formatCoverageSummary\(row\)\}/);
   assert.match(source, /const formatMonitoringDeltasSummary = \(row = \{\}\) => \{/);
   assert.match(source, /No shared telemetry observed/);

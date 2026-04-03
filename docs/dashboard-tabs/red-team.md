@@ -25,6 +25,7 @@ Panel:
     - when shared observed request-outcome or monitoring evidence exists, the cell reflects those reached surfaces rather than worker receipts,
     - if the dashboard must temporarily fall back to receipt-backed coverage because shared observed evidence has not yet materialized for that row, the cell explicitly labels that state as `Receipt projected`,
     - the `x / y surfaces` ratio now uses one fixed Shuma-wide adversary-surface denominator rather than changing `y` by lane or evidence class, so runs remain visually comparable,
+    - the cell now foregrounds the comparable surface ratio itself instead of prefixing it with varying status prose such as `Partial Progress` or `Response Observed`,
     - and simulator receipts remain sidecars for execution lineage, fulfillment modes, category targets, and realism posture rather than pretending to be shared traffic truth,
   - additive LLM runtime lineage for `bot_red_team` rows when present in the bounded monitoring window:
     - generation source,

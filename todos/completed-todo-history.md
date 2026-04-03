@@ -4,6 +4,17 @@ Moved from active TODO files on 2026-02-14.
 
 ## Additional completions (2026-04-03)
 
+### Recent Red Team Coverage Copy Simplification
+
+- [x] Removed the varying coverage-status prose prefix from the Recent Red Team `Coverage` cell so the column focuses on the comparable surface ratio instead of low-value wording such as `Partial Progress` or `Response Observed`.
+- [x] What landed:
+  - [`../dashboard/src/lib/components/dashboard/monitoring/AdversaryRunPanel.svelte`](../dashboard/src/lib/components/dashboard/monitoring/AdversaryRunPanel.svelte) now renders `Coverage` as the optional `Receipt projected only` qualifier plus the fixed-denominator surface ratio, without the old status prefix.
+  - [`../e2e/dashboard.smoke.spec.js`](../e2e/dashboard.smoke.spec.js) and [`../e2e/dashboard.modules.unit.test.js`](../e2e/dashboard.modules.unit.test.js) now lock the simpler rendered wording in the focused Red Team pane proof.
+  - [`../docs/dashboard-tabs/red-team.md`](../docs/dashboard-tabs/red-team.md) now describes the simplified operator-facing coverage copy.
+- [x] Evidence:
+  - `make test-dashboard-red-team-pane`
+  - `make test-code-quality`
+
 ### Recent Red Team Monitoring Delta Copy Clarification
 
 - [x] Clarified the `Monitoring Deltas` cell copy in Recent Red Team Runs so operators no longer have to infer that the second number is the count of distinct defenses implicated by the monitoring events.
