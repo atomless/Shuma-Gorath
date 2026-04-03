@@ -56,11 +56,11 @@
       ? row.coverageSummary
       : null;
     if (!record) return '-';
-    const satisfied = formatCompactNumber(record.coveredSurfaceCount || 0, '0');
-    const required = formatCompactNumber(record.totalSurfaceCount || 0, '0');
+    const touched = formatCompactNumber(record.touchedSurfaceCount || 0, '0');
+    const total = formatCompactNumber(record.totalSurfaceCount || 0, '0');
     const status = humanizeToken(record.overallStatus || '');
     const evidenceLabel = String(record.evidenceLabel || '').trim();
-    return [evidenceLabel, `${status} | ${satisfied} / ${required} surfaces`]
+    return [evidenceLabel, `${status} | ${touched} / ${total} surfaces`]
       .filter(Boolean)
       .join(' | ');
   };

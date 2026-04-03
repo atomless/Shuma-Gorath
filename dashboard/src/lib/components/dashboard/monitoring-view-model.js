@@ -132,6 +132,55 @@ const deriveTrendSeries = (trend = []) => {
 
 const normalizeToken = (value) => String(value || '').trim().toLowerCase();
 
+const CANONICAL_ADVERSARY_COVERAGE_SURFACE_IDS = Object.freeze([
+  'public_ingress',
+  'challenge_puzzle',
+  'not_a_bot',
+  'js_verification',
+  'maze',
+  'tarpit',
+  'rate_pressure',
+  'geo_ip_policy',
+  'honeypot',
+  'pow_verify',
+  'ban_path',
+  'browser_automation_detection'
+]);
+
+const CANONICAL_ADVERSARY_COVERAGE_SURFACE_ID_SET = new Set(
+  CANONICAL_ADVERSARY_COVERAGE_SURFACE_IDS
+);
+
+const RECEIPT_PROJECTED_CANONICAL_SURFACE_IDS = Object.freeze({
+  public_ingress: 'public_ingress',
+  public_path_traversal: 'public_ingress',
+  challenge_puzzle: 'challenge_puzzle',
+  challenge_routing: 'challenge_puzzle',
+  puzzle_submit_or_escalation: 'challenge_puzzle',
+  not_a_bot: 'not_a_bot',
+  not_a_bot_submit: 'not_a_bot',
+  js_verification: 'js_verification',
+  js_verification_execution: 'js_verification',
+  maze: 'maze',
+  maze_navigation: 'maze',
+  tarpit: 'tarpit',
+  tarpit_progress_abuse: 'tarpit',
+  rate_pressure: 'rate_pressure',
+  geo_ip_policy: 'geo_ip_policy',
+  honeypot: 'honeypot',
+  pow_verify: 'pow_verify',
+  pow_verify_abuse: 'pow_verify',
+  ban_path: 'ban_path',
+  browser_automation_detection: 'browser_automation_detection'
+});
+
+const canonicalizeAdversaryCoverageSurfaceIds = (surfaceIds = []) =>
+  Array.from(new Set(
+    (Array.isArray(surfaceIds) ? surfaceIds : [])
+      .map((surfaceId) => RECEIPT_PROJECTED_CANONICAL_SURFACE_IDS[normalizeToken(surfaceId)] || '')
+      .filter((surfaceId) => CANONICAL_ADVERSARY_COVERAGE_SURFACE_ID_SET.has(surfaceId))
+  ));
+
 const EVENT_ORIGIN_LABELS = Object.freeze({
   sim: 'Simulation',
   manual: 'Manual',
@@ -1139,32 +1188,48 @@ const deriveCoverageSummary = (
   ownedSurfaceCoverage = null,
   llmSurfaceCoverage = null
 ) => {
+  const totalSurfaceCount = CANONICAL_ADVERSARY_COVERAGE_SURFACE_IDS.length;
   if (observedSurfaceCoverage && typeof observedSurfaceCoverage === 'object') {
+    const touchedSurfaceCount = canonicalizeAdversaryCoverageSurfaceIds(
+      observedSurfaceCoverage.observedSurfaceIds
+    ).length;
     return {
       kind: 'shared_observed_surface',
       overallStatus: observedSurfaceCoverage.overallStatus,
-      coveredSurfaceCount:
-        observedSurfaceCoverage.responseSurfaceCount || observedSurfaceCoverage.observedSurfaceCount,
-      totalSurfaceCount: observedSurfaceCoverage.observedSurfaceCount,
+      touchedSurfaceCount,
+      totalSurfaceCount,
       evidenceLabel: ''
     };
   }
   if (ownedSurfaceCoverage && typeof ownedSurfaceCoverage === 'object') {
+    const touchedSurfaceIds = canonicalizeAdversaryCoverageSurfaceIds(
+      (Array.isArray(ownedSurfaceCoverage.receipts) ? ownedSurfaceCoverage.receipts : [])
+        .filter((receipt) => (
+          Number(receipt?.attemptCount || 0) > 0
+          || (
+            String(receipt?.coverageStatus || '').trim()
+            && String(receipt?.coverageStatus || '').trim() !== 'unavailable'
+          )
+        ))
+        .map((receipt) => receipt.surfaceId)
+    );
     return {
       kind: 'required_surface_closure',
       overallStatus: ownedSurfaceCoverage.overallStatus,
-      coveredSurfaceCount: ownedSurfaceCoverage.satisfiedSurfaceCount,
-      totalSurfaceCount: ownedSurfaceCoverage.requiredSurfaceCount,
+      touchedSurfaceCount: touchedSurfaceIds.length,
+      totalSurfaceCount,
       evidenceLabel: 'Receipt projected only'
     };
   }
   if (llmSurfaceCoverage && typeof llmSurfaceCoverage === 'object') {
+    const touchedSurfaceCount = canonicalizeAdversaryCoverageSurfaceIds(
+      llmSurfaceCoverage.observedSurfaceIds
+    ).length;
     return {
       kind: 'llm_surface_observation',
       overallStatus: llmSurfaceCoverage.overallStatus,
-      coveredSurfaceCount:
-        llmSurfaceCoverage.responseSurfaceCount || llmSurfaceCoverage.observedSurfaceCount,
-      totalSurfaceCount: llmSurfaceCoverage.observedSurfaceCount,
+      touchedSurfaceCount,
+      totalSurfaceCount,
       evidenceLabel: 'Receipt projected only'
     };
   }

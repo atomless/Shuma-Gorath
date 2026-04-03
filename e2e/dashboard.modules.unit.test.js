@@ -4047,8 +4047,8 @@ test('monitoring view model formats transport realism summaries for recent adver
     ], []);
     assert.equal(summarizedRuns.runRows[0].coverageSummary?.kind, 'llm_surface_observation');
     assert.equal(summarizedRuns.runRows[0].coverageSummary?.overallStatus, 'partial_progress');
-    assert.equal(summarizedRuns.runRows[0].coverageSummary?.coveredSurfaceCount, 2);
-    assert.equal(summarizedRuns.runRows[0].coverageSummary?.totalSurfaceCount, 2);
+    assert.equal(summarizedRuns.runRows[0].coverageSummary?.touchedSurfaceCount, 2);
+    assert.equal(summarizedRuns.runRows[0].coverageSummary?.totalSurfaceCount, 12);
     assert.equal(summarizedRuns.runRows[0].coverageSummary?.evidenceLabel, 'Receipt projected only');
   });
 });
@@ -4129,8 +4129,8 @@ test('recent adversary run summaries prefer shared observed coverage over receip
 
     assert.equal(summarizedRuns.runRows[0].coverageSummary?.kind, 'shared_observed_surface');
     assert.equal(summarizedRuns.runRows[0].coverageSummary?.overallStatus, 'partial_progress');
-    assert.equal(summarizedRuns.runRows[0].coverageSummary?.coveredSurfaceCount, 3);
-    assert.equal(summarizedRuns.runRows[0].coverageSummary?.totalSurfaceCount, 3);
+    assert.equal(summarizedRuns.runRows[0].coverageSummary?.touchedSurfaceCount, 3);
+    assert.equal(summarizedRuns.runRows[0].coverageSummary?.totalSurfaceCount, 12);
     assert.equal(summarizedRuns.runRows[0].coverageSummary?.evidenceLabel, '');
   });
 });
@@ -4189,8 +4189,8 @@ test('recent adversary run summaries mark receipt-only agentic rows as unobserve
 
     assert.equal(summarizedRuns.runRows[0].coverageSummary?.kind, 'llm_surface_observation');
     assert.equal(summarizedRuns.runRows[0].coverageSummary?.overallStatus, 'response_observed');
-    assert.equal(summarizedRuns.runRows[0].coverageSummary?.coveredSurfaceCount, 1);
-    assert.equal(summarizedRuns.runRows[0].coverageSummary?.totalSurfaceCount, 1);
+    assert.equal(summarizedRuns.runRows[0].coverageSummary?.touchedSurfaceCount, 1);
+    assert.equal(summarizedRuns.runRows[0].coverageSummary?.totalSurfaceCount, 12);
     assert.equal(summarizedRuns.runRows[0].coverageSummary?.evidenceLabel, 'Receipt projected only');
     assert.equal(summarizedRuns.runRows[0].hasSharedObservedTelemetry, false);
   });

@@ -4,6 +4,20 @@ Moved from active TODO files on 2026-02-14.
 
 ## Additional completions (2026-04-03)
 
+### Recent Red Team Coverage Denominator Normalization
+
+- [x] Normalized the Recent Red Team `Coverage` ratio to one fixed Shuma-wide adversary-surface denominator so the `x / y surfaces` cell no longer changes meaning by lane or evidence class.
+- [x] What landed:
+  - [`../dashboard/src/lib/components/dashboard/monitoring-view-model.js`](../dashboard/src/lib/components/dashboard/monitoring-view-model.js) now projects shared observed coverage, Scrapling receipt fallbacks, and Agentic receipt fallbacks into the same canonical adversary-surface universe before formatting the table ratio, so `y` stays fixed across rows instead of drifting between observed-surface counts and lane-required counts.
+  - [`../dashboard/src/lib/components/dashboard/monitoring/AdversaryRunPanel.svelte`](../dashboard/src/lib/components/dashboard/monitoring/AdversaryRunPanel.svelte) now renders that ratio from touched-surface count over the fixed total rather than the old lane-dependent denominator.
+  - [`../e2e/dashboard.modules.unit.test.js`](../e2e/dashboard.modules.unit.test.js) and [`../e2e/dashboard.smoke.spec.js`](../e2e/dashboard.smoke.spec.js) now lock the fixed-denominator contract, including the receipt-projected Agentic rows that previously rendered misleading `1 / 1 surfaces` style totals.
+  - [`../docs/dashboard-tabs/red-team.md`](../docs/dashboard-tabs/red-team.md) now documents that the ratio is Shuma-wide and comparable across runs.
+- [x] Why:
+  - the old `Coverage` cell was mixing three different denominator meanings: shared observed rows used "surfaces this run happened to touch", Scrapling rows used "lane-required owned surfaces", and Agentic receipt rows used "receipt-observed loci". That made values like `1 / 1`, `10 / 10`, and `11 / 11` look comparable when they were not.
+- [x] Evidence:
+  - `make test-dashboard-red-team-pane`
+  - `make test-code-quality`
+
 ### Agentic Frontier Env Parity, Freshness-Snag Recovery, And Tranche-Proof Hardening
 
 - [x] Landed `SIM-TEL-UNI-1D` by restoring host-side Agentic frontier env parity, fixing the hidden runtime-freshness snag that was poisoning tranche proof, and tightening the repo process so a slice is not called landed before the operator-facing acceptance path is actually observed.
