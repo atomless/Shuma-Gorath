@@ -149,6 +149,7 @@ class _ScraplingRealismTracker:
         self.identity_handles: list[str] = []
         self.session_handles: list[str] = []
         self.observed_country_codes: list[str] = []
+        self.trusted_ingress_backed = False
         self.transport_profile = ""
         self.transport_realism_class = ""
         self.transport_emission_basis = ""
@@ -182,7 +183,20 @@ class _ScraplingRealismTracker:
             pool_entries=relevant_pool,
             fixed_proxy_url=fixed_proxy_url,
             observed_country_codes=self.observed_country_codes,
+            trusted_ingress_backed=self.trusted_ingress_backed,
         )
+
+    def observe_trusted_ingress_headers(self, headers: dict[str, str] | None) -> None:
+        normalized_headers = {
+            str(key).strip().lower(): str(value).strip()
+            for key, value in dict(headers or {}).items()
+            if str(key).strip()
+        }
+        if (
+            normalized_headers.get("x-shuma-forwarded-secret")
+            and normalized_headers.get("x-forwarded-for")
+        ):
+            self.trusted_ingress_backed = True
 
     def activity_limit_reached(self) -> bool:
         return self.activity_count >= self.effective_activity_budget
@@ -560,6 +574,9 @@ class _PacedRequestNativeSession:
         self.tracker.local_trusted_forwarding_headers = (
             self._initial_local_trusted_forwarding_headers()
         )
+        self.tracker.realism_tracker.observe_trusted_ingress_headers(
+            self.tracker.local_trusted_forwarding_headers
+        )
 
     def __enter__(self) -> "_PacedRequestNativeSession":
         return self
@@ -626,6 +643,9 @@ class _PacedRequestNativeSession:
             current_proxy_url,
             forwarded_country_code,
             self._explicit_client_ip,
+        )
+        self.tracker.realism_tracker.observe_trusted_ingress_headers(
+            self.tracker.local_trusted_forwarding_headers
         )
         self.tracker.realism_tracker.observe_transport(
             transport_profile=str(request_transport.get("transport_profile") or ""),
@@ -1974,6 +1994,9 @@ def _build_spider_class(fetcher_session_cls: Any, request_cls: Any, spider_base:
                 request_proxy_url,
                 self.local_country_code or None,
                 str(self.plan.get("local_request_client_ip") or "").strip() or None,
+            )
+            self.realism_tracker.observe_trusted_ingress_headers(
+                self.local_trusted_forwarding_headers
             )
             super().__init__(crawldir=str(crawldir), interval=0.0)
             self.download_delay = self.realism_tracker.crawler_download_delay_seconds()
@@ -4032,6 +4055,9 @@ def _execute_browser_persona(
         browser_locale=str(browser_transport.get("browser_locale") or ""),
     )
     tracker.local_trusted_forwarding_headers = dict(local_browser_forwarding_headers)
+    tracker.realism_tracker.observe_trusted_ingress_headers(
+        tracker.local_trusted_forwarding_headers
+    )
     start_urls = _normalized_start_urls(seed_inventory)
     if not start_urls:
         raise WorkerConfigError("seed inventory must contain at least one accepted start or hint URL")

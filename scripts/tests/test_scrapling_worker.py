@@ -1815,6 +1815,54 @@ class ScraplingWorkerUnitTests(unittest.TestCase):
         )
         self.assertEqual(receipt["observed_country_codes"], [])
 
+    def test_realism_tracker_marks_trusted_ingress_identity_when_forwarded_headers_are_present(self) -> None:
+        if scrapling_worker is None:
+            self.fail("scrapling_worker module is required")
+
+        plan = {
+            "schema_version": "adversary-sim-scrapling-worker-plan.v1",
+            "run_id": "simrun-identity-envelope",
+            "tick_id": "scrapling-tick-identity-envelope",
+            "lane": "scrapling_traffic",
+            "sim_profile": "scrapling_runtime_lane",
+            "fulfillment_mode": "http_agent",
+            "category_targets": ["http_agent"],
+            "surface_targets": ["challenge_routing"],
+            "tick_started_at": 1_700_000_000,
+            "realism_profile": resolve_lane_realism_profile("scrapling_traffic", "http_agent"),
+            "request_identity_pool": [],
+            "browser_identity_pool": [],
+            "local_request_client_ip": "198.51.100.24",
+            "max_requests": 24,
+            "max_depth": 1,
+            "max_bytes": 262_144,
+            "max_ms": 30_000,
+        }
+
+        tracker = scrapling_worker._ScraplingRealismTracker(  # noqa: SLF001
+            plan=plan,
+            browser_session=False,
+            proxy_configured=False,
+        )
+        tracker.observe_trusted_ingress_headers(
+            {
+                "X-Forwarded-For": "198.51.100.24",
+                "X-Shuma-Forwarded-Secret": "forwarded-secret",
+            }
+        )
+        tracker.mark_request_attempt("request-session-1", country_code="DE")
+
+        receipt = tracker.render_receipt(
+            bytes_observed=512,
+            deadline_reached=False,
+            activity_sequence_exhausted=True,
+            transport_failure=False,
+        )
+
+        self.assertEqual(receipt["identity_realism_status"], "fixed_proxy")
+        self.assertEqual(receipt["identity_provenance_mode"], "trusted_ingress_backed")
+        self.assertEqual(receipt["observed_country_codes"], ["DE"])
+
     def _make_beat_payload(
         self,
         fulfillment_mode: str,
@@ -3718,6 +3766,62 @@ class ScraplingWorkerUnitTests(unittest.TestCase):
         self.assertEqual(
             first_request["headers"].get("x-shuma-forwarded-secret"),
             "forwarded-secret",
+        )
+        self.assertEqual(
+            result["realism_receipt"]["identity_provenance_mode"],
+            "trusted_ingress_backed",
+            msg=json.dumps(result, indent=2),
+        )
+        self.assertEqual(
+            result["realism_receipt"]["identity_realism_status"],
+            "fixed_proxy",
+            msg=json.dumps(result, indent=2),
+        )
+
+    def test_http_agent_uses_local_trusted_forwarding_headers_in_contributor_mode(self) -> None:
+        self.assertIsNotNone(scrapling_worker, "worker module missing")
+        self.httpd.requests_seen.clear()
+        beat_payload = self._make_beat_payload(
+            "http_agent",
+            ["http_agent"],
+            max_requests=6,
+        )
+        beat_payload["worker_plan"]["local_request_client_ip"] = "198.51.24.9"
+
+        with mock.patch.dict(
+            os.environ,
+            {
+                "SHUMA_LOCAL_CONTRIBUTOR_INGRESS_ENABLE": "1",
+                "SHUMA_LOCAL_CONTRIBUTOR_ALLOW_TRUSTED_FORWARDING": "1",
+                "SHUMA_FORWARDED_IP_SECRET": "forwarded-secret",
+            },
+            clear=False,
+        ):
+            result = scrapling_worker.execute_worker_plan(
+                beat_payload,
+                scope_descriptor_path=self.descriptor_path,
+                seed_inventory_path=self.inventory_path,
+                crawldir=self.crawldir,
+                sim_telemetry_secret=SIM_SECRET,
+            )
+
+        self.assertEqual(result["failure_class"], None, msg=json.dumps(result, indent=2))
+        self.assertTrue(self.httpd.requests_seen, msg=json.dumps(result, indent=2))
+        first_request = self.httpd.requests_seen[0]
+        self.assertEqual(first_request["headers"].get("x-forwarded-for"), "198.51.24.9")
+        self.assertEqual(
+            first_request["headers"].get("x-shuma-forwarded-secret"),
+            "forwarded-secret",
+        )
+        self.assertEqual(
+            result["realism_receipt"]["identity_provenance_mode"],
+            "trusted_ingress_backed",
+            msg=json.dumps(result, indent=2),
+        )
+        self.assertEqual(
+            result["realism_receipt"]["identity_realism_status"],
+            "fixed_proxy",
+            msg=json.dumps(result, indent=2),
         )
 
     def test_cli_writes_result_file_for_scrapling_worker_plan(self) -> None:

@@ -4,6 +4,23 @@ Moved from active TODO files on 2026-02-14.
 
 ## Additional completions (2026-04-03)
 
+### Scrapling Trusted-Ingress Provenance Parity
+
+- [x] Restored truthful trusted-ingress identity provenance for Scrapling local-contributor flows without granting Scrapling any new ability to impersonate trusted ingress directly.
+- [x] What landed:
+  - [`../scripts/tests/adversarial_runner/identity_envelope.py`](../scripts/tests/adversarial_runner/identity_envelope.py) now treats an actually trusted-ingress-backed caller as `trusted_ingress_backed` when the stronger pool-backed or fixed-proxy signals are absent, instead of collapsing that traffic to `degraded_local`.
+  - [`../scripts/supervisor/scrapling_worker.py`](../scripts/supervisor/scrapling_worker.py) now records when its existing signed local contributor forwarding headers are present on request-native, crawler, and browser paths, and feeds that truth into the shared identity-envelope summary rather than inventing a second ingress path.
+  - [`../scripts/tests/test_scrapling_worker.py`](../scripts/tests/test_scrapling_worker.py) now proves the shared realism tracker, request-native `http_agent`, and browser automation paths all report `trusted_ingress_backed` identity when they genuinely traversed the trusted contributor ingress boundary.
+  - [`../docs/dashboard-tabs/red-team.md`](../docs/dashboard-tabs/red-team.md) now documents that the `Identity` column can truthfully show trusted-ingress-backed Scrapling traffic when that run actually arrived through the signed trusted-ingress path.
+- [x] Why:
+  - Agentic traffic was already surfacing trusted-ingress-backed identity when configured, but Scrapling local-contributor flows were understating the same signed ingress path as `degraded_local`.
+  - The right fix was observer-truth parity, not a new privileged traffic path: Scrapling already had the trusted contributor-ingress headers, and the realism receipt needed to report that fact honestly without weakening the trust boundary.
+- [x] Evidence:
+  - `make test-adversary-sim-scrapling-worker`
+  - `make test-adversary-sim-scrapling-realism`
+  - `make test-adversarial-identity-envelope-contract`
+  - `make test-code-quality`
+
 ### Recent Red Team Coverage Copy Simplification
 
 - [x] Removed the varying coverage-status prose prefix from the Recent Red Team `Coverage` cell so the column focuses on the comparable surface ratio instead of low-value wording such as `Partial Progress` or `Response Observed`.

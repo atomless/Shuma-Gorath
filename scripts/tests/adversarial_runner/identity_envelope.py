@@ -61,6 +61,7 @@ def summarize_identity_realism(
     pool_entries: list[dict[str, str]] | None = None,
     fixed_proxy_url: str | None = None,
     observed_country_codes: list[str] | None = None,
+    trusted_ingress_backed: bool = False,
 ) -> dict[str, Any]:
     envelope = dict(profile.get("identity_envelope") or {})
     identity_classes = [
@@ -79,6 +80,9 @@ def summarize_identity_realism(
     elif normalized_pool_entries or str(fixed_proxy_url or "").strip():
         status = "fixed_proxy"
         provenance_mode = _fixed_proxy_provenance_mode(fixed_proxy_url)
+    elif trusted_ingress_backed:
+        status = "fixed_proxy"
+        provenance_mode = "trusted_ingress_backed"
     else:
         status = "degraded_local"
         provenance_mode = "degraded_local"
