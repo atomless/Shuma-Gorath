@@ -20,10 +20,15 @@ Panel:
   - recent adversary simulation rows derived from a compact monitoring-backed run-history summary,
   - the lane column uses the same operator-facing lane names as the control surface, so `bot_red_team` rows read as `Agentic Traffic`,
   - observed fulfillment modes plus preserved category targets for each bounded run row,
+  - `Execution` stays lane-truthful instead of forcing one generic runtime story:
+    - Agentic rows render provider or model lineage plus action execution outcome,
+    - Scrapling rows render whole-run activity totals,
+    - and Synthetic rows render whole-run deterministic request counts such as `16 requests executed` when the shared observed-request path materialized those requests,
   - monitoring-event, defence-reaction, and ban counts for quick run comparison, with `Monitoring Deltas` rendered explicitly as `X events across Y defenses`,
   - `Identity` and `Transport` stay realism sidecars rather than generic traffic telemetry:
     - they summarize the run's observed realism posture rather than pretending to be a second monitoring-events feed,
     - and a Scrapling row can now truthfully show trusted-ingress-backed identity when that run actually arrived through the signed trusted contributor-ingress boundary instead of collapsing that path to `Degraded local identity`,
+    - Synthetic rows now surface trusted-forwarded ingress truth when the deterministic runtime actually used the signed forwarded-secret path, but their `Transport` column remains explicitly `Internal Deterministic Runtime` rather than overstating deterministic in-process traffic as worker or proxy realism,
   - `Coverage` now prefers shared observed-traffic evidence for both lanes:
     - when shared observed request-outcome or monitoring evidence exists, the cell reflects those reached surfaces rather than worker receipts,
     - if the dashboard must temporarily fall back to receipt-backed coverage because shared observed evidence has not yet materialized for that row, the cell explicitly labels that state as `Receipt projected`,

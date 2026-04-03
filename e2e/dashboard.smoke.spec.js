@@ -5398,6 +5398,27 @@ test("red team recent runs label identity and transport realism truthfully", asy
               transport_degraded_reason: "",
               observed_country_codes: []
             }
+          },
+          {
+            run_id: "simrun-identity-synthetic",
+            lane: "deterministic_black_box",
+            profile: "runtime_toggle",
+            observed_fulfillment_modes: ["crawl_probe", "rate_burst"],
+            observed_category_ids: ["http_agent", "indexing_bot"],
+            synthetic_request_count: 16,
+            first_ts: now - 60,
+            last_ts: now - 30,
+            monitoring_event_count: 2,
+            defense_delta_count: 1,
+            ban_outcome_count: 0,
+            identity_summary: {
+              modes: ["trusted_ingress_backed"],
+              observed_country_codes: ["RU"]
+            },
+            transport_summary: {
+              modes: ["internal_deterministic_runtime"],
+              degraded_reasons: []
+            }
           }
         ],
         event_counts: {},
@@ -5462,6 +5483,14 @@ test("red team recent runs label identity and transport realism truthfully", asy
   await expect(rows.nth(2)).toContainText("22 activities executed");
   await expect(rows.nth(2)).toContainText("Degraded local identity");
   await expect(rows.nth(2)).toContainText("Impersonated Request Stack");
+  await expect(rows.nth(3)).toContainText("Crawl Probe");
+  await expect(rows.nth(3)).toContainText("Rate Burst");
+  await expect(rows.nth(3)).toContainText("Indexing Bot");
+  await expect(rows.nth(3)).toContainText("HTTP Agent");
+  await expect(rows.nth(3)).toContainText("16 requests executed");
+  await expect(rows.nth(3)).toContainText("Trusted ingress IP observed");
+  await expect(rows.nth(3)).toContainText("RU");
+  await expect(rows.nth(3)).toContainText("Internal Deterministic Runtime");
 });
 
 test("manual refresh button appends new monitoring delta events when auto-refresh is off", async ({ page }) => {

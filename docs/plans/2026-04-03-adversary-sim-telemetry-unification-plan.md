@@ -216,13 +216,24 @@ Acceptance criteria:
 
 1. recent-run and operator-snapshot contracts clearly distinguish shared observed evidence from simulator sidecars,
 2. simulator sidecars remain available for representativeness and classifier-calibration work,
-3. and the repo no longer depends on lane-specific receipt coverage summaries to claim observed penetration truth.
+3. fresh `synthetic_traffic` recent-run rows surface truthful executed deterministic-request modes plus synthetic identity and transport sidecars instead of collapsing those columns to generic `Not materialized`,
+4. synthetic identity sidecars only claim trusted-ingress-backed provenance when that exact signed trusted-forwarded path was used at execution time,
+5. synthetic transport sidecars stay explicitly non-worker and non-proxy so the operator table does not overstate deterministic in-process transport realism,
+6. and the repo no longer depends on lane-specific receipt coverage summaries to claim observed penetration truth.
+
+Progress update (later on 2026-04-03):
+
+1. acceptance criteria 3 through 5 are now directly observed on Recent Red Team rows,
+2. per-request Synthetic sidecars are emitted on the shared observed-request path and aggregated into recent-run summaries for deterministic modes, category targets, request counts, trusted-forwarded identity provenance, and explicitly in-process deterministic transport,
+3. the rendered Red Team pane now shows those facts as `Execution`, `Identity`, and `Transport` instead of collapsing Synthetic rows to `Not materialized`,
+4. but acceptance criteria 1, 2, and 6 remain open for broader operator-snapshot and downstream consumer separation work.
 
 Proof surface:
 
 1. operator snapshot payloads,
 2. dashboard docs/contracts,
-3. and focused backend/dashboard tests around sidecar separation.
+3. focused backend/dashboard tests around sidecar separation,
+4. and a rendered Red Team proof that a fresh Synthetic row shows truthful sidecar detail rather than generic absence.
 
 Verification path:
 

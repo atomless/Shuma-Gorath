@@ -136,6 +136,10 @@
       else if (fallbackReason) parts.push(fallbackReason);
       return joinSummaryParts(parts);
     }
+    const syntheticRequestCount = Number(row?.syntheticRequestCount || 0);
+    if (syntheticRequestCount > 0) {
+      return `${formatCompactNumber(syntheticRequestCount, '0')} requests executed`;
+    }
     const receipt = row?.latestScraplingRealismReceipt && typeof row.latestScraplingRealismReceipt === 'object'
       ? row.latestScraplingRealismReceipt
       : null;

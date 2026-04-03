@@ -113,6 +113,9 @@ pub(super) struct EventLogRecord {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub observed_request_outcome:
         Option<crate::runtime::request_outcome::ObservedRequestOutcomeSummary>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub synthetic_runtime_observation:
+        Option<crate::admin::adversary_sim_corpus::SyntheticRuntimeObservation>,
     #[serde(flatten)]
     pub execution: EventExecutionMetadata,
 }
@@ -132,6 +135,7 @@ impl EventLogRecord {
             scrapling_category_targets: Vec::new(),
             llm_runtime_summary: None,
             observed_request_outcome: None,
+            synthetic_runtime_observation: None,
             execution: EventExecutionMetadata::default(),
         }
     }
@@ -1042,6 +1046,8 @@ pub(crate) fn log_sim_observed_request_outcome_event<S: crate::challenge::KeyVal
             scrapling_category_targets: Vec::new(),
             llm_runtime_summary: None,
             observed_request_outcome: Some(observed_request_outcome),
+            synthetic_runtime_observation:
+                crate::runtime::sim_telemetry::current_synthetic_runtime_observation(),
             execution: EventExecutionMetadata::default(),
         },
     );
@@ -1771,6 +1777,7 @@ mod tests {
                 scrapling_category_targets: Vec::new(),
                 llm_runtime_summary: None,
                 observed_request_outcome: None,
+                synthetic_runtime_observation: None,
                 execution: EventExecutionMetadata::default(),
                 scrapling_surface_receipts: vec![
                     crate::observability::scrapling_owned_surface::ScraplingSurfaceObservationReceipt {
@@ -2221,6 +2228,7 @@ mod tests {
                     },
                 ),
                 observed_request_outcome: None,
+                synthetic_runtime_observation: None,
                 execution: EventExecutionMetadata::default(),
             },
         );
@@ -2426,6 +2434,7 @@ mod tests {
                         },
                     ),
                     observed_request_outcome: None,
+                    synthetic_runtime_observation: None,
                     execution: EventExecutionMetadata::default(),
                 },
             );
@@ -2599,6 +2608,7 @@ mod tests {
                         },
                     ),
                     observed_request_outcome: None,
+                    synthetic_runtime_observation: None,
                     execution: EventExecutionMetadata::default(),
                 },
             );
@@ -2692,6 +2702,102 @@ mod tests {
         assert_eq!(
             coverage.progress_surface_ids,
             vec!["public_path_traversal".to_string()]
+        );
+    }
+
+    #[test]
+    fn recent_sim_run_history_projects_synthetic_runtime_sidecars_from_recorded_observations() {
+        let store = MockStore::new();
+        let now = now_ts();
+        let run_started_at = now.saturating_sub(90);
+
+        let persist_raw_observed_record =
+            |ts: u64, suffix: &str, mode_id: &str, category_targets: &[&str]| {
+                let hour = ts / 3600;
+                let key = format!("eventlog:v2:{}:{}-{}", hour, ts, suffix);
+                let payload = serde_json::json!({
+                    "ts": ts,
+                    "event": "AdminAction",
+                    "reason": "observed_request_outcome",
+                    "outcome": "forward_allow",
+                    "admin": "internal",
+                    "outcome_code": "forwarded",
+                    "sim_run_id": "simrun-synthetic-sidecar-proof",
+                    "sim_profile": "runtime_toggle",
+                    "sim_lane": "deterministic_black_box",
+                    "is_simulation": true,
+                    "observed_request_outcome": {
+                        "traffic_origin": "adversary_sim",
+                        "measurement_scope": "ingress_primary",
+                        "route_action_family": "public_content",
+                        "execution_mode": "enforced",
+                        "outcome_class": "forwarded",
+                        "response_kind": "forward_allow",
+                        "policy_source": "clean_allow",
+                        "http_status": 200
+                    },
+                    "synthetic_runtime_observation": {
+                        "mode_id": mode_id,
+                        "category_targets": category_targets,
+                        "identity_provenance_mode": "trusted_ingress_backed",
+                        "observed_country_codes": ["RU"],
+                        "transport_realism_class": "internal_deterministic_runtime"
+                    }
+                });
+                let encoded = serde_json::to_vec(&payload).expect("encoded payload");
+                store.set(key.as_str(), encoded.as_slice()).expect("store event");
+                crate::observability::retention::register_event_log_key(&store, hour, key.as_str());
+            };
+
+        persist_raw_observed_record(
+            run_started_at,
+            "crawl-probe",
+            "crawl_probe",
+            &["indexing_bot"],
+        );
+        persist_raw_observed_record(
+            run_started_at.saturating_add(1),
+            "rate-burst",
+            "rate_burst",
+            &["http_agent"],
+        );
+
+        let recent_runs = monitoring_recent_sim_run_summaries(&store, now, 24, 10);
+        let row = recent_runs
+            .iter()
+            .find(|value| value.run_id == "simrun-synthetic-sidecar-proof")
+            .expect("synthetic sidecar row");
+        assert_eq!(row.lane, "deterministic_black_box");
+        assert_eq!(row.profile, "runtime_toggle");
+        assert_eq!(
+            row.observed_fulfillment_modes,
+            vec!["crawl_probe".to_string(), "rate_burst".to_string()]
+        );
+        assert_eq!(
+            row.observed_category_ids,
+            vec!["http_agent".to_string(), "indexing_bot".to_string()]
+        );
+        assert_eq!(row.synthetic_request_count, Some(2));
+        assert_eq!(
+            row.identity_summary
+                .as_ref()
+                .expect("identity summary")
+                .modes,
+            vec!["trusted_ingress_backed".to_string()]
+        );
+        assert_eq!(
+            row.identity_summary
+                .as_ref()
+                .expect("identity summary")
+                .observed_country_codes,
+            vec!["RU".to_string()]
+        );
+        assert_eq!(
+            row.transport_summary
+                .as_ref()
+                .expect("transport summary")
+                .modes,
+            vec!["internal_deterministic_runtime".to_string()]
         );
     }
 
@@ -2813,6 +2919,7 @@ mod tests {
                     },
                 ),
                 observed_request_outcome: None,
+                synthetic_runtime_observation: None,
                 execution: EventExecutionMetadata::default(),
             },
         );
@@ -2872,6 +2979,7 @@ mod tests {
                         scrapling_category_targets: vec!["ai_scraper_bot".to_string()],
                         llm_runtime_summary: None,
                         observed_request_outcome: None,
+                        synthetic_runtime_observation: None,
                         execution: EventExecutionMetadata {
                             scrapling_realism_receipt: Some(
                                 crate::admin::adversary_sim::ScraplingRealismReceipt {
@@ -3225,6 +3333,7 @@ mod tests {
             scrapling_category_targets: Vec::new(),
             llm_runtime_summary: None,
             observed_request_outcome: None,
+            synthetic_runtime_observation: None,
             execution: EventExecutionMetadata::default(),
         };
 
@@ -16731,6 +16840,7 @@ struct MonitoringRecentSimRunAccumulator {
     first_ts: u64,
     last_ts: u64,
     monitoring_event_count: u64,
+    synthetic_request_count: u64,
     scrapling_activity_count: u64,
     defense_keys: HashSet<String>,
     ban_outcome_count: u64,
@@ -16994,6 +17104,7 @@ fn monitoring_recent_sim_run_summaries_filtered<S: crate::challenge::KeyValueSto
         } else {
             Vec::new()
         };
+        let is_synthetic_lane = lane == "deterministic_black_box";
         let defense = classify_monitoring_sim_run_defense(&stored.record);
         let accumulator =
             grouped
@@ -17007,6 +17118,7 @@ fn monitoring_recent_sim_run_summaries_filtered<S: crate::challenge::KeyValueSto
                     first_ts: ts,
                     last_ts: ts,
                     monitoring_event_count: 0,
+                    synthetic_request_count: 0,
                     scrapling_activity_count: 0,
                     defense_keys: HashSet::new(),
                     ban_outcome_count: 0,
@@ -17030,7 +17142,7 @@ fn monitoring_recent_sim_run_summaries_filtered<S: crate::challenge::KeyValueSto
             accumulator.last_ts = accumulator.last_ts.max(ts);
         }
         if accumulator.lane == "none" && lane != "none" {
-            accumulator.lane = lane;
+            accumulator.lane = lane.clone();
         }
         if accumulator.profile == "unknown" && normalized_profile != "unknown" {
             accumulator.profile = normalized_profile;
@@ -17044,6 +17156,10 @@ fn monitoring_recent_sim_run_summaries_filtered<S: crate::challenge::KeyValueSto
             &mut accumulator.observed_category_ids,
             explicit_scrapling_category_targets,
         );
+        if is_synthetic_lane && observed_request_outcome_event {
+            accumulator.synthetic_request_count =
+                accumulator.synthetic_request_count.saturating_add(1);
+        }
         if external_monitoring_event || observed_request_outcome_event {
             accumulator.monitoring_event_count =
                 accumulator.monitoring_event_count.saturating_add(1);
@@ -17057,6 +17173,28 @@ fn monitoring_recent_sim_run_summaries_filtered<S: crate::challenge::KeyValueSto
                 crate::observability::observed_surface_coverage::summarize_observed_request_outcome_surface_observations(
                     observed,
                 ),
+            );
+        }
+        if let Some(observation) = stored.record.synthetic_runtime_observation.as_ref() {
+            merge_unique_tokens(
+                &mut accumulator.observed_fulfillment_modes,
+                [observation.mode_id.clone()],
+            );
+            merge_unique_tokens(
+                &mut accumulator.observed_category_ids,
+                observation.category_targets.clone(),
+            );
+            merge_run_identity_and_transport_summary(
+                &mut accumulator.identity_modes,
+                &mut accumulator.observed_country_codes,
+                &mut accumulator.transport_modes,
+                &mut accumulator.transport_degraded_reasons,
+                observation.identity_provenance_mode.as_str(),
+                "",
+                observation.observed_country_codes.iter(),
+                observation.transport_realism_class.as_str(),
+                "",
+                observation.transport_degraded_reason.as_str(),
             );
         }
         if external_monitoring_event {
@@ -17156,6 +17294,8 @@ fn monitoring_recent_sim_run_summaries_filtered<S: crate::challenge::KeyValueSto
                     first_ts: row.first_ts,
                     last_ts: row.last_ts,
                     monitoring_event_count: row.monitoring_event_count,
+                    synthetic_request_count: (row.synthetic_request_count > 0)
+                        .then_some(row.synthetic_request_count),
                     scrapling_activity_count: (row.scrapling_activity_count > 0)
                         .then_some(row.scrapling_activity_count),
                     defense_delta_count: row.defense_keys.len() as u64,

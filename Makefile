@@ -1912,6 +1912,12 @@ test-adversary-sim-recent-run-realism-summaries: ## Focused recent-run realism s
 	@cargo test admin::api::tests::recent_sim_run_history_projects_latest_scrapling_realism_receipt -- --exact --nocapture
 	@cargo test admin::api::tests::recent_sim_run_history_aggregates_llm_identity_and_transport_summaries_across_receipts -- --exact --nocapture
 
+test-adversary-sim-sidecar-separation-contract: ## Focused simulator-sidecar separation gate (Synthetic sidecars must render truthful executed modes without faking worker realism)
+	@echo "$(CYAN)🧪 Running adversary-sim sidecar separation contract...$(NC)"
+	@./scripts/set_crate_type.sh rlib
+	@cargo test admin::api::tests::recent_sim_run_history_projects_synthetic_runtime_sidecars_from_recorded_observations -- --exact --nocapture
+	@$(MAKE) --no-print-directory test-dashboard-red-team-pane
+
 test-adversary-sim-pressure-envelope-realism: ## Focused adversary-sim pressure-envelope gate (mode-specific worker ceilings plus concurrent request-mode bursts)
 	@echo "$(CYAN)🧪 Running adversary-sim pressure-envelope realism gate...$(NC)"
 	@./scripts/set_crate_type.sh rlib

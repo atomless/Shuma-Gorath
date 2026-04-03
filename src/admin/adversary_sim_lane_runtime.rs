@@ -19,6 +19,8 @@ use super::adversary_sim::{
     GenerationTickResult, LlmRuntimeResult, RuntimeLane, ScraplingWorkerPlan, ScraplingWorkerResult,
     WorkerFailureClass, SCRAPLING_SIM_PROFILE, SCRAPLING_WORKER_PLAN_SCHEMA_VERSION,
 };
+#[cfg(not(test))]
+use super::adversary_sim_corpus::build_synthetic_runtime_observation;
 use super::adversary_sim_corpus::deterministic_runtime_profile;
 use super::adversary_sim_identity_pool::load_identity_pool_from_env;
 use super::adversary_sim_realism_profile::scrapling_realism_profile_for_mode;
@@ -1707,12 +1709,19 @@ pub(crate) fn run_internal_generation_tick(
         let deployment_profile = crate::config::gateway_deployment_profile();
         let forwarded_secret =
             crate::config::runtime_var_trimmed_optional("SHUMA_FORWARDED_IP_SECRET");
+        let trusted_ingress_backed = forwarded_secret.as_deref().is_some();
         let selected_supplemental_lanes =
             supplemental_lanes_for_profile(deployment_profile, state.generated_tick_count);
         let includes_lane = |lane: SupplementalLane| selected_supplemental_lanes.contains(&lane);
 
-        let mut dispatch_request = |request: Request| {
+        let mut dispatch_request =
+            |request: Request,
+             observation: crate::admin::adversary_sim_corpus::SyntheticRuntimeObservation| {
             let _guard = crate::runtime::sim_telemetry::enter(Some(metadata.clone()));
+            let _synthetic_observation_guard =
+                crate::runtime::sim_telemetry::enter_synthetic_runtime_observation(Some(
+                    observation,
+                ));
             let response = crate::handle_bot_defence_impl(&request);
             let status = *response.status();
             result.generated_requests = result.generated_requests.saturating_add(1);
@@ -1762,7 +1771,20 @@ pub(crate) fn run_internal_generation_tick(
                         format!("sim-ja3-{}-{}", state.generated_tick_count, index).as_str(),
                     );
             }
-            dispatch_request(builder.body(Vec::new()).build());
+            let observed_country_codes: &[&str] =
+                if crate::http_route_namespace::is_generated_public_site_path(path) {
+                    &["RU"]
+                } else {
+                    &[]
+                };
+            dispatch_request(
+                builder.body(Vec::new()).build(),
+                build_synthetic_runtime_observation(
+                    "public_probe",
+                    trusted_ingress_backed,
+                    observed_country_codes,
+                ),
+            );
         }
 
         let challenge_abuse_ip = lane_actor_ip(
@@ -1828,7 +1850,14 @@ pub(crate) fn run_internal_generation_tick(
             if let Some(secret) = forwarded_secret.as_deref() {
                 challenge_submit.header("x-shuma-forwarded-secret", secret);
             }
-            dispatch_request(challenge_submit.body(challenge_abuse_body).build());
+            dispatch_request(
+                challenge_submit.body(challenge_abuse_body).build(),
+                build_synthetic_runtime_observation(
+                    "challenge_submit",
+                    trusted_ingress_backed,
+                    &[],
+                ),
+            );
         }
 
         if includes_lane(SupplementalLane::NotABotFail) {
@@ -1853,7 +1882,14 @@ pub(crate) fn run_internal_generation_tick(
                 if let Some(secret) = forwarded_secret.as_deref() {
                     not_a_bot_fail_submit.header("x-shuma-forwarded-secret", secret);
                 }
-                dispatch_request(not_a_bot_fail_submit.body(fail_body).build());
+                dispatch_request(
+                    not_a_bot_fail_submit.body(fail_body).build(),
+                    build_synthetic_runtime_observation(
+                        "not_a_bot_fail",
+                        trusted_ingress_backed,
+                        &[],
+                    ),
+                );
             }
         }
 
@@ -1881,7 +1917,14 @@ pub(crate) fn run_internal_generation_tick(
                 if let Some(secret) = forwarded_secret.as_deref() {
                     not_a_bot_escalate_submit.header("x-shuma-forwarded-secret", secret);
                 }
-                dispatch_request(not_a_bot_escalate_submit.body(escalate_body).build());
+                dispatch_request(
+                    not_a_bot_escalate_submit.body(escalate_body).build(),
+                    build_synthetic_runtime_observation(
+                        "not_a_bot_escalate",
+                        trusted_ingress_backed,
+                        &[],
+                    ),
+                );
             }
         }
 
@@ -1898,7 +1941,10 @@ pub(crate) fn run_internal_generation_tick(
             if let Some(secret) = forwarded_secret.as_deref() {
                 pow_verify.header("x-shuma-forwarded-secret", secret);
             }
-            dispatch_request(pow_verify.body(pow_verify_body).build());
+            dispatch_request(
+                pow_verify.body(pow_verify_body).build(),
+                build_synthetic_runtime_observation("pow_verify", trusted_ingress_backed, &[]),
+            );
         }
 
         if includes_lane(SupplementalLane::TarpitProgress) {
@@ -1915,7 +1961,14 @@ pub(crate) fn run_internal_generation_tick(
             if let Some(secret) = forwarded_secret.as_deref() {
                 tarpit_progress.header("x-shuma-forwarded-secret", secret);
             }
-            dispatch_request(tarpit_progress.body(tarpit_progress_body).build());
+            dispatch_request(
+                tarpit_progress.body(tarpit_progress_body).build(),
+                build_synthetic_runtime_observation(
+                    "tarpit_progress",
+                    trusted_ingress_backed,
+                    &[],
+                ),
+            );
         }
 
         if includes_lane(SupplementalLane::FingerprintProbe) {
@@ -1940,7 +1993,14 @@ pub(crate) fn run_internal_generation_tick(
             if let Some(secret) = forwarded_secret.as_deref() {
                 fingerprint_probe.header("x-shuma-forwarded-secret", secret);
             }
-            dispatch_request(fingerprint_probe.body(Vec::new()).build());
+            dispatch_request(
+                fingerprint_probe.body(Vec::new()).build(),
+                build_synthetic_runtime_observation(
+                    "fingerprint_probe",
+                    trusted_ingress_backed,
+                    &[],
+                ),
+            );
         }
 
         if includes_lane(SupplementalLane::CdpReport) {
@@ -1963,7 +2023,10 @@ pub(crate) fn run_internal_generation_tick(
             if let Some(secret) = forwarded_secret.as_deref() {
                 cdp_builder.header("x-shuma-forwarded-secret", secret);
             }
-            dispatch_request(cdp_builder.body(cdp_probe_body).build());
+            dispatch_request(
+                cdp_builder.body(cdp_probe_body).build(),
+                build_synthetic_runtime_observation("cdp_report", trusted_ingress_backed, &[]),
+            );
         }
 
         let rate_burst_requests = rate_burst_requests_for_tick(state.generated_tick_count);
@@ -1997,7 +2060,10 @@ pub(crate) fn run_internal_generation_tick(
                     .header("sec-ch-ua-mobile", "?0")
                     .header("x-shuma-edge-browser-family", "chrome");
             }
-            dispatch_request(burst_builder.body(Vec::new()).build());
+            dispatch_request(
+                burst_builder.body(Vec::new()).build(),
+                build_synthetic_runtime_observation("rate_burst", trusted_ingress_backed, &[]),
+            );
         }
         crate::observability::monitoring::flush_pending_counters(store);
     }

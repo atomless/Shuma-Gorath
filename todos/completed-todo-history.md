@@ -4,6 +4,22 @@ Moved from active TODO files on 2026-02-14.
 
 ## Additional completions (2026-04-03)
 
+### Synthetic Recent-Run Sidecar Truth In Red Team
+
+- [x] Delivered the Synthetic-truth sub-slice of `SIM-TEL-UNI-1C` so deterministic recent-run rows no longer collapse `Execution`, `Identity`, and `Transport` to generic `Not materialized`.
+- [x] What landed:
+  - [`../src/runtime/sim_telemetry.rs`](../src/runtime/sim_telemetry.rs) now carries a scoped `synthetic_runtime_observation` context alongside the existing sim metadata context, so deterministic requests can attach simulator-internal sidecars without inventing a second traffic-evidence path.
+  - [`../src/admin/adversary_sim_lane_runtime.rs`](../src/admin/adversary_sim_lane_runtime.rs) and [`../src/admin/adversary_sim_corpus.rs`](../src/admin/adversary_sim_corpus.rs) now emit per-request Synthetic sidecars on the shared observed-request path, preserving executed deterministic modes, category targets, trusted-forwarded identity provenance, and explicit `internal_deterministic_runtime` transport truth.
+  - [`../src/admin/api.rs`](../src/admin/api.rs) plus [`../src/observability/hot_read_documents.rs`](../src/observability/hot_read_documents.rs) now persist and aggregate those sidecars into recent-run summaries, including whole-run `synthetic_request_count`, without treating them as shared penetration evidence.
+  - [`../dashboard/src/lib/components/dashboard/monitoring-view-model.js`](../dashboard/src/lib/components/dashboard/monitoring-view-model.js) and [`../dashboard/src/lib/components/dashboard/monitoring/AdversaryRunPanel.svelte`](../dashboard/src/lib/components/dashboard/monitoring/AdversaryRunPanel.svelte) now render Synthetic rows as whole-run request execution plus truthful identity/transport sidecars instead of falling back to `Not materialized`.
+  - [`../e2e/dashboard.smoke.spec.js`](../e2e/dashboard.smoke.spec.js), [`../docs/dashboard-tabs/red-team.md`](../docs/dashboard-tabs/red-team.md), and [`../docs/plans/2026-04-03-adversary-sim-telemetry-unification-plan.md`](../docs/plans/2026-04-03-adversary-sim-telemetry-unification-plan.md) now lock and document the operator-facing contract, while [`../todos/todo.md`](../todos/todo.md) records that this closes only the Synthetic-truth sub-slice of `SIM-TEL-UNI-1C`, not the whole tranche.
+- [x] Why:
+  - the deterministic lane already had trustworthy simulator-internal facts, but Recent Red Team Runs only knew how to surface Scrapling and Agentic sidecars. That left Synthetic rows looking blank even when Shuma had observed the traffic and the simulator knew which deterministic request families had actually executed.
+  - the fix had to stay faithful to the unification plan: shared traffic outcomes still come from the shared observed telemetry spine, while Synthetic execution/identity/transport remain explicit sidecars because they are simulator-internal truth that real traffic cannot supply.
+- [x] Evidence:
+  - `make test-adversary-sim-sidecar-separation-contract`
+  - `make test-code-quality`
+
 ### Agentic Execution Truthful Degradation And Provider-Failover Classification
 
 - [x] Corrected Agentic execution truth so a host that cannot run request-mode no longer schedules impossible request-mode ticks, and provider-side frontier failures no longer masquerade as validation failures in Recent Red Team execution summaries.

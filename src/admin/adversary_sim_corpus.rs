@@ -95,6 +95,21 @@ pub(crate) struct RuntimeMetadataProfile {
 }
 
 #[derive(Debug, Clone, Deserialize, Serialize, PartialEq, Eq)]
+pub(crate) struct SyntheticRuntimeObservation {
+    pub(crate) mode_id: String,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub(crate) category_targets: Vec<String>,
+    #[serde(default, skip_serializing_if = "String::is_empty")]
+    pub(crate) identity_provenance_mode: String,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub(crate) observed_country_codes: Vec<String>,
+    #[serde(default, skip_serializing_if = "String::is_empty")]
+    pub(crate) transport_realism_class: String,
+    #[serde(default, skip_serializing_if = "String::is_empty")]
+    pub(crate) transport_degraded_reason: String,
+}
+
+#[derive(Debug, Clone, Deserialize, Serialize, PartialEq, Eq)]
 pub(crate) struct RuntimePathProfile {
     pub(crate) public_search: String,
     pub(crate) pow: String,
@@ -119,6 +134,54 @@ pub(crate) struct CiDriverDefinition {
 
 pub(crate) fn deterministic_runtime_profile() -> &'static RuntimeDeterministicProfile {
     &DETERMINISTIC_ATTACK_CORPUS.runtime_toggle
+}
+
+pub(crate) fn deterministic_runtime_mode(mode_key: &str) -> String {
+    deterministic_runtime_profile()
+        .taxonomy
+        .get(mode_key)
+        .cloned()
+        .unwrap_or_else(|| mode_key.trim().to_string())
+}
+
+pub(crate) fn synthetic_category_targets_for_mode(mode: &str) -> Vec<String> {
+    match mode.trim() {
+        "crawl_probe" => vec!["indexing_bot".to_string()],
+        "challenge_abuse"
+        | "not_a_bot_fail"
+        | "not_a_bot_escalate"
+        | "pow_abuse"
+        | "tarpit_abuse"
+        | "fingerprint_probe"
+        | "cdp_probe"
+        | "rate_burst" => vec!["http_agent".to_string()],
+        _ => Vec::new(),
+    }
+}
+
+pub(crate) fn build_synthetic_runtime_observation(
+    mode_key: &str,
+    trusted_ingress_backed: bool,
+    observed_country_codes: &[&str],
+) -> SyntheticRuntimeObservation {
+    let mode_id = deterministic_runtime_mode(mode_key);
+    SyntheticRuntimeObservation {
+        category_targets: synthetic_category_targets_for_mode(mode_id.as_str()),
+        mode_id,
+        identity_provenance_mode: if trusted_ingress_backed {
+            "trusted_ingress_backed".to_string()
+        } else {
+            "degraded_local".to_string()
+        },
+        observed_country_codes: observed_country_codes
+            .iter()
+            .map(|value| value.trim())
+            .filter(|value| !value.is_empty())
+            .map(str::to_string)
+            .collect(),
+        transport_realism_class: "internal_deterministic_runtime".to_string(),
+        transport_degraded_reason: String::new(),
+    }
 }
 
 pub(crate) fn deterministic_corpus_metadata_payload() -> serde_json::Value {

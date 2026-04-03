@@ -129,6 +129,7 @@ impl NonceReplayWindow {
 
 thread_local! {
     static CURRENT_SIM_METADATA: RefCell<Option<SimulationRequestMetadata>> = const { RefCell::new(None) };
+    static CURRENT_SYNTHETIC_RUNTIME_OBSERVATION: RefCell<Option<crate::admin::adversary_sim_corpus::SyntheticRuntimeObservation>> = const { RefCell::new(None) };
     static LAST_SIM_TAG_FAILURE: RefCell<Option<SimTagValidationFailure>> = const { RefCell::new(None) };
 }
 
@@ -477,6 +478,10 @@ pub(crate) struct SimulationContextGuard {
     previous: Option<SimulationRequestMetadata>,
 }
 
+pub(crate) struct SyntheticRuntimeObservationGuard {
+    previous: Option<crate::admin::adversary_sim_corpus::SyntheticRuntimeObservation>,
+}
+
 pub(crate) fn enter(metadata: Option<SimulationRequestMetadata>) -> SimulationContextGuard {
     let previous = CURRENT_SIM_METADATA.with(|cell| {
         let mut slot = cell.borrow_mut();
@@ -495,8 +500,33 @@ impl Drop for SimulationContextGuard {
     }
 }
 
+pub(crate) fn enter_synthetic_runtime_observation(
+    observation: Option<crate::admin::adversary_sim_corpus::SyntheticRuntimeObservation>,
+) -> SyntheticRuntimeObservationGuard {
+    let previous = CURRENT_SYNTHETIC_RUNTIME_OBSERVATION.with(|cell| {
+        let mut slot = cell.borrow_mut();
+        let previous = slot.clone();
+        *slot = observation;
+        previous
+    });
+    SyntheticRuntimeObservationGuard { previous }
+}
+
+impl Drop for SyntheticRuntimeObservationGuard {
+    fn drop(&mut self) {
+        CURRENT_SYNTHETIC_RUNTIME_OBSERVATION.with(|cell| {
+            *cell.borrow_mut() = self.previous.clone();
+        });
+    }
+}
+
 pub(crate) fn current_metadata() -> Option<SimulationRequestMetadata> {
     CURRENT_SIM_METADATA.with(|cell| cell.borrow().clone())
+}
+
+pub(crate) fn current_synthetic_runtime_observation(
+) -> Option<crate::admin::adversary_sim_corpus::SyntheticRuntimeObservation> {
+    CURRENT_SYNTHETIC_RUNTIME_OBSERVATION.with(|cell| cell.borrow().clone())
 }
 
 #[cfg(test)]
@@ -736,5 +766,27 @@ mod tests {
             assert_eq!(current_metadata(), Some(second));
         }
         assert_eq!(current_metadata(), Some(first));
+    }
+
+    #[test]
+    fn synthetic_runtime_observation_guard_restores_previous_observation() {
+        let first = crate::admin::adversary_sim_corpus::build_synthetic_runtime_observation(
+            "public_probe",
+            true,
+            &["RU"],
+        );
+        let second = crate::admin::adversary_sim_corpus::build_synthetic_runtime_observation(
+            "rate_burst",
+            false,
+            &[],
+        );
+
+        let _guard_a = enter_synthetic_runtime_observation(Some(first.clone()));
+        assert_eq!(current_synthetic_runtime_observation(), Some(first.clone()));
+        {
+            let _guard_b = enter_synthetic_runtime_observation(Some(second.clone()));
+            assert_eq!(current_synthetic_runtime_observation(), Some(second));
+        }
+        assert_eq!(current_synthetic_runtime_observation(), Some(first));
     }
 }

@@ -76,6 +76,14 @@ Current stance:
   - fresh control-path runs including `simrun-1775210722-0a322c6a771a2965`, `simrun-1775210923-b214cd9fdd009488`, and `simrun-1775211809-a7fcb74da6074ab7`
 - The earlier overclaim has been corrected: a passing narrow proof without the operator-facing acceptance check no longer counts as landed for this chain.
 - The next active execution priority is now `SIM-TEL-UNI-1C`, not another round of env-parity chasing.
+- The Synthetic recent-run truth sub-slice of `SIM-TEL-UNI-1C` is now landed:
+  - fresh `synthetic_traffic` / retained `deterministic_black_box` rows no longer collapse `Execution`, `Identity`, and `Transport` to generic `Not materialized`,
+  - deterministic modes and category targets now come from recorded per-request synthetic sidecars on the shared observed-request path rather than lane-name guesswork,
+  - `Execution` now renders whole-run deterministic request counts, `Identity` now surfaces trusted-forwarded ingress truth only when the signed forwarded-secret path really existed at execution time, and `Transport` stays explicitly in-process deterministic instead of overstating Synthetic as worker/proxy realism,
+  - evidence:
+    - `make test-adversary-sim-sidecar-separation-contract`
+    - `make test-code-quality`
+- The remaining open work in `SIM-TEL-UNI-1C` is the broader operator-snapshot and downstream consumer separation so later Game Loop / operator surfaces cannot silently re-blend shared observed evidence with simulator-only sidecars.
 
 - [ ] SIM-TEL-UNI-1C Reduce simulator receipts to privileged sidecars and keep that separation explicit through operator surfaces.
   - Closure gate:
