@@ -4,6 +4,25 @@ Moved from active TODO files on 2026-02-14.
 
 ## Additional completions (2026-04-03)
 
+### Agentic Execution Truthful Degradation And Provider-Failover Classification
+
+- [x] Corrected Agentic execution truth so a host that cannot run request-mode no longer schedules impossible request-mode ticks, and provider-side frontier failures no longer masquerade as validation failures in Recent Red Team execution summaries.
+- [x] What landed:
+  - [`../scripts/run_with_adversary_sim_supervisor.sh`](../scripts/run_with_adversary_sim_supervisor.sh) now detects whether local request-mode execution is actually available and exports `ADVERSARY_SIM_AGENTIC_REQUEST_MODE_AVAILABLE` into the Spin runtime instead of letting the planner assume request-mode is executable everywhere.
+  - [`../src/admin/adversary_sim_llm_lane.rs`](../src/admin/adversary_sim_llm_lane.rs) now degrades impossible local Agentic request-mode ticks to `browser_mode`, while [`../src/admin/adversary_sim_representativeness.rs`](../src/admin/adversary_sim_representativeness.rs) keeps representativeness truth honest by explicitly reporting request-execution unavailability as a blocker rather than silently calling the lane representative.
+  - [`../scripts/tests/adversarial_runner/llm_fulfillment.py`](../scripts/tests/adversarial_runner/llm_fulfillment.py) now tries all configured frontier providers in order, distinguishes provider transport or quota failures from validation failures, accepts fenced JSON provider payloads, and returns `fallback_provider_error` with truthful failover reasons instead of flattening exhausted-provider cases into `fallback_validation_error`.
+  - [`../scripts/supervisor/llm_runtime_worker.py`](../scripts/supervisor/llm_runtime_worker.py) now ignores terminal success reports whose only reason is `ok`, so successful browser-mode runs do not carry a spurious failure label.
+  - [`../e2e/dashboard.smoke.spec.js`](../e2e/dashboard.smoke.spec.js) now proves the rendered Agentic row does not regress to `Fallback Validation Error` or `Request Mode Execution Failed` for the dashboard-driven local flow, and [`../docs/dashboard-tabs/red-team.md`](../docs/dashboard-tabs/red-team.md) now documents the truthful local degradation semantics.
+- [x] Why:
+  - the row the user called out was mixing two different defects: local hosts without a container request runner were still alternating into impossible request-mode ticks, and frontier provider exhaustion was being reported as if the provider output had failed validation.
+  - the operator-facing fix had to be truthful rather than cosmetic: Shuma should degrade to the executable lane when request-mode is unavailable, and when all configured frontier providers fail, the row should say that the provider layer failed instead of inventing a validation problem.
+- [x] Evidence:
+  - `make test-adversarial-llm-runtime-frontier-env-parity`
+  - `make test-code-quality`
+  - live control-path evidence:
+    - `simrun-1775222279-6f618af7e36c6fd3` completed as `browser_mode` on a host reporting `ADVERSARY_SIM_AGENTIC_REQUEST_MODE_AVAILABLE=false`
+    - persisted shared evidence for that run reached `12` monitoring events across `2` defenses instead of the old impossible request-mode failure shape
+
 ### Scrapling Trusted-Ingress Provenance Parity
 
 - [x] Restored truthful trusted-ingress identity provenance for Scrapling local-contributor flows without granting Scrapling any new ability to impersonate trusted ingress directly.

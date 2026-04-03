@@ -135,7 +135,7 @@ pub(crate) fn next_llm_fulfillment_plan(
         .clone()
         .or_else(|| state.last_run_id.clone())
         .unwrap_or_else(|| format!("simrun-runtime-{now}"));
-    let mode = llm_fulfillment_mode_for_tick(state.generated_tick_count);
+    let mode = effective_llm_fulfillment_mode(state.generated_tick_count);
     let (backend_state, backend_id) = frontier_backend_state(frontier);
     let realism_profile = llm_realism_profile_for_mode(mode.as_str());
     let recurrence_context = recurrence_context_for_profile(now, state, &realism_profile);
@@ -192,6 +192,34 @@ pub(crate) fn llm_fulfillment_mode_for_tick(generated_tick_count: u64) -> LlmFul
         LlmFulfillmentMode::BrowserMode
     } else {
         LlmFulfillmentMode::RequestMode
+    }
+}
+
+fn effective_llm_fulfillment_mode(generated_tick_count: u64) -> LlmFulfillmentMode {
+    let planned_mode = llm_fulfillment_mode_for_tick(generated_tick_count);
+    if planned_mode == LlmFulfillmentMode::RequestMode && !llm_request_mode_available() {
+        LlmFulfillmentMode::BrowserMode
+    } else {
+        planned_mode
+    }
+}
+
+fn llm_request_mode_available() -> bool {
+    bool_env_optional("ADVERSARY_SIM_AGENTIC_REQUEST_MODE_AVAILABLE", true)
+}
+
+fn bool_env_optional(name: &str, default: bool) -> bool {
+    std::env::var(name)
+        .ok()
+        .and_then(|value| parse_bool_like(value.as_str()))
+        .unwrap_or(default)
+}
+
+fn parse_bool_like(value: &str) -> Option<bool> {
+    match value.trim().to_ascii_lowercase().as_str() {
+        "1" | "true" | "yes" | "on" => Some(true),
+        "0" | "false" | "no" | "off" => Some(false),
+        _ => None,
     }
 }
 
@@ -421,6 +449,30 @@ mod tests {
             .terminal_conditions
             .contains(&"objective_completed".to_string()));
         assert_eq!(plan.episode_harness.max_retained_episode_summaries, 5);
+    }
+
+    #[test]
+    fn llm_fulfillment_plan_avoids_request_mode_when_request_execution_is_unavailable() {
+        let _lock = crate::test_support::lock_env();
+        std::env::set_var("ADVERSARY_SIM_AGENTIC_REQUEST_MODE_AVAILABLE", "false");
+
+        let frontier = frontier_summary();
+        let mut state = ControlState::default();
+        state.generated_tick_count = 1;
+        let plan = next_llm_fulfillment_plan(1_700_000_000, &mut state, &frontier);
+
+        assert_eq!(plan.fulfillment_mode, "browser_mode");
+        assert_eq!(
+            plan.category_targets,
+            vec!["browser_agent", "agent_on_behalf_of_human"]
+        );
+        assert_eq!(
+            plan.capability_envelope.allowed_tools,
+            vec!["browser_navigate", "browser_snapshot", "browser_click"]
+        );
+        assert_eq!(plan.realism_profile.profile_id, "agentic.browser_mode.v1");
+
+        std::env::remove_var("ADVERSARY_SIM_AGENTIC_REQUEST_MODE_AVAILABLE");
     }
 
     #[test]

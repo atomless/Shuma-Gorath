@@ -637,6 +637,64 @@ class LlmRuntimeWorkerUnitTests(unittest.TestCase):
         self.assertEqual(result["last_response_status"], 404)
         self.assertEqual(result["action_receipts"][1]["status"], 404)
 
+    def test_build_llm_runtime_result_ignores_success_reason_ok(self):
+        plan = {
+            "schema_version": "adversary-sim-llm-fulfillment-plan.v1",
+            "run_id": "simrun-llm-runtime",
+            "tick_id": "llm-fit-tick-browser-ok",
+            "lane": "bot_red_team",
+            "fulfillment_mode": "browser_mode",
+            "backend_kind": "frontier_reference",
+            "backend_state": "configured",
+            "category_targets": ["browser_agent"],
+            "capability_envelope": {"max_actions": 4, "max_time_budget_seconds": 90},
+            "realism_profile": resolve_lane_realism_profile("bot_red_team", "browser_mode"),
+        }
+        generation = {
+            "generation_source": "fallback_validation_error",
+            "provider": "openai",
+            "model_id": "gpt-5-mini",
+            "fallback_reason": "provider_output_failed_validation",
+            "actions": [
+                {
+                    "action_index": 1,
+                    "action_type": "browser_navigate",
+                    "path": "/",
+                    "label": "root",
+                }
+            ],
+        }
+        report = {
+            "passed": True,
+            "terminal_failure": {"terminal_failure": "", "reason": "ok"},
+            "worker_failure_detail": "",
+            "worker_payload": {
+                "requests_sent": 1,
+                "errors": [],
+                "traffic": [
+                    {
+                        "action_index": 1,
+                        "action_type": "browser_navigate",
+                        "path": "/",
+                        "status": 429,
+                    }
+                ],
+            },
+        }
+
+        result = llm_runtime_worker.build_llm_runtime_result(
+            fulfillment_plan=plan,
+            generation_result=generation,
+            report_payload=report,
+            tick_completed_at=1_700_000_240,
+            worker_id="llm-runtime-worker-test",
+        )
+
+        self.assertTrue(result["passed"])
+        self.assertIsNone(result["error"])
+        self.assertIsNone(result["terminal_failure"])
+        self.assertIsNone(result["failure_class"])
+
     def test_run_request_mode_blackbox_uses_generated_actions_and_reads_report(self):
         plan = {
             "schema_version": "adversary-sim-llm-fulfillment-plan.v1",

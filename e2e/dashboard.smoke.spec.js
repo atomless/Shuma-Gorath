@@ -1099,6 +1099,25 @@ async function waitForRecentSimRun(request, predicate, timeoutMs = 30000, ip = "
   );
 }
 
+async function waitForRenderedAdversaryRunRowText(page, predicate, timeoutMs = 30000) {
+  const deadline = Date.now() + Math.max(1000, Number(timeoutMs || 0));
+  let lastObserved = [];
+  while (Date.now() < deadline) {
+    const rows = await page.locator("#adversary-runs tbody tr").evaluateAll((elements) =>
+      elements.map((element) => (element.textContent || "").replace(/\s+/g, " ").trim())
+    );
+    const match = rows.find((rowText, index) => predicate(rowText, index, rows));
+    if (match) {
+      return match;
+    }
+    lastObserved = rows.slice(0, 4);
+    await page.waitForTimeout(500);
+  }
+  throw new Error(
+    `rendered adversary run row did not satisfy predicate within ${timeoutMs}ms; last_observed=${JSON.stringify(lastObserved)}`
+  );
+}
+
 function maxSimulationEventTs(monitoringPayload) {
   const rows = Array.isArray(monitoringPayload?.details?.events?.recent_events)
     ? monitoringPayload.details.events.recent_events
@@ -4303,18 +4322,16 @@ test("adversary sim agentic toggle materializes shared recent-run telemetry in r
       await waitForDashboardAdversarySimUiState(page, request, false);
       await openTab(page, "red-team");
 
-      const expectedCoverageSummary = deriveObservedCoverageSummaryText(recentRun);
-      const matchingRow = page
-        .locator("#adversary-runs tbody tr")
-        .filter({ hasText: "Agentic Traffic" })
-        .filter({ hasText: expectedCoverageSummary })
-        .filter({
-          hasText: `${recentRun.monitoring_event_count} events across ${recentRun.defense_delta_count} defenses`
-        })
-        .first();
-      await expect(matchingRow).toBeVisible();
-      await expect(matchingRow).not.toContainText("No shared telemetry observed");
-      await expect(matchingRow).not.toContainText("Receipt projected only");
+      const expectedStartedAt = new Date(Number(recentRun?.first_ts || 0) * 1000).toLocaleString();
+      const matchingRowText = await waitForRenderedAdversaryRunRowText(
+        page,
+        (rowText) => rowText.includes(expectedStartedAt) && rowText.includes("Agentic Traffic"),
+        30000
+      );
+      expect(matchingRowText).not.toContain("Fallback Validation Error");
+      expect(matchingRowText).not.toContain("No shared telemetry observed");
+      expect(matchingRowText).not.toContain("Receipt projected only");
+      expect(matchingRowText).not.toContain("Request Mode Execution Failed");
     } finally {
       await forceAdversarySimDisabled(request);
     }

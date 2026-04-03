@@ -169,6 +169,10 @@ class AdversarySimMakeTargetTests(unittest.TestCase):
             "llm_fulfillment_plan_reports_unavailable_frontier_backend_without_provider_keys",
             body,
         )
+        self.assertIn(
+            "llm_fulfillment_plan_avoids_request_mode_when_request_execution_is_unavailable",
+            body,
+        )
         self.assertIn("scripts/tests/test_llm_fulfillment.py", body)
 
     def test_llm_realism_target_uses_worker_and_projection_selectors(self) -> None:

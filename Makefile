@@ -2200,6 +2200,7 @@ test-adversarial-llm-fit: ## Focused bounded LLM fulfillment-plan gate (browser/
 	@cargo test llm_fulfillment_modes_alternate_between_browser_and_request_contracts -- --nocapture
 	@cargo test llm_fulfillment_plan_uses_frontier_reference_when_provider_keys_exist -- --nocapture
 	@cargo test llm_fulfillment_plan_reports_unavailable_frontier_backend_without_provider_keys -- --nocapture
+	@cargo test llm_fulfillment_plan_avoids_request_mode_when_request_execution_is_unavailable -- --nocapture
 	@cargo test adversary_sim_internal_beat_returns_llm_fulfillment_plan_for_bot_red_team_lane -- --nocapture
 	@python3 -m unittest scripts/tests/test_llm_fulfillment.py
 

@@ -785,7 +785,7 @@ def _report_error(report_payload: dict[str, Any] | None) -> str | None:
     terminal = report_payload.get("terminal_failure")
     if isinstance(terminal, dict):
         reason = str(terminal.get("reason") or "").strip()
-        if reason:
+        if reason and reason.lower() != "ok":
             return reason
     return None
 

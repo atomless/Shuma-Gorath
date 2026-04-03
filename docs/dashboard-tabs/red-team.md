@@ -35,6 +35,9 @@ Panel:
     - provider and model when available,
     - action execution counts,
     - and terminal failure truth when generation degraded or failed,
+  - local Agentic request-mode execution depends on the container request runner being available on the host:
+    - when that substrate is unavailable, the planner now degrades locally to browser-mode instead of scheduling an impossible request-mode tick and surfacing a misleading terminal request-mode failure as if the request lane had actually been executable,
+    - and representativeness/readiness truth must still treat that host as missing full Agentic request-side realism rather than silently calling it representative,
   - freshness-aware empty/degraded messaging so delayed telemetry is not misread as no activity.
 
 Behavior:

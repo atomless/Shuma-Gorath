@@ -82,6 +82,14 @@ class AdversarySimSupervisorContractTests(unittest.TestCase):
         script = SUPERVISOR_MANAGER_SCRIPT.read_text(encoding="utf-8")
         self.assertIn('if [[ $# -ge 2 && "$1" == "spin" && "$2" == "up" ]]; then', script)
         self.assertIn(
+            'spin_command_has_env_binding "ADVERSARY_SIM_AGENTIC_REQUEST_MODE_AVAILABLE"',
+            script,
+        )
+        self.assertIn(
+            '--env "ADVERSARY_SIM_AGENTIC_REQUEST_MODE_AVAILABLE=${ADVERSARY_SIM_AGENTIC_REQUEST_MODE_AVAILABLE}"',
+            script,
+        )
+        self.assertIn(
             'spin_command_has_env_binding "ADVERSARY_SIM_TRUSTED_INGRESS_PROXY_URL"',
             script,
         )
@@ -97,6 +105,17 @@ class AdversarySimSupervisorContractTests(unittest.TestCase):
             '--env "ADVERSARY_SIM_TRUSTED_INGRESS_AUTH_TOKEN=${ADVERSARY_SIM_TRUSTED_INGRESS_AUTH_TOKEN}"',
             script,
         )
+
+    def test_supervisor_manager_detects_agentic_request_mode_availability_from_local_docker_runtime(self) -> None:
+        script = SUPERVISOR_MANAGER_SCRIPT.read_text(encoding="utf-8")
+        self.assertIn("detect_agentic_request_mode_availability()", script)
+        self.assertIn('normalize_bool_like "${ADVERSARY_SIM_AGENTIC_REQUEST_MODE_AVAILABLE:-}"', script)
+        self.assertIn("docker version --format '{{.Server.Version}}'", script)
+        self.assertIn(
+            'ADVERSARY_SIM_AGENTIC_REQUEST_MODE_AVAILABLE="$(detect_agentic_request_mode_availability)"',
+            script,
+        )
+        self.assertIn("export ADVERSARY_SIM_AGENTIC_REQUEST_MODE_AVAILABLE", script)
 
 
 if __name__ == "__main__":

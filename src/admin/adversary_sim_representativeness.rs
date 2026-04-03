@@ -19,6 +19,7 @@ pub(crate) struct RepresentativenessPrerequisites {
     pub(crate) scrapling_request_proxy_pool_count: usize,
     pub(crate) scrapling_browser_proxy_pool_count: usize,
     pub(crate) agentic_request_proxy_pool_count: usize,
+    pub(crate) agentic_request_mode_available: bool,
     pub(crate) scrapling_request_proxy_configured: bool,
     pub(crate) scrapling_browser_proxy_configured: bool,
 }
@@ -44,6 +45,8 @@ pub(crate) fn project_representativeness_readiness() -> AdversarySimRepresentati
         load_identity_pool_from_env("ADVERSARY_SIM_SCRAPLING_BROWSER_PROXY_POOL_JSON").len();
     let agentic_request_pool_count =
         load_identity_pool_from_env("ADVERSARY_SIM_AGENTIC_REQUEST_PROXY_POOL_JSON").len();
+    let agentic_request_mode_available =
+        env_bool_optional("ADVERSARY_SIM_AGENTIC_REQUEST_MODE_AVAILABLE", true);
     let scrapling_request_proxy_configured =
         has_non_empty_env("ADVERSARY_SIM_SCRAPLING_REQUEST_PROXY_URL");
     let scrapling_browser_proxy_configured =
@@ -54,6 +57,7 @@ pub(crate) fn project_representativeness_readiness() -> AdversarySimRepresentati
         scrapling_request_proxy_pool_count: scrapling_request_pool_count,
         scrapling_browser_proxy_pool_count: scrapling_browser_pool_count,
         agentic_request_proxy_pool_count: agentic_request_pool_count,
+        agentic_request_mode_available,
         scrapling_request_proxy_configured,
         scrapling_browser_proxy_configured,
     };
@@ -109,6 +113,21 @@ fn has_non_empty_env(name: &str) -> bool {
         .ok()
         .map(|value| !value.trim().is_empty())
         .unwrap_or(false)
+}
+
+fn env_bool_optional(name: &str, default: bool) -> bool {
+    std::env::var(name)
+        .ok()
+        .and_then(|value| parse_bool_like(value.as_str()))
+        .unwrap_or(default)
+}
+
+fn parse_bool_like(value: &str) -> Option<bool> {
+    match value.trim().to_ascii_lowercase().as_str() {
+        "1" | "true" | "yes" | "on" => Some(true),
+        "0" | "false" | "no" | "off" => Some(false),
+        _ => None,
+    }
 }
 
 fn synthetic_lane_readiness() -> LaneRepresentativenessReadiness {
@@ -186,12 +205,20 @@ fn agentic_lane_readiness(
 ) -> LaneRepresentativenessReadiness {
     let request_pool_ready = prerequisites.agentic_request_proxy_pool_count >= 2;
     let browser_backing_ready = prerequisites.trusted_ingress_configured;
-    let any_request_backing =
-        request_pool_ready || prerequisites.agentic_request_proxy_pool_count > 0 || browser_backing_ready;
+    let request_mode_ready = prerequisites.agentic_request_mode_available;
+    let any_request_backing = request_pool_ready
+        || prerequisites.agentic_request_proxy_pool_count > 0
+        || browser_backing_ready;
     let mut blockers = Vec::new();
     if !request_pool_ready {
         blockers.push(
             "Agentic request traffic is not backed by a multi-identity proxy pool."
+                .to_string(),
+        );
+    }
+    if !request_mode_ready {
+        blockers.push(
+            "Agentic request-mode execution is unavailable on this host, so request-side representativeness claims remain degraded."
                 .to_string(),
         );
     }
@@ -201,7 +228,7 @@ fn agentic_lane_readiness(
                 .to_string(),
         );
     }
-    let status = if request_pool_ready && browser_backing_ready {
+    let status = if request_pool_ready && browser_backing_ready && request_mode_ready {
         "representative"
     } else if any_request_backing {
         "partially_representative"
@@ -214,11 +241,11 @@ fn agentic_lane_readiness(
                 .to_string()
         }
         "partially_representative" => {
-            "Agentic Traffic has some realism backing, but missing request-pool or browser trusted-ingress backing still limits representative claims."
+            "Agentic Traffic has some realism backing, but missing request-pool, request-execution, or browser trusted-ingress backing still limits representative claims."
                 .to_string()
         }
         _ => {
-            "Agentic Traffic lacks the request-pool and browser trusted-ingress backing needed for representative hostile-lane claims."
+            "Agentic Traffic lacks the request-pool, request-execution, and browser trusted-ingress backing needed for representative hostile-lane claims."
                 .to_string()
         }
     };
@@ -390,5 +417,42 @@ mod tests {
                 .status,
             "representative"
         );
+    }
+
+    #[test]
+    fn representativeness_readiness_is_partial_when_agentic_request_mode_is_unavailable() {
+        let _lock = crate::test_support::lock_env();
+        std::env::set_var(
+            "ADVERSARY_SIM_TRUSTED_INGRESS_PROXY_URL",
+            "http://127.0.0.1:3871",
+        );
+        std::env::set_var("ADVERSARY_SIM_TRUSTED_INGRESS_AUTH_TOKEN", "trusted-token");
+        std::env::set_var(
+            "ADVERSARY_SIM_SCRAPLING_REQUEST_PROXY_POOL_JSON",
+            sample_pool_json(),
+        );
+        std::env::set_var(
+            "ADVERSARY_SIM_SCRAPLING_BROWSER_PROXY_POOL_JSON",
+            sample_pool_json(),
+        );
+        std::env::set_var(
+            "ADVERSARY_SIM_AGENTIC_REQUEST_PROXY_POOL_JSON",
+            sample_pool_json(),
+        );
+        std::env::set_var("ADVERSARY_SIM_AGENTIC_REQUEST_MODE_AVAILABLE", "false");
+        std::env::remove_var("ADVERSARY_SIM_SCRAPLING_REQUEST_PROXY_URL");
+        std::env::remove_var("ADVERSARY_SIM_SCRAPLING_BROWSER_PROXY_URL");
+
+        let readiness = project_representativeness_readiness();
+        let agentic_lane = readiness
+            .lane_statuses
+            .get("bot_red_team")
+            .expect("agentic lane");
+
+        assert_eq!(readiness.status, "partially_representative");
+        assert_eq!(agentic_lane.status, "partially_representative");
+        assert!(agentic_lane.blockers.iter().any(|blocker| {
+            blocker.contains("Agentic request-mode execution is unavailable on this host")
+        }));
     }
 }

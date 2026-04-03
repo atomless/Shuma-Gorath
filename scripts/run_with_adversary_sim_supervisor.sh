@@ -34,6 +34,42 @@ LOCAL_CONTRIBUTOR_ALLOW_TRUSTED_FORWARDING_RAW="${SHUMA_LOCAL_CONTRIBUTOR_ALLOW_
 LOCAL_CONTRIBUTOR_ALLOW_TRUSTED_FORWARDING="$(printf '%s' "${LOCAL_CONTRIBUTOR_ALLOW_TRUSTED_FORWARDING_RAW}" | tr '[:upper:]' '[:lower:]')"
 LOCAL_CONTRIBUTOR_DIRECT_CLIENT_IP="${SHUMA_LOCAL_CONTRIBUTOR_DIRECT_CLIENT_IP:-127.0.0.1}"
 
+normalize_bool_like() {
+  local raw_value="${1:-}"
+  local normalized
+  normalized="$(printf '%s' "${raw_value}" | tr '[:upper:]' '[:lower:]')"
+  case "${normalized}" in
+    1|true|yes|on)
+      printf 'true'
+      return 0
+      ;;
+    0|false|no|off)
+      printf 'false'
+      return 0
+      ;;
+    *)
+      return 1
+      ;;
+  esac
+}
+
+detect_agentic_request_mode_availability() {
+  local explicit=""
+  if explicit="$(normalize_bool_like "${ADVERSARY_SIM_AGENTIC_REQUEST_MODE_AVAILABLE:-}")"; then
+    printf '%s' "${explicit}"
+    return 0
+  fi
+
+  if command -v docker >/dev/null 2>&1 && docker version --format '{{.Server.Version}}' >/dev/null 2>&1; then
+    printf 'true'
+  else
+    printf 'false'
+  fi
+}
+
+ADVERSARY_SIM_AGENTIC_REQUEST_MODE_AVAILABLE="$(detect_agentic_request_mode_availability)"
+export ADVERSARY_SIM_AGENTIC_REQUEST_MODE_AVAILABLE
+
 supervisor_attention_required() {
   if [[ -z "${ADMIN_API_KEY}" ]]; then
     return 1
@@ -105,6 +141,11 @@ launch_app_command() {
   local app_command=("$@")
 
   if [[ $# -ge 2 && "$1" == "spin" && "$2" == "up" ]]; then
+    if ! spin_command_has_env_binding "ADVERSARY_SIM_AGENTIC_REQUEST_MODE_AVAILABLE" "${app_command[@]}"; then
+      app_command+=(
+        --env "ADVERSARY_SIM_AGENTIC_REQUEST_MODE_AVAILABLE=${ADVERSARY_SIM_AGENTIC_REQUEST_MODE_AVAILABLE}"
+      )
+    fi
     if [[ -n "${ADVERSARY_SIM_TRUSTED_INGRESS_PROXY_URL:-}" ]] && ! spin_command_has_env_binding "ADVERSARY_SIM_TRUSTED_INGRESS_PROXY_URL" "${app_command[@]}"; then
       app_command+=(
         --env "ADVERSARY_SIM_TRUSTED_INGRESS_PROXY_URL=${ADVERSARY_SIM_TRUSTED_INGRESS_PROXY_URL}"

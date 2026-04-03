@@ -54,6 +54,18 @@ def _normalize_string_list(values: Any, *, field_name: str) -> List[str]:
     return normalized
 
 
+def _ordered_unique_strings(values: List[Any]) -> List[str]:
+    ordered: List[str] = []
+    seen = set()
+    for value in values:
+        normalized = str(value or "").strip()
+        if not normalized or normalized in seen:
+            continue
+        seen.add(normalized)
+        ordered.append(normalized)
+    return ordered
+
+
 def _normalize_mode_contract(
     mode_name: str,
     mode_contract: Dict[str, Any],
@@ -558,9 +570,10 @@ def _build_generation_context(
     }
 
 
-def _select_configured_provider(
+def _configured_providers(
     env_reader: Callable[[str], str],
-) -> Tuple[Dict[str, str] | None, str, str]:
+) -> List[Tuple[Dict[str, str], str, str]]:
+    configured: List[Tuple[Dict[str, str], str, str]] = []
     for provider_spec in FRONTIER_PROVIDER_SPECS:
         api_key = _trimmed_env_value(env_reader, provider_spec["api_key_env"])
         if not api_key:
@@ -568,8 +581,67 @@ def _select_configured_provider(
         model_id = _trimmed_env_value(env_reader, provider_spec["model_env"]) or str(
             provider_spec["default_model"]
         )
-        return (dict(provider_spec), model_id, api_key)
-    return (None, "", "")
+        configured.append((dict(provider_spec), model_id, api_key))
+    return configured
+
+
+def _normalize_failure_token(detail: str) -> str:
+    normalized_chars: List[str] = []
+    last_was_separator = False
+    for char in str(detail or "").strip().lower():
+        if char.isalnum():
+            normalized_chars.append(char)
+            last_was_separator = False
+            continue
+        if not last_was_separator:
+            normalized_chars.append("_")
+            last_was_separator = True
+    return "".join(normalized_chars).strip("_") or "provider_error"
+
+
+def _classify_provider_failure(exc: Exception) -> Tuple[str, str]:
+    if isinstance(exc, FrontierActionValidationError):
+        return ("validation", "provider_output_failed_validation")
+    if isinstance(exc, json.JSONDecodeError):
+        return ("validation", "provider_output_invalid_json")
+    if isinstance(exc, ValueError):
+        return ("validation", "provider_output_invalid_payload")
+    if isinstance(exc, RuntimeError):
+        detail = str(exc or "").strip()
+        if detail.startswith("provider_http_error:"):
+            status_code = _normalize_failure_token(detail.split(":", 1)[1])
+            return ("provider_error", f"provider_http_error_{status_code}")
+        if detail.startswith("provider_network_error:"):
+            network_reason = _normalize_failure_token(detail.split(":", 1)[1])
+            if network_reason == "provider_network_error":
+                return ("provider_error", "provider_network_error")
+            return ("provider_error", f"provider_network_error_{network_reason}")
+        if detail == "provider_timeout":
+            return ("provider_error", "provider_timeout")
+        if detail:
+            return ("validation", _normalize_failure_token(detail))
+    return ("validation", "provider_output_failed_validation")
+
+
+def _summarize_provider_failures(
+    failures: List[Dict[str, str]],
+    *,
+    generation_source: str,
+) -> str:
+    if not failures:
+        return (
+            "frontier_provider_failover_exhausted"
+            if generation_source == "fallback_provider_error"
+            else "provider_output_failed_validation"
+        )
+    if len(failures) == 1:
+        return str(failures[0].get("reason") or "").strip() or (
+            "provider_output_failed_validation"
+        )
+    return "_then_".join(
+        f"{str(failure.get('provider') or 'provider').strip()}_{str(failure.get('reason') or 'provider_error').strip()}"
+        for failure in failures
+    )
 
 
 def _fallback_label(path: str) -> str:
@@ -690,6 +762,81 @@ def _prompt_text(generation_context: Dict[str, Any]) -> str:
     )
 
 
+def _openai_structured_output_format(
+    *,
+    fulfillment_plan: Dict[str, Any],
+    contract: Dict[str, Any],
+) -> Dict[str, Any]:
+    capability_envelope = dict_or_empty(fulfillment_plan.get("capability_envelope"))
+    dsl_contract = dict_or_empty(contract.get("dsl"))
+    allowed_action_types = [
+        str(item).strip()
+        for item in list_or_empty(capability_envelope.get("allowed_tools"))
+        if str(item).strip()
+    ] or [
+        str(item).strip()
+        for item in list_or_empty(dsl_contract.get("allowed_action_types"))
+        if str(item).strip()
+    ]
+    max_actions = max(1, int_or_zero(capability_envelope.get("max_actions")))
+    max_path_length = max(1, int_or_zero(dsl_contract.get("max_path_length")) or 256)
+    max_query_pairs = max(
+        0, int_or_zero(dict_or_empty(contract.get("budgets")).get("max_query_pairs_per_action"))
+    )
+    max_label_length = max(1, int_or_zero(dsl_contract.get("max_label_length")) or 80)
+    action_properties: Dict[str, Any] = {
+        "action_type": {
+            "type": "string",
+            "enum": allowed_action_types,
+        },
+        "path": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": max_path_length,
+        },
+        "label": {
+            "type": ["string", "null"],
+            "maxLength": max_label_length,
+        },
+    }
+    required_action_properties = ["action_type", "path", "label"]
+    if any(action_type.startswith("http_") for action_type in allowed_action_types):
+        action_properties["query"] = {
+            "type": ["object", "null"],
+            "maxProperties": max_query_pairs,
+            "additionalProperties": {
+                "type": "string",
+            },
+        }
+        required_action_properties.append("query")
+    return {
+        "type": "json_schema",
+        "name": "adversary_sim_actions",
+        "strict": True,
+        "schema": {
+            "type": "object",
+            "properties": {
+                "actions": {
+                    "type": "array",
+                    "minItems": 1,
+                    "maxItems": max_actions,
+                    "items": {
+                        "type": "object",
+                        "properties": action_properties,
+                        "required": required_action_properties,
+                        "additionalProperties": False,
+                    },
+                },
+                "rationale": {
+                    "type": ["string", "null"],
+                },
+            },
+            "required": ["actions", "rationale"],
+            "additionalProperties": False,
+        },
+    }
+
+
 def _read_response_json(response: Any) -> Dict[str, Any]:
     body = response.read()
     if isinstance(body, bytes):
@@ -752,6 +899,8 @@ def _provider_request_and_text(
     model_id: str,
     api_key: str,
     generation_context: Dict[str, Any],
+    fulfillment_plan: Dict[str, Any],
+    contract: Dict[str, Any],
 ) -> str:
     provider = str(provider_spec.get("provider") or "").strip()
     prompt = _prompt_text(generation_context)
@@ -765,6 +914,12 @@ def _provider_request_and_text(
                 "knowledge or internal routes."
             ),
             "input": prompt,
+            "text": {
+                "format": _openai_structured_output_format(
+                    fulfillment_plan=fulfillment_plan,
+                    contract=contract,
+                )
+            },
         }
         request = urllib.request.Request(
             OPENAI_RESPONSES_URL,
@@ -844,6 +999,8 @@ def _default_provider_executor(
     model_id: str,
     api_key: str,
     generation_context: Dict[str, Any],
+    fulfillment_plan: Dict[str, Any],
+    contract: Dict[str, Any],
 ) -> Dict[str, Any]:
     try:
         raw_text = _provider_request_and_text(
@@ -851,6 +1008,8 @@ def _default_provider_executor(
             model_id=model_id,
             api_key=api_key,
             generation_context=generation_context,
+            fulfillment_plan=fulfillment_plan,
+            contract=contract,
         )
     except urllib.error.HTTPError as exc:
         raise RuntimeError(f"provider_http_error:{exc.code}") from exc
@@ -859,12 +1018,43 @@ def _default_provider_executor(
     except TimeoutError as exc:
         raise RuntimeError("provider_timeout") from exc
 
-    parsed = json.loads(str(raw_text or "").strip() or "{}")
-    if isinstance(parsed, list):
-        parsed = {"actions": parsed}
-    if not isinstance(parsed, dict):
-        raise RuntimeError("provider response must decode to an action object")
-    return parsed
+    normalized_text = str(raw_text or "").strip()
+    if not normalized_text:
+        raise RuntimeError("provider_response_empty")
+
+    candidates: List[str] = [normalized_text]
+    lines = normalized_text.splitlines()
+    if len(lines) >= 3 and lines[0].lstrip().startswith("```") and lines[-1].strip() == "```":
+        fenced = "\n".join(lines[1:-1]).strip()
+        if fenced:
+            candidates.append(fenced)
+
+    object_start = normalized_text.find("{")
+    object_end = normalized_text.rfind("}")
+    if object_start != -1 and object_end > object_start:
+        candidates.append(normalized_text[object_start : object_end + 1].strip())
+
+    array_start = normalized_text.find("[")
+    array_end = normalized_text.rfind("]")
+    if array_start != -1 and array_end > array_start:
+        candidates.append(normalized_text[array_start : array_end + 1].strip())
+
+    last_error: Exception | None = None
+    for candidate in _ordered_unique_strings(candidates):
+        try:
+            parsed = json.loads(candidate)
+        except json.JSONDecodeError as exc:
+            last_error = exc
+            continue
+        if isinstance(parsed, list):
+            parsed = {"actions": parsed}
+        if isinstance(parsed, dict):
+            return parsed
+        last_error = RuntimeError("provider response must decode to an action object")
+
+    if last_error is not None:
+        raise last_error
+    raise RuntimeError("provider_response_empty")
 
 
 def _validate_generated_actions(
@@ -906,8 +1096,8 @@ def generate_llm_frontier_actions(
         public_hint_paths=public_hint_paths,
         contract=resolved_contract,
     )
-    provider_spec, model_id, api_key = _select_configured_provider(env_reader)
-    if provider_spec is None:
+    configured_providers = _configured_providers(env_reader)
+    if not configured_providers:
         fallback_actions = _fallback_actions_for_plan(
             fulfillment_plan,
             generation_context=generation_context,
@@ -927,41 +1117,84 @@ def generate_llm_frontier_actions(
             "generation_context": generation_context,
         }
 
-    executor = provider_executor or _default_provider_executor
-    provider_name = str(provider_spec.get("provider") or "").strip()
-    try:
-        provider_payload = executor(provider_spec, model_id, api_key, generation_context)
-        provider_actions = [dict(item) for item in list_or_empty(dict_or_empty(provider_payload).get("actions")) if isinstance(item, dict)]
-        validated_actions = _validate_generated_actions(
-            provider_actions,
-            fulfillment_plan=fulfillment_plan,
-            contract=resolved_contract,
-            host_root_entrypoint=generation_context["host_root_entrypoint"],
-        )
-        return {
-            "generation_source": "provider_response",
-            "provider": provider_name,
-            "model_id": model_id,
-            "actions": validated_actions,
-            "rationale": str(dict_or_empty(provider_payload).get("rationale") or "").strip(),
-            "generation_context": generation_context,
-        }
-    except (FrontierActionValidationError, RuntimeError, ValueError, json.JSONDecodeError):
-        fallback_actions = _fallback_actions_for_plan(
-            fulfillment_plan,
-            generation_context=generation_context,
-            contract=resolved_contract,
-        )
-        return {
-            "generation_source": "fallback_validation_error",
-            "provider": provider_name,
-            "model_id": model_id,
-            "fallback_reason": "provider_output_failed_validation",
-            "actions": _validate_generated_actions(
-                fallback_actions,
+    executor = provider_executor
+    provider_failures: List[Dict[str, str]] = []
+    for provider_spec, model_id, api_key in configured_providers:
+        provider_name = str(provider_spec.get("provider") or "").strip()
+        try:
+            if executor is None:
+                provider_payload = _default_provider_executor(
+                    provider_spec,
+                    model_id,
+                    api_key,
+                    generation_context,
+                    fulfillment_plan=fulfillment_plan,
+                    contract=resolved_contract,
+                )
+            else:
+                provider_payload = executor(provider_spec, model_id, api_key, generation_context)
+            provider_actions = [dict(item) for item in list_or_empty(dict_or_empty(provider_payload).get("actions")) if isinstance(item, dict)]
+            validated_actions = _validate_generated_actions(
+                provider_actions,
                 fulfillment_plan=fulfillment_plan,
                 contract=resolved_contract,
                 host_root_entrypoint=generation_context["host_root_entrypoint"],
-            ),
-            "generation_context": generation_context,
-        }
+            )
+            return {
+                "generation_source": "provider_response",
+                "provider": provider_name,
+                "model_id": model_id,
+                "actions": validated_actions,
+                "rationale": str(dict_or_empty(provider_payload).get("rationale") or "").strip(),
+                "generation_context": generation_context,
+            }
+        except (
+            FrontierActionValidationError,
+            RuntimeError,
+            ValueError,
+            json.JSONDecodeError,
+        ) as exc:
+            failure_kind, failure_reason = _classify_provider_failure(exc)
+            provider_failures.append(
+                {
+                    "provider": provider_name,
+                    "model_id": model_id,
+                    "kind": failure_kind,
+                    "reason": failure_reason,
+                }
+            )
+
+    fallback_actions = _fallback_actions_for_plan(
+        fulfillment_plan,
+        generation_context=generation_context,
+        contract=resolved_contract,
+    )
+    generation_source = (
+        "fallback_provider_error"
+        if any(str(failure.get("kind") or "") == "provider_error" for failure in provider_failures)
+        else "fallback_validation_error"
+    )
+    return {
+        "generation_source": generation_source,
+        "provider": (
+            "multi_provider"
+            if len(provider_failures) > 1
+            else str(provider_failures[0].get("provider") or "").strip()
+        ),
+        "model_id": (
+            ""
+            if len(provider_failures) > 1
+            else str(provider_failures[0].get("model_id") or "").strip()
+        ),
+        "fallback_reason": _summarize_provider_failures(
+            provider_failures,
+            generation_source=generation_source,
+        ),
+        "actions": _validate_generated_actions(
+            fallback_actions,
+            fulfillment_plan=fulfillment_plan,
+            contract=resolved_contract,
+            host_root_entrypoint=generation_context["host_root_entrypoint"],
+        ),
+        "generation_context": generation_context,
+    }

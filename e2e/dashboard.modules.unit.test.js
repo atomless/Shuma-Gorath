@@ -6667,9 +6667,12 @@ test('dashboard adversary-sim agentic telemetry smoke explicitly drives bot_red_
   assert.ok(match, 'expected agentic recent-run telemetry smoke block');
   assert.match(match[0], /setAdversarySimDesiredLane\(page,\s*request,\s*"bot_red_team"\)/);
   assert.match(match[0], /deriveObservedCoverageSummaryText\(row\)/);
-  assert.match(match[0], /const expectedCoverageSummary = deriveObservedCoverageSummaryText\(recentRun\)/);
+  assert.match(match[0], /const expectedStartedAt = new Date\(Number\(recentRun\?\.first_ts \|\| 0\) \* 1000\)\.toLocaleString\(\)/);
+  assert.match(match[0], /waitForRenderedAdversaryRunRowText\(/);
+  assert.match(match[0], /Fallback Validation Error/);
   assert.match(match[0], /No shared telemetry observed/);
   assert.match(match[0], /Receipt projected only/);
+  assert.match(match[0], /Request Mode Execution Failed/);
 });
 
 test('dashboard hosted live smoke pins synthetic traffic before UI-only adversary toggle proof', () => {
