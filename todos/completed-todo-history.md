@@ -2,6 +2,54 @@
 
 Moved from active TODO files on 2026-02-14.
 
+## Additional completions (2026-04-03)
+
+### Shared Observed Recent-Run Coverage Unification
+
+- [x] Landed `SIM-TEL-UNI-1B` by rebuilding recent-run surface coverage on shared observed traffic evidence and demoting receipt-backed coverage to an explicitly labeled fallback.
+- [x] What landed:
+  - [`../src/observability/observed_surface_coverage.rs`](../src/observability/observed_surface_coverage.rs) now defines the shared observed-surface summary contract for request-outcome and monitoring-event evidence, including surface labels, response or progress states, and aggregated receipts that do not depend on Scrapling or Agentic worker internals.
+  - [`../src/admin/api.rs`](../src/admin/api.rs) now accumulates shared observed surface rows from sim-tagged observed request outcomes and shared monitoring events, and projects `observed_surface_coverage` into `MonitoringRecentSimRunSummary` alongside, rather than behind, any simulator-sidecar data.
+  - [`../src/observability/hot_read_documents.rs`](../src/observability/hot_read_documents.rs) now carries that additive `observed_surface_coverage` field through the hot-read recent-run contract.
+  - [`../dashboard/src/lib/components/dashboard/monitoring-view-model.js`](../dashboard/src/lib/components/dashboard/monitoring-view-model.js) now prefers shared observed coverage for `Coverage`, and only falls back to receipt-backed coverage with an explicit `Receipt projected` evidence label instead of silently flattening the distinction.
+  - [`../dashboard/src/lib/components/dashboard/monitoring/AdversaryRunPanel.svelte`](../dashboard/src/lib/components/dashboard/monitoring/AdversaryRunPanel.svelte) and [`../docs/dashboard-tabs/red-team.md`](../docs/dashboard-tabs/red-team.md) now render and document that same shared-vs-projected contract for operators.
+  - [`../e2e/dashboard.modules.unit.test.js`](../e2e/dashboard.modules.unit.test.js), [`../e2e/dashboard.smoke.spec.js`](../e2e/dashboard.smoke.spec.js), and [`../Makefile`](../Makefile) now lock the backend, row-shaping, and rendered Red Team pane proof surface around shared observed coverage and explicit fallback labeling.
+- [x] Why:
+  - before this slice, `Recent Red Team Runs` still mixed shared monitoring deltas with receipt-backed coverage claims. That let a row look full of traffic penetration truth even when Shuma had not actually observed equivalent shared traffic evidence for the run.
+- [x] Evidence:
+  - `make test-adversary-sim-recent-run-observed-coverage`
+  - `make test-dashboard-red-team-pane`
+  - `make test-code-quality`
+
+### Shared Observed Adversary Sim Request-Outcome Materialization
+
+- [x] Landed `SIM-TEL-UNI-1A` by routing sim-tagged request outcomes onto the shared Shuma request-outcome spine and materializing compact recent-run evidence without depending on Scrapling or Agentic worker receipts.
+- [x] What landed:
+  - [`../src/runtime/request_outcome.rs`](../src/runtime/request_outcome.rs) now defines `ObservedRequestOutcomeSummary`, a compact normalized summary of shared-observable request-outcome truth that can be persisted without dragging full worker-side receipt payloads into recent-run traffic evidence.
+  - [`../src/runtime/effect_intents/intent_executor.rs`](../src/runtime/effect_intents/intent_executor.rs) now treats `RecordRequestOutcome` as a dual write on the canonical policy-execution path: it still updates shared monitoring counters, and when a sim run is active it also appends a compact observed request-outcome event through the event log.
+  - [`../src/admin/api.rs`](../src/admin/api.rs) now persists those compact sim-tagged observed request-outcome events, recognizes them as recent-run observed evidence rather than receipts, and lets recent-run summaries materialize monitoring-event and defense truth from them even when no worker receipt exists.
+  - [`../src/admin/mod.rs`](../src/admin/mod.rs) and [`../src/admin/adversary_sim_api.rs`](../src/admin/adversary_sim_api.rs) now keep that helper and the existing receipt emitters in a coherent shared event-log contract.
+  - [`../Makefile`](../Makefile) now exposes the focused proof path `make test-adversary-sim-shared-observed-telemetry-contract`.
+- [x] Why:
+  - before this slice, sim-origin traffic already updated shared request-outcome counters, but `Recent Red Team Runs` could only see run-scoped truth from lane-specific worker receipts or external monitoring events. That left shared observed request outcomes invisible to the sim-run history path and kept the architecture split the user explicitly wanted removed.
+- [x] Evidence:
+  - `make test-adversary-sim-shared-observed-telemetry-contract`
+  - `make test-code-quality`
+
+### Adversary Sim Telemetry Unification Architecture Review And Planning Chain
+
+- [x] Reviewed the current adversary-sim telemetry collection and presentation stack against the repo's shared-observed-telemetry principles, diagnosed the main recent-run evidence split, and wrote the new research, plan, and execution-ready TODO chain for unifying real and sim traffic observation.
+- [x] What landed:
+  - [`../docs/research/2026-04-03-adversary-sim-telemetry-unification-architecture-review.md`](../docs/research/2026-04-03-adversary-sim-telemetry-unification-architecture-review.md) now records the current hybrid model: shared observed monitoring counts are being mixed with Scrapling and Agentic receipt-backed coverage or realism data inside the same operator-facing recent-run shape, even though Shuma already has one shared request-outcome spine for real and sim traffic.
+  - [`../docs/plans/2026-04-03-adversary-sim-telemetry-unification-plan.md`](../docs/plans/2026-04-03-adversary-sim-telemetry-unification-plan.md) now defines the follow-on tranches for shared observed-traffic collection parity, recent-run summary unification, simulator-sidecar separation, and host-worker frontier env parity.
+  - [`../docs/research/README.md`](../docs/research/README.md) and [`../docs/plans/README.md`](../docs/plans/README.md) now index that planning chain so it is part of the active discoverable architecture context rather than a hidden side note.
+  - [`../todos/todo.md`](../todos/todo.md) now carries execution-ready `SIM-TEL-UNI-1A..1D` backlog items with explicit closure gates and proof targets instead of letting more narrow Red Team table fixes proceed without a settled telemetry contract.
+- [x] Why:
+  - the user requirement is stronger than "fill empty Agentic cells": surfaces reached, defence interactions, and outcomes that Shuma can observe from real or sim traffic must come from one shared telemetry spine, while simulator-only facts such as modes, categories, and provider lineage remain explicit sidecars.
+  - the same review also captured the separate live defect that local frontier keys are being passed into `spin up` but not consistently into the host-side Agentic worker environment, so `no_configured_frontier_provider` must be fixed as env-parity drift rather than contributor setup failure.
+- [x] Evidence:
+  - docs-only planning slice; tests intentionally not run per repo policy
+
 ## Additional completions (2026-04-02)
 
 ### Agentic Recent Red Team Coverage Projection

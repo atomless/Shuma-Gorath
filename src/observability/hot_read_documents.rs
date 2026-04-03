@@ -10,6 +10,7 @@ use crate::observability::hot_read_contract::{
 };
 use crate::observability::llm_surface_observation::LlmSurfaceCoverageSummary;
 use crate::observability::monitoring::MonitoringSummary;
+use crate::observability::observed_surface_coverage::ObservedSurfaceCoverageSummary;
 use crate::observability::operator_snapshot::OperatorSnapshotHotReadPayload;
 use crate::observability::scrapling_owned_surface::ScraplingOwnedSurfaceCoverageSummary;
 use crate::observability::retention::RetentionHealth;
@@ -198,6 +199,8 @@ pub(crate) struct MonitoringRecentSimRunSummary {
     pub identity_summary: Option<MonitoringRecentRunIdentitySummary>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub transport_summary: Option<MonitoringRecentRunTransportSummary>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub observed_surface_coverage: Option<ObservedSurfaceCoverageSummary>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub owned_surface_coverage: Option<ScraplingOwnedSurfaceCoverageSummary>,
     #[serde(default, skip_serializing_if = "Option::is_none")]

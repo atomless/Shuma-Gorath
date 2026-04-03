@@ -358,6 +358,13 @@ pub(crate) fn execute_request_outcome_intents<S: crate::challenge::KeyValueStore
     capabilities: &PolicyExecutionCapabilities,
 ) {
     for intent in intents {
+        if let EffectIntent::RecordRequestOutcome { outcome } = intent {
+            let _ = capabilities.monitoring();
+            let _ = capabilities.event_log();
+            crate::observability::monitoring::record_request_outcome(store, &outcome);
+            crate::admin::log_sim_observed_request_outcome_event(store, &outcome);
+            continue;
+        }
         let Some(unhandled) =
             apply_monitoring_intent_with_store(store, "", intent)
         else {

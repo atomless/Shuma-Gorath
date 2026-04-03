@@ -4049,6 +4049,89 @@ test('monitoring view model formats transport realism summaries for recent adver
     assert.equal(summarizedRuns.runRows[0].coverageSummary?.overallStatus, 'partial_progress');
     assert.equal(summarizedRuns.runRows[0].coverageSummary?.coveredSurfaceCount, 1);
     assert.equal(summarizedRuns.runRows[0].coverageSummary?.totalSurfaceCount, 2);
+    assert.equal(summarizedRuns.runRows[0].coverageSummary?.evidenceLabel, 'Receipt projected');
+  });
+});
+
+test('recent adversary run summaries prefer shared observed coverage over receipt-backed fallback', { concurrency: false }, async () => {
+  await withBrowserGlobals({}, async () => {
+    const monitoringModelModule = await importBrowserModule('dashboard/src/lib/components/dashboard/monitoring-view-model.js');
+
+    const summarizedRuns = monitoringModelModule.deriveAdversaryRunRowsFromSummaries([
+      {
+        run_id: 'simrun-shared-observed-coverage',
+        lane: 'bot_red_team',
+        profile: 'llm_runtime_lane',
+        first_ts: 1710000100,
+        last_ts: 1710000200,
+        monitoring_event_count: 3,
+        defense_delta_count: 2,
+        ban_outcome_count: 0,
+        observed_surface_coverage: {
+          overall_status: 'partial_progress',
+          observed_surface_ids: ['challenge_puzzle', 'public_ingress', 'tarpit'],
+          response_surface_ids: ['challenge_puzzle', 'public_ingress', 'tarpit'],
+          progress_surface_ids: ['public_ingress', 'tarpit'],
+          surface_labels: {
+            challenge_puzzle: 'Challenge Puzzle',
+            public_ingress: 'Public Ingress',
+            tarpit: 'Tarpit'
+          },
+          receipts: [
+            {
+              surface_id: 'public_ingress',
+              coverage_status: 'progress_observed',
+              surface_state: 'leaked',
+              attempt_count: 2,
+              sample_response_kind: 'forward_allow',
+              sample_http_status: 200
+            },
+            {
+              surface_id: 'challenge_puzzle',
+              coverage_status: 'response_observed',
+              surface_state: 'held',
+              attempt_count: 1,
+              sample_response_kind: 'challenge',
+              sample_http_status: 403
+            },
+            {
+              surface_id: 'tarpit',
+              coverage_status: 'progress_observed',
+              surface_state: 'leaked',
+              attempt_count: 1,
+              sample_response_kind: 'tarpit',
+              sample_http_status: 200
+            }
+          ]
+        },
+        llm_surface_coverage: {
+          overall_status: 'response_observed',
+          observed_surface_ids: ['public_path_traversal'],
+          response_surface_ids: ['public_path_traversal'],
+          progress_surface_ids: [],
+          surface_labels: {
+            public_path_traversal: 'Public Path Traversal'
+          },
+          receipts: [
+            {
+              surface_id: 'public_path_traversal',
+              coverage_status: 'response_observed',
+              surface_state: 'held',
+              attempt_count: 1,
+              sample_request_method: 'GET',
+              sample_request_path: '/',
+              sample_response_status: 403
+            }
+          ]
+        }
+      }
+    ], []);
+
+    assert.equal(summarizedRuns.runRows[0].coverageSummary?.kind, 'shared_observed_surface');
+    assert.equal(summarizedRuns.runRows[0].coverageSummary?.overallStatus, 'partial_progress');
+    assert.equal(summarizedRuns.runRows[0].coverageSummary?.coveredSurfaceCount, 3);
+    assert.equal(summarizedRuns.runRows[0].coverageSummary?.totalSurfaceCount, 3);
+    assert.equal(summarizedRuns.runRows[0].coverageSummary?.evidenceLabel, '');
   });
 });
 
@@ -6933,6 +7016,7 @@ test('adversary run panel separates execution identity and transport columns', (
   assert.match(source, /\{formatTransportSummary\(row\)\}/);
   assert.match(source, /const formatCoverageSummary = \(row = \{\}\) => \{/);
   assert.match(source, /row\?\.coverageSummary/);
+  assert.match(source, /record\.evidenceLabel/);
   assert.match(source, /\{formatCoverageSummary\(row\)\}/);
   assert.match(source, /<td>\{formatTime\(row\.firstTs\)\}<\/td>\s*<td>\{formatLaneLabel\(row\.lane\)\}<\/td>/);
   assert.doesNotMatch(source, /\{formatTime\(row\.lastTs\)\}/);

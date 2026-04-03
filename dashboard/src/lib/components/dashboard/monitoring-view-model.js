@@ -441,6 +441,10 @@ const shapeAdversaryRunRows = (rows = [], activeBans = []) => {
       const llmSurfaceCoverage = row?.llmSurfaceCoverage && typeof row.llmSurfaceCoverage === 'object'
         ? row.llmSurfaceCoverage
         : null;
+      const observedSurfaceCoverage =
+        row?.observedSurfaceCoverage && typeof row.observedSurfaceCoverage === 'object'
+          ? row.observedSurfaceCoverage
+          : null;
       const latestScraplingRealismReceipt =
         row?.latestScraplingRealismReceipt && typeof row.latestScraplingRealismReceipt === 'object'
           ? row.latestScraplingRealismReceipt
@@ -466,9 +470,14 @@ const shapeAdversaryRunRows = (rows = [], activeBans = []) => {
         defenseRows,
         observedFulfillmentModes,
         observedCategoryIds,
+        observedSurfaceCoverage,
         ownedSurfaceCoverage,
         llmSurfaceCoverage,
-        coverageSummary: deriveCoverageSummary(ownedSurfaceCoverage, llmSurfaceCoverage),
+        coverageSummary: deriveCoverageSummary(
+          observedSurfaceCoverage,
+          ownedSurfaceCoverage,
+          llmSurfaceCoverage
+        ),
         latestScraplingRealismReceipt,
         identitySummary,
         transportSummary,
@@ -725,6 +734,55 @@ const shapeOwnedSurfaceCoverage = (coverage = {}) => {
       satisfiedSurfaceIds,
       receipts
     ),
+    receipts
+  };
+};
+
+const shapeObservedSurfaceCoverageReceipt = (receipt = {}, surfaceLabels = {}) => {
+  const source = receipt && typeof receipt === 'object' ? receipt : {};
+  const surfaceId = String(source.surfaceId || source.surface_id || '').trim();
+  return {
+    surfaceId,
+    surfaceLabel: surfaceLabels[surfaceId] || formatMetricLabel(surfaceId),
+    coverageStatus: String(source.coverageStatus || source.coverage_status || '').trim(),
+    surfaceState: String(source.surfaceState || source.surface_state || '').trim(),
+    attemptCount: Number(source.attemptCount || source.attempt_count || 0),
+    sampleResponseKind: String(source.sampleResponseKind || source.sample_response_kind || '').trim(),
+    sampleHttpStatus:
+      source.sampleHttpStatus === null || source.sampleHttpStatus === undefined || source.sampleHttpStatus === ''
+        ? null
+        : Number(source.sampleHttpStatus || source.sample_http_status || 0)
+  };
+};
+
+const shapeObservedSurfaceCoverage = (coverage = {}) => {
+  const source = coverage && typeof coverage === 'object' ? coverage : {};
+  const observedSurfaceIds = toSummaryStringArray(source.observedSurfaceIds || source.observed_surface_ids);
+  const responseSurfaceIds = toSummaryStringArray(source.responseSurfaceIds || source.response_surface_ids);
+  const progressSurfaceIds = toSummaryStringArray(source.progressSurfaceIds || source.progress_surface_ids);
+  const surfaceLabels = toSummaryLabelMap(source.surfaceLabels || source.surface_labels);
+  const receipts = (Array.isArray(source.receipts) ? source.receipts : [])
+    .map((receipt) => shapeObservedSurfaceCoverageReceipt(receipt, surfaceLabels))
+    .filter((receipt) => receipt.surfaceId);
+  if (
+    !String(source.overallStatus || source.overall_status || '').trim()
+    && observedSurfaceIds.length === 0
+    && responseSurfaceIds.length === 0
+    && progressSurfaceIds.length === 0
+    && Object.keys(surfaceLabels).length === 0
+    && receipts.length === 0
+  ) {
+    return null;
+  }
+  return {
+    overallStatus: String(source.overallStatus || source.overall_status || '').trim(),
+    observedSurfaceIds,
+    observedSurfaceCount: observedSurfaceIds.length,
+    responseSurfaceIds,
+    responseSurfaceCount: responseSurfaceIds.length,
+    progressSurfaceIds,
+    progressSurfaceCount: progressSurfaceIds.length,
+    surfaceLabels,
     receipts
   };
 };
@@ -1068,13 +1126,28 @@ const summarizeLlmSurfaceCoverageRows = (rows = []) => {
   };
 };
 
-const deriveCoverageSummary = (ownedSurfaceCoverage = null, llmSurfaceCoverage = null) => {
+const deriveCoverageSummary = (
+  observedSurfaceCoverage = null,
+  ownedSurfaceCoverage = null,
+  llmSurfaceCoverage = null
+) => {
+  if (observedSurfaceCoverage && typeof observedSurfaceCoverage === 'object') {
+    return {
+      kind: 'shared_observed_surface',
+      overallStatus: observedSurfaceCoverage.overallStatus,
+      coveredSurfaceCount:
+        observedSurfaceCoverage.responseSurfaceCount || observedSurfaceCoverage.observedSurfaceCount,
+      totalSurfaceCount: observedSurfaceCoverage.observedSurfaceCount,
+      evidenceLabel: ''
+    };
+  }
   if (ownedSurfaceCoverage && typeof ownedSurfaceCoverage === 'object') {
     return {
       kind: 'required_surface_closure',
       overallStatus: ownedSurfaceCoverage.overallStatus,
       coveredSurfaceCount: ownedSurfaceCoverage.satisfiedSurfaceCount,
-      totalSurfaceCount: ownedSurfaceCoverage.requiredSurfaceCount
+      totalSurfaceCount: ownedSurfaceCoverage.requiredSurfaceCount,
+      evidenceLabel: 'Receipt projected'
     };
   }
   if (llmSurfaceCoverage && typeof llmSurfaceCoverage === 'object') {
@@ -1082,7 +1155,8 @@ const deriveCoverageSummary = (ownedSurfaceCoverage = null, llmSurfaceCoverage =
       kind: 'llm_surface_observation',
       overallStatus: llmSurfaceCoverage.overallStatus,
       coveredSurfaceCount: llmSurfaceCoverage.progressSurfaceCount,
-      totalSurfaceCount: llmSurfaceCoverage.observedSurfaceCount
+      totalSurfaceCount: llmSurfaceCoverage.observedSurfaceCount,
+      evidenceLabel: 'Receipt projected'
     };
   }
   return null;
@@ -1108,6 +1182,9 @@ export const deriveAdversaryRunRowsFromSummaries = (summaries = [], bans = []) =
       ),
       observedCategoryIds: toSummaryStringArray(
         summary?.observedCategoryIds || summary?.observed_category_ids
+      ),
+      observedSurfaceCoverage: shapeObservedSurfaceCoverage(
+        summary?.observedSurfaceCoverage || summary?.observed_surface_coverage
       ),
       ownedSurfaceCoverage: shapeOwnedSurfaceCoverage(
         summary?.ownedSurfaceCoverage || summary?.owned_surface_coverage

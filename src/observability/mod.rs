@@ -23,6 +23,7 @@ pub(crate) mod monitoring;
 pub(crate) mod non_human_classification;
 pub(crate) mod non_human_coverage;
 pub(crate) mod non_human_lane_fulfillment;
+pub(crate) mod observed_surface_coverage;
 pub(crate) mod operator_objectives_store;
 pub(crate) mod operator_snapshot_non_human;
 pub(crate) mod operator_snapshot_live_traffic;

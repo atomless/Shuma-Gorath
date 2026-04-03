@@ -59,7 +59,10 @@
     const satisfied = formatCompactNumber(record.coveredSurfaceCount || 0, '0');
     const required = formatCompactNumber(record.totalSurfaceCount || 0, '0');
     const status = humanizeToken(record.overallStatus || '');
-    return `${status} | ${satisfied} / ${required} surfaces`;
+    const evidenceLabel = String(record.evidenceLabel || '').trim();
+    return [evidenceLabel, `${status} | ${satisfied} / ${required} surfaces`]
+      .filter(Boolean)
+      .join(' | ');
   };
   const formatProviderLabel = (value) => {
     const normalized = String(value || '').trim().toLowerCase();

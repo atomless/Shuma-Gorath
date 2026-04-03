@@ -110,6 +110,9 @@ pub(super) struct EventLogRecord {
     pub scrapling_category_targets: Vec<String>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub llm_runtime_summary: Option<crate::admin::adversary_sim::LlmRuntimeRecentRunSummary>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub observed_request_outcome:
+        Option<crate::runtime::request_outcome::ObservedRequestOutcomeSummary>,
     #[serde(flatten)]
     pub execution: EventExecutionMetadata,
 }
@@ -128,6 +131,7 @@ impl EventLogRecord {
             scrapling_surface_receipts: Vec::new(),
             scrapling_category_targets: Vec::new(),
             llm_runtime_summary: None,
+            observed_request_outcome: None,
             execution: EventExecutionMetadata::default(),
         }
     }
@@ -308,6 +312,15 @@ fn is_recent_sim_run_receipt_event(record: &EventLogRecord) -> bool {
         || !record.scrapling_category_targets.is_empty()
         || record.llm_runtime_summary.is_some()
         || record.execution.scrapling_realism_receipt.is_some())
+        && record
+            .sim_run_id
+            .as_deref()
+            .map(|value| !value.trim().is_empty())
+            .unwrap_or(false)
+}
+
+fn is_recent_sim_run_observed_request_outcome_event(record: &EventLogRecord) -> bool {
+    record.observed_request_outcome.is_some()
         && record
             .sim_run_id
             .as_deref()
@@ -676,6 +689,71 @@ fn telemetry_field_classification_schema() -> serde_json::Value {
             "persistence": "allow"
         },
         {
+            "field": "event.observed_request_outcome.traffic_origin",
+            "class": "public",
+            "persistence": "allow"
+        },
+        {
+            "field": "event.observed_request_outcome.measurement_scope",
+            "class": "public",
+            "persistence": "allow"
+        },
+        {
+            "field": "event.observed_request_outcome.route_action_family",
+            "class": "public",
+            "persistence": "allow"
+        },
+        {
+            "field": "event.observed_request_outcome.execution_mode",
+            "class": "internal",
+            "persistence": "allow"
+        },
+        {
+            "field": "event.observed_request_outcome.outcome_class",
+            "class": "internal",
+            "persistence": "allow"
+        },
+        {
+            "field": "event.observed_request_outcome.response_kind",
+            "class": "public",
+            "persistence": "allow"
+        },
+        {
+            "field": "event.observed_request_outcome.policy_source",
+            "class": "internal",
+            "persistence": "allow"
+        },
+        {
+            "field": "event.observed_request_outcome.http_status",
+            "class": "internal",
+            "persistence": "allow"
+        },
+        {
+            "field": "event.observed_request_outcome.traffic_lane",
+            "class": "internal",
+            "persistence": "allow"
+        },
+        {
+            "field": "event.observed_request_outcome.lane_exactness",
+            "class": "internal",
+            "persistence": "allow"
+        },
+        {
+            "field": "event.observed_request_outcome.lane_basis",
+            "class": "internal",
+            "persistence": "allow"
+        },
+        {
+            "field": "event.observed_request_outcome.non_human_category_id",
+            "class": "internal",
+            "persistence": "allow"
+        },
+        {
+            "field": "event.observed_request_outcome.non_human_assignment_status",
+            "class": "internal",
+            "persistence": "allow"
+        },
+        {
             "field": "artifact.raw_secret_like_value",
             "class": "secret-prohibited",
             "persistence": "deny_fail_closed"
@@ -926,6 +1004,47 @@ pub fn log_event_with_execution_metadata<S: crate::challenge::KeyValueStore>(
 
 pub fn log_event<S: crate::challenge::KeyValueStore>(store: &S, entry: &EventLogEntry) {
     log_event_with_execution_metadata(store, entry, None);
+}
+
+pub(crate) fn log_sim_observed_request_outcome_event<S: crate::challenge::KeyValueStore>(
+    store: &S,
+    outcome: &crate::runtime::request_outcome::RenderedRequestOutcome,
+) {
+    if !matches!(
+        outcome.traffic_origin,
+        crate::runtime::request_outcome::TrafficOrigin::AdversarySim
+    ) {
+        return;
+    }
+    let Some(sim_metadata) = crate::runtime::sim_telemetry::current_metadata() else {
+        return;
+    };
+    let observed_request_outcome = outcome.observed_summary();
+    persist_event_record(
+        store,
+        EventLogRecord {
+            entry: EventLogEntry {
+                ts: now_ts(),
+                event: EventType::AdminAction,
+                ip: None,
+                reason: Some("observed_request_outcome".to_string()),
+                outcome: Some(observed_request_outcome.response_kind.clone()),
+                admin: Some("internal".to_string()),
+            },
+            taxonomy: None,
+            outcome_code: Some(observed_request_outcome.outcome_class.clone()),
+            botness_score: None,
+            sim_run_id: Some(sim_metadata.sim_run_id),
+            sim_profile: Some(sim_metadata.sim_profile),
+            sim_lane: Some(sim_metadata.sim_lane),
+            is_simulation: true,
+            scrapling_surface_receipts: Vec::new(),
+            scrapling_category_targets: Vec::new(),
+            llm_runtime_summary: None,
+            observed_request_outcome: Some(observed_request_outcome),
+            execution: EventExecutionMetadata::default(),
+        },
+    );
 }
 
 #[cfg(test)]
@@ -1651,6 +1770,7 @@ mod tests {
                 is_simulation: true,
                 scrapling_category_targets: Vec::new(),
                 llm_runtime_summary: None,
+                observed_request_outcome: None,
                 execution: EventExecutionMetadata::default(),
                 scrapling_surface_receipts: vec![
                     crate::observability::scrapling_owned_surface::ScraplingSurfaceObservationReceipt {
@@ -1778,6 +1898,195 @@ mod tests {
                 "http_agent".to_string(),
                 "indexing_bot".to_string()
             ]
+        );
+    }
+
+    #[test]
+    fn recent_sim_run_history_includes_shared_observed_request_outcome_events_without_worker_receipts(
+    ) {
+        let store = MockStore::new();
+        let _guard = crate::runtime::sim_telemetry::enter(Some(
+            crate::runtime::sim_telemetry::SimulationRequestMetadata {
+                sim_run_id: "simrun-shared-observed-request-outcome".to_string(),
+                sim_profile: "llm_runtime_lane.request_mode".to_string(),
+                sim_lane: "bot_red_team".to_string(),
+            },
+        ));
+
+        crate::runtime::effect_intents::execute_request_outcome_intents(
+            vec![crate::runtime::effect_intents::EffectIntent::RecordRequestOutcome {
+                outcome: crate::runtime::request_outcome::RenderedRequestOutcome {
+                    traffic_origin: crate::runtime::request_outcome::TrafficOrigin::AdversarySim,
+                    measurement_scope:
+                        crate::runtime::traffic_classification::MeasurementScope::IngressPrimary,
+                    route_action_family:
+                        crate::runtime::traffic_classification::RouteActionFamily::PublicContent,
+                    execution_mode: crate::runtime::effect_intents::ExecutionMode::Enforced,
+                    traffic_lane: Some(crate::runtime::request_outcome::RequestOutcomeLane {
+                        lane: crate::runtime::traffic_classification::TrafficLane::SuspiciousAutomation,
+                        exactness:
+                            crate::observability::hot_read_contract::TelemetryExactness::Exact,
+                        basis: crate::observability::hot_read_contract::TelemetryBasis::Policy,
+                    }),
+                    non_human_category: None,
+                    outcome_class:
+                        crate::runtime::request_outcome::RequestOutcomeClass::ShortCircuited,
+                    response_kind: crate::runtime::request_outcome::ResponseKind::Challenge,
+                    http_status: 403,
+                    response_bytes: 128,
+                    forwarded_upstream_latency_ms: None,
+                    forward_attempted: false,
+                    forward_failure_class: None,
+                    intended_action: None,
+                    policy_source:
+                        crate::runtime::traffic_classification::PolicySource::PolicyGraphSecondTranche,
+                },
+            }],
+            &store,
+            &crate::runtime::capabilities::RuntimeCapabilities::for_test_policy_execution_phase(),
+        );
+
+        let recent_runs = monitoring_recent_sim_run_summaries(&store, now_ts(), 24, 10);
+        let row = recent_runs
+            .iter()
+            .find(|value| value.run_id == "simrun-shared-observed-request-outcome")
+            .expect("recent run row for shared observed request outcome");
+        assert_eq!(row.lane, "bot_red_team");
+        assert_eq!(row.profile, "llm_runtime_lane");
+        assert_eq!(row.monitoring_event_count, 1);
+        assert_eq!(row.defense_delta_count, 1);
+    }
+
+    #[test]
+    fn recent_sim_run_history_projects_shared_observed_surface_coverage_without_receipts() {
+        let store = MockStore::new();
+        let _guard = crate::runtime::sim_telemetry::enter(Some(
+            crate::runtime::sim_telemetry::SimulationRequestMetadata {
+                sim_run_id: "simrun-shared-observed-surface-coverage".to_string(),
+                sim_profile: "llm_runtime_lane.request_mode".to_string(),
+                sim_lane: "bot_red_team".to_string(),
+            },
+        ));
+
+        crate::runtime::effect_intents::execute_request_outcome_intents(
+            vec![
+                crate::runtime::effect_intents::EffectIntent::RecordRequestOutcome {
+                    outcome: crate::runtime::request_outcome::RenderedRequestOutcome {
+                        traffic_origin:
+                            crate::runtime::request_outcome::TrafficOrigin::AdversarySim,
+                        measurement_scope:
+                            crate::runtime::traffic_classification::MeasurementScope::IngressPrimary,
+                        route_action_family:
+                            crate::runtime::traffic_classification::RouteActionFamily::PublicContent,
+                        execution_mode: crate::runtime::effect_intents::ExecutionMode::Enforced,
+                        traffic_lane: Some(crate::runtime::request_outcome::RequestOutcomeLane {
+                            lane: crate::runtime::traffic_classification::TrafficLane::SuspiciousAutomation,
+                            exactness:
+                                crate::observability::hot_read_contract::TelemetryExactness::Exact,
+                            basis: crate::observability::hot_read_contract::TelemetryBasis::Policy,
+                        }),
+                        non_human_category: None,
+                        outcome_class:
+                            crate::runtime::request_outcome::RequestOutcomeClass::Forwarded,
+                        response_kind:
+                            crate::runtime::request_outcome::ResponseKind::ForwardAllow,
+                        http_status: 200,
+                        response_bytes: 512,
+                        forwarded_upstream_latency_ms: Some(28),
+                        forward_attempted: true,
+                        forward_failure_class: None,
+                        intended_action: None,
+                        policy_source: crate::runtime::traffic_classification::PolicySource::CleanAllow,
+                    },
+                },
+                crate::runtime::effect_intents::EffectIntent::RecordRequestOutcome {
+                    outcome: crate::runtime::request_outcome::RenderedRequestOutcome {
+                        traffic_origin:
+                            crate::runtime::request_outcome::TrafficOrigin::AdversarySim,
+                        measurement_scope:
+                            crate::runtime::traffic_classification::MeasurementScope::IngressPrimary,
+                        route_action_family:
+                            crate::runtime::traffic_classification::RouteActionFamily::PublicContent,
+                        execution_mode: crate::runtime::effect_intents::ExecutionMode::Enforced,
+                        traffic_lane: Some(crate::runtime::request_outcome::RequestOutcomeLane {
+                            lane: crate::runtime::traffic_classification::TrafficLane::SuspiciousAutomation,
+                            exactness:
+                                crate::observability::hot_read_contract::TelemetryExactness::Exact,
+                            basis: crate::observability::hot_read_contract::TelemetryBasis::Policy,
+                        }),
+                        non_human_category: None,
+                        outcome_class:
+                            crate::runtime::request_outcome::RequestOutcomeClass::ShortCircuited,
+                        response_kind: crate::runtime::request_outcome::ResponseKind::Challenge,
+                        http_status: 403,
+                        response_bytes: 128,
+                        forwarded_upstream_latency_ms: None,
+                        forward_attempted: false,
+                        forward_failure_class: None,
+                        intended_action: None,
+                        policy_source:
+                            crate::runtime::traffic_classification::PolicySource::PolicyGraphSecondTranche,
+                    },
+                },
+                crate::runtime::effect_intents::EffectIntent::RecordRequestOutcome {
+                    outcome: crate::runtime::request_outcome::RenderedRequestOutcome {
+                        traffic_origin:
+                            crate::runtime::request_outcome::TrafficOrigin::AdversarySim,
+                        measurement_scope:
+                            crate::runtime::traffic_classification::MeasurementScope::DefenceFollowup,
+                        route_action_family:
+                            crate::runtime::traffic_classification::RouteActionFamily::DefenceFollowup,
+                        execution_mode: crate::runtime::effect_intents::ExecutionMode::Enforced,
+                        traffic_lane: None,
+                        non_human_category: None,
+                        outcome_class:
+                            crate::runtime::request_outcome::RequestOutcomeClass::ShortCircuited,
+                        response_kind: crate::runtime::request_outcome::ResponseKind::Tarpit,
+                        http_status: 200,
+                        response_bytes: 64,
+                        forwarded_upstream_latency_ms: None,
+                        forward_attempted: false,
+                        forward_failure_class: None,
+                        intended_action: None,
+                        policy_source:
+                            crate::runtime::traffic_classification::PolicySource::DefenceFollowup,
+                    },
+                },
+            ],
+            &store,
+            &crate::runtime::capabilities::RuntimeCapabilities::for_test_policy_execution_phase(),
+        );
+
+        let recent_runs = monitoring_recent_sim_run_summaries(&store, now_ts(), 24, 10);
+        let row = recent_runs
+            .iter()
+            .find(|value| value.run_id == "simrun-shared-observed-surface-coverage")
+            .expect("recent run row with shared observed surface coverage");
+        let coverage = row
+            .observed_surface_coverage
+            .as_ref()
+            .expect("shared observed surface coverage");
+        assert_eq!(row.monitoring_event_count, 3);
+        assert_eq!(coverage.overall_status, "partial_progress");
+        assert_eq!(
+            coverage.observed_surface_ids,
+            vec![
+                "challenge_puzzle".to_string(),
+                "public_ingress".to_string(),
+                "tarpit".to_string()
+            ]
+        );
+        assert_eq!(
+            coverage.response_surface_ids,
+            vec![
+                "challenge_puzzle".to_string(),
+                "public_ingress".to_string(),
+                "tarpit".to_string()
+            ]
+        );
+        assert_eq!(
+            coverage.progress_surface_ids,
+            vec!["public_ingress".to_string(), "tarpit".to_string()]
         );
     }
 
@@ -1911,6 +2220,7 @@ mod tests {
                         ],
                     },
                 ),
+                observed_request_outcome: None,
                 execution: EventExecutionMetadata::default(),
             },
         );
@@ -2115,6 +2425,7 @@ mod tests {
                             ],
                         },
                     ),
+                    observed_request_outcome: None,
                     execution: EventExecutionMetadata::default(),
                 },
             );
@@ -2287,6 +2598,7 @@ mod tests {
                             ],
                         },
                     ),
+                    observed_request_outcome: None,
                     execution: EventExecutionMetadata::default(),
                 },
             );
@@ -2500,6 +2812,7 @@ mod tests {
                         ],
                     },
                 ),
+                observed_request_outcome: None,
                 execution: EventExecutionMetadata::default(),
             },
         );
@@ -2558,6 +2871,7 @@ mod tests {
                         scrapling_surface_receipts: Vec::new(),
                         scrapling_category_targets: vec!["ai_scraper_bot".to_string()],
                         llm_runtime_summary: None,
+                        observed_request_outcome: None,
                         execution: EventExecutionMetadata {
                             scrapling_realism_receipt: Some(
                                 crate::admin::adversary_sim::ScraplingRealismReceipt {
@@ -2910,6 +3224,7 @@ mod tests {
             scrapling_surface_receipts: Vec::new(),
             scrapling_category_targets: Vec::new(),
             llm_runtime_summary: None,
+            observed_request_outcome: None,
             execution: EventExecutionMetadata::default(),
         };
 
@@ -16423,6 +16738,8 @@ struct MonitoringRecentSimRunAccumulator {
     observed_country_codes: HashSet<String>,
     transport_modes: HashSet<String>,
     transport_degraded_reasons: HashSet<String>,
+    observed_surface_observations:
+        Vec<crate::observability::observed_surface_coverage::ObservedSurfaceObservationRow>,
     surface_observations:
         Vec<crate::observability::scrapling_owned_surface::ScraplingSurfaceObservationReceipt>,
     llm_surface_observations:
@@ -16496,6 +16813,19 @@ fn normalize_monitoring_event_token(value: Option<&str>) -> String {
 }
 
 fn classify_monitoring_sim_run_defense(record: &EventLogRecord) -> String {
+    if let Some(observed) = record.observed_request_outcome.as_ref() {
+        match observed.response_kind.as_str() {
+            "tarpit" => return "tarpit".to_string(),
+            "maze" => return "maze".to_string(),
+            "not_a_bot" => return "not_a_bot".to_string(),
+            "js_challenge" | "challenge" | "checkpoint_response"
+            | "defence_followup_response" => return "challenge".to_string(),
+            "block_page" | "plain_text_block" | "redirect" | "drop_connection" => {
+                return "ban_path".to_string()
+            }
+            _ => {}
+        }
+    }
     let event_type = format!("{:?}", record.entry.event).to_ascii_lowercase();
     let reason = normalize_monitoring_event_token(record.entry.reason.as_deref());
     let outcome = normalize_monitoring_event_token(record.entry.outcome.as_deref());
@@ -16548,6 +16878,12 @@ fn classify_monitoring_sim_run_defense(record: &EventLogRecord) -> String {
 fn monitoring_sim_run_is_ban_outcome(record: &EventLogRecord) -> bool {
     if record.execution.execution_mode.as_deref() == Some("shadow") {
         return false;
+    }
+    if let Some(observed) = record.observed_request_outcome.as_ref() {
+        return matches!(
+            observed.response_kind.as_str(),
+            "block_page" | "plain_text_block" | "redirect" | "drop_connection"
+        );
     }
     if matches!(record.entry.event, EventType::Ban) {
         return true;
@@ -16609,7 +16945,10 @@ fn monitoring_recent_sim_run_summaries_filtered<S: crate::challenge::KeyValueSto
 
     for stored in load_recent_event_records_with_keys(store, now, hours) {
         let receipt_event = is_recent_sim_run_receipt_event(&stored.record);
-        if !is_external_monitoring_event(&stored.record) && !receipt_event {
+        let observed_request_outcome_event =
+            is_recent_sim_run_observed_request_outcome_event(&stored.record);
+        let external_monitoring_event = is_external_monitoring_event(&stored.record);
+        if !external_monitoring_event && !receipt_event && !observed_request_outcome_event {
             continue;
         }
         let run_id = stored
@@ -16675,6 +17014,7 @@ fn monitoring_recent_sim_run_summaries_filtered<S: crate::challenge::KeyValueSto
                     observed_country_codes: HashSet::new(),
                     transport_modes: HashSet::new(),
                     transport_degraded_reasons: HashSet::new(),
+                    observed_surface_observations: Vec::new(),
                     surface_observations: Vec::new(),
                     llm_surface_observations: Vec::new(),
                     latest_scrapling_realism_receipt: None,
@@ -16704,13 +17044,30 @@ fn monitoring_recent_sim_run_summaries_filtered<S: crate::challenge::KeyValueSto
             &mut accumulator.observed_category_ids,
             explicit_scrapling_category_targets,
         );
-        if !receipt_event {
+        if external_monitoring_event || observed_request_outcome_event {
             accumulator.monitoring_event_count =
                 accumulator.monitoring_event_count.saturating_add(1);
             accumulator.defense_keys.insert(defense);
             if monitoring_sim_run_is_ban_outcome(&stored.record) {
                 accumulator.ban_outcome_count = accumulator.ban_outcome_count.saturating_add(1);
             }
+        }
+        if let Some(observed) = stored.record.observed_request_outcome.as_ref() {
+            accumulator.observed_surface_observations.extend(
+                crate::observability::observed_surface_coverage::summarize_observed_request_outcome_surface_observations(
+                    observed,
+                ),
+            );
+        }
+        if external_monitoring_event {
+            accumulator.observed_surface_observations.extend(
+                crate::observability::observed_surface_coverage::summarize_monitoring_event_surface_observations(
+                    format!("{:?}", stored.record.entry.event).to_ascii_lowercase().as_str(),
+                    stored.record.entry.reason.as_deref(),
+                    stored.record.outcome_code.as_deref(),
+                    stored.record.entry.outcome.as_deref(),
+                ),
+            );
         }
         accumulator
             .surface_observations
@@ -16782,6 +17139,10 @@ fn monitoring_recent_sim_run_summaries_filtered<S: crate::challenge::KeyValueSto
                     observed_fulfillment_modes.as_slice(),
                     row.surface_observations.as_slice(),
                 );
+                let observed_surface_coverage =
+                    crate::observability::observed_surface_coverage::summarize_observed_surface_coverage(
+                        row.observed_surface_observations.as_slice(),
+                    );
                 let llm_surface_coverage =
                     crate::observability::llm_surface_observation::summarize_llm_surface_coverage(
                         row.llm_surface_observations.as_slice(),
@@ -16815,6 +17176,7 @@ fn monitoring_recent_sim_run_summaries_filtered<S: crate::challenge::KeyValueSto
                             degraded_reasons: transport_degraded_reasons,
                         },
                     ),
+                    observed_surface_coverage,
                     owned_surface_coverage,
                     llm_surface_coverage,
                     latest_scrapling_realism_receipt: row.latest_scrapling_realism_receipt,

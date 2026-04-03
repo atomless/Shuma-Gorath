@@ -21,9 +21,10 @@ Panel:
   - the lane column uses the same operator-facing lane names as the control surface, so `bot_red_team` rows read as `Agentic Traffic`,
   - observed fulfillment modes plus preserved category targets for each bounded run row,
   - monitoring-event, defence-reaction, and ban counts for quick run comparison,
-  - `Coverage` remains lane-truthful:
-    - `scrapling_traffic` rows show owned-surface closure against the lane's required surface set,
-    - `bot_red_team` rows show additive whole-run Agentic surface-observation progress across observed loci,
+  - `Coverage` now prefers shared observed-traffic evidence for both lanes:
+    - when shared observed request-outcome or monitoring evidence exists, the cell reflects those reached surfaces rather than worker receipts,
+    - if the dashboard must temporarily fall back to receipt-backed coverage because shared observed evidence has not yet materialized for that row, the cell explicitly labels that state as `Receipt projected`,
+    - and simulator receipts remain sidecars for execution lineage, fulfillment modes, category targets, and realism posture rather than pretending to be shared traffic truth,
   - additive LLM runtime lineage for `bot_red_team` rows when present in the bounded monitoring window:
     - generation source,
     - provider and model when available,

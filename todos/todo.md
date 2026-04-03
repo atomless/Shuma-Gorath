@@ -1,6 +1,6 @@
 # TODO Roadmap
 
-Last updated: 2026-04-01
+Last updated: 2026-04-03
 
 This is the active execution-ready work queue.
 Blocked or contingent work lives in `todos/blocked-todo.md`.
@@ -49,6 +49,38 @@ Reference context:
 - Controller-readiness review addendum (2026-03-19):
   - treat the remaining telemetry work below as first-order foundation, not later polish, because future operator benchmarks and bounded inside-controller loops will need truthful byte attribution, richer bounded backend summaries, and fuller control/fail-path outcome coverage before the Monitoring UI overhaul should start.
   - reference: [`docs/research/2026-03-19-controller-readiness-telemetry-foundation-review.md`](../docs/research/2026-03-19-controller-readiness-telemetry-foundation-review.md)
+
+## P0 Unified Observed Telemetry For Real And Sim Traffic
+
+Reference context:
+- [`docs/research/2026-04-03-adversary-sim-telemetry-unification-architecture-review.md`](../docs/research/2026-04-03-adversary-sim-telemetry-unification-architecture-review.md)
+- [`docs/plans/2026-04-03-adversary-sim-telemetry-unification-plan.md`](../docs/plans/2026-04-03-adversary-sim-telemetry-unification-plan.md)
+- [`docs/research/2026-04-02-agentic-recent-run-coverage-gap-review.md`](../docs/research/2026-04-02-agentic-recent-run-coverage-gap-review.md)
+- [`docs/plans/2026-03-18-monitoring-telemetry-foundations-architectural-necessities.md`](../docs/plans/2026-03-18-monitoring-telemetry-foundations-architectural-necessities.md)
+- [`docs/plans/2026-03-18-monitoring-request-outcome-telemetry-hook-contract.md`](../docs/plans/2026-03-18-monitoring-request-outcome-telemetry-hook-contract.md)
+
+Current stance:
+- The narrow recent-run presentation follow-ons around Agentic coverage exposed a deeper architecture problem: Shuma is currently mixing shared observed monitoring truth with lane-specific receipt truth inside the same Red Team operator table.
+- The active requirement is now stronger than "make a column non-empty": any traffic events, surfaces reached, defence interactions, and outcomes that Shuma can observe from inbound traffic must be collected through the same Shuma telemetry spine for real and sim traffic.
+- Simulator-only metadata such as fulfillment modes, fulfilled categories, provider lineage, and realism envelopes should remain explicit sidecars because they are privileged attacker-internal truth that real traffic cannot supply.
+- Shared collection does not imply shared denominators: live-only operator views may still filter sim-origin traffic, but that filtering must happen after collection rather than by maintaining a second traffic-evidence stack.
+- A separate but directly relevant defect is now diagnosed: local frontier keys are present and passed into `spin up`, but host-side Agentic workers do not inherit them consistently, so `no_configured_frontier_provider` must be fixed as a runtime env-parity problem rather than treated as missing contributor setup.
+- The next active execution priority is now `SIM-TEL-UNI-1C`: recent-run coverage truth now prefers shared observed evidence, but simulator receipts still need to be reduced to explicit privileged sidecars across later operator surfaces.
+
+- [ ] SIM-TEL-UNI-1C Reduce simulator receipts to privileged sidecars and keep that separation explicit through operator surfaces.
+  - Closure gate:
+    - sidecar truth: fulfillment modes, category targets, provider or model lineage, generation source, and realism-envelope details must remain available where they are genuinely simulator-internal
+    - separation truth: surfaces reached, defence interactions, and outcomes must no longer depend on those same receipts for their authoritative operator rendering
+    - downstream truth: recent-run, operator snapshot, and later Game Loop or benchmark consumers must distinguish shared observed traffic evidence from simulator-sidecar enrichment without leaking simulator surrogates into runtime traffic truth
+    - proof: add and pass `make test-adversary-sim-sidecar-separation-contract`
+    - insufficient: deleting useful simulator metadata, or keeping receipt-backed penetration claims because they are convenient for one current dashboard table
+
+- [ ] SIM-TEL-UNI-1D Fix frontier env parity for host-side Agentic workers.
+  - Closure gate:
+    - runtime truth: when local env or Make wiring configures frontier provider keys, the host-side supervisor-launched `llm_runtime_worker.py` must see the same configured providers as the Spin runtime
+    - operator truth: Agentic execution must no longer degrade to `no_configured_frontier_provider` on a contributor machine whose local runtime is already passing those keys to `spin up`
+    - proof: add and pass `make test-adversarial-llm-runtime-frontier-env-parity`
+    - insufficient: UI wording changes, dashboard-only masking of the fallback, or leaving the host worker and Spin runtime with divergent provider visibility
 
 ## P0 Machine-First Operator Snapshot Foundations
 

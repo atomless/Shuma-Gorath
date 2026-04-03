@@ -5250,7 +5250,7 @@ test("red team recent runs label identity and transport realism truthfully", asy
   await expect(rows.nth(0)).toContainText("FR");
   await expect(rows.nth(0)).toContainText("Degraded Direct Library");
   await expect(rows.nth(0)).toContainText("No TLS Or Protocol Impersonation Support");
-  await expect(rows.nth(0)).toContainText("Partial Progress | 1 / 2 surfaces");
+  await expect(rows.nth(0)).toContainText("Receipt projected | Partial Progress | 1 / 2 surfaces");
   await expect(rows.nth(1)).toContainText("22 activities executed");
   await expect(rows.nth(1)).toContainText("Degraded local identity");
   await expect(rows.nth(1)).toContainText("Impersonated Request Stack");

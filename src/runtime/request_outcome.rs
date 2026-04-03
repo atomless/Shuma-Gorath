@@ -1,5 +1,6 @@
 #![cfg_attr(not(test), allow(dead_code))]
 
+use serde::{Deserialize, Serialize};
 use spin_sdk::http::Response;
 
 use crate::observability::hot_read_contract::{TelemetryBasis, TelemetryExactness};
@@ -149,6 +150,137 @@ pub(crate) struct RenderedRequestOutcome {
     pub policy_source: PolicySource,
 }
 
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+pub(crate) struct ObservedRequestOutcomeSummary {
+    pub traffic_origin: String,
+    pub measurement_scope: String,
+    pub route_action_family: String,
+    pub execution_mode: String,
+    pub outcome_class: String,
+    pub response_kind: String,
+    pub policy_source: String,
+    pub http_status: u16,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub traffic_lane: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub lane_exactness: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub lane_basis: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub non_human_category_id: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub non_human_assignment_status: Option<String>,
+}
+
+fn normalize_traffic_origin(origin: TrafficOrigin) -> &'static str {
+    match origin {
+        TrafficOrigin::Live => "live",
+        TrafficOrigin::AdversarySim => "adversary_sim",
+    }
+}
+
+fn normalize_measurement_scope(scope: MeasurementScope) -> &'static str {
+    match scope {
+        MeasurementScope::IngressPrimary => "ingress_primary",
+        MeasurementScope::DefenceFollowup => "defence_followup",
+        MeasurementScope::BypassAndControl => "bypass_and_control",
+        MeasurementScope::Excluded => "excluded",
+    }
+}
+
+fn normalize_route_action_family(family: RouteActionFamily) -> &'static str {
+    match family {
+        RouteActionFamily::PublicContent => "public_content",
+        RouteActionFamily::StaticAsset => "static_asset",
+        RouteActionFamily::DefenceFollowup => "defence_followup",
+        RouteActionFamily::AllowlistBypass => "allowlist_bypass",
+        RouteActionFamily::ControlPlane => "control_plane",
+        RouteActionFamily::SimPublic => "sim_public",
+    }
+}
+
+fn normalize_execution_mode(mode: ExecutionMode) -> &'static str {
+    match mode {
+        ExecutionMode::Enforced => "enforced",
+        ExecutionMode::Shadow => "shadow",
+    }
+}
+
+fn normalize_request_outcome_class(outcome_class: RequestOutcomeClass) -> &'static str {
+    match outcome_class {
+        RequestOutcomeClass::Forwarded => "forwarded",
+        RequestOutcomeClass::ShortCircuited => "short_circuited",
+        RequestOutcomeClass::ControlResponse => "control_response",
+    }
+}
+
+fn normalize_response_kind(kind: ResponseKind) -> &'static str {
+    match kind {
+        ResponseKind::ForwardAllow => "forward_allow",
+        ResponseKind::ForwardFailureFallback => "forward_failure_fallback",
+        ResponseKind::SyntheticShadowAllow => "synthetic_shadow_allow",
+        ResponseKind::SyntheticShadowAction => "synthetic_shadow_action",
+        ResponseKind::BlockPage => "block_page",
+        ResponseKind::PlainTextBlock => "plain_text_block",
+        ResponseKind::Redirect => "redirect",
+        ResponseKind::DropConnection => "drop_connection",
+        ResponseKind::Challenge => "challenge",
+        ResponseKind::NotABot => "not_a_bot",
+        ResponseKind::JsChallenge => "js_challenge",
+        ResponseKind::Maze => "maze",
+        ResponseKind::Tarpit => "tarpit",
+        ResponseKind::CheckpointResponse => "checkpoint_response",
+        ResponseKind::DefenceFollowupResponse => "defence_followup_response",
+        ResponseKind::SimPublicResponse => "sim_public_response",
+        ResponseKind::ControlPlaneResponse => "control_plane_response",
+    }
+}
+
+fn normalize_policy_source(source: PolicySource) -> &'static str {
+    match source {
+        PolicySource::EarlyRoute => "early_route",
+        PolicySource::StaticAssetBypass => "static_asset_bypass",
+        PolicySource::AllowlistBypass => "allowlist_bypass",
+        PolicySource::PolicyGraphFirstTranche => "policy_graph_first_tranche",
+        PolicySource::PolicyGraphVerifiedIdentityTranche => "policy_graph_verified_identity_tranche",
+        PolicySource::PolicyGraphSecondTranche => "policy_graph_second_tranche",
+        PolicySource::CleanAllow => "clean_allow",
+        PolicySource::DefenceFollowup => "defence_followup",
+        PolicySource::SimPublic => "sim_public",
+        PolicySource::BootstrapFailure => "bootstrap_failure",
+    }
+}
+
+fn normalize_traffic_lane(lane: TrafficLane) -> &'static str {
+    match lane {
+        TrafficLane::LikelyHuman => "likely_human",
+        TrafficLane::UnknownInteractive => "unknown_interactive",
+        TrafficLane::SuspiciousAutomation => "suspicious_automation",
+        TrafficLane::DeclaredCrawler => "declared_crawler",
+        TrafficLane::DeclaredUserTriggeredAgent => "declared_user_triggered_agent",
+        TrafficLane::VerifiedBot => "verified_bot",
+        TrafficLane::SignedAgent => "signed_agent",
+    }
+}
+
+fn normalize_telemetry_exactness(exactness: TelemetryExactness) -> &'static str {
+    match exactness {
+        TelemetryExactness::Exact => "exact",
+        TelemetryExactness::Derived => "derived",
+        TelemetryExactness::BestEffort => "best_effort",
+    }
+}
+
+fn normalize_telemetry_basis(basis: TelemetryBasis) -> &'static str {
+    match basis {
+        TelemetryBasis::Observed => "observed",
+        TelemetryBasis::Policy => "policy",
+        TelemetryBasis::Verified => "verified",
+        TelemetryBasis::Residual => "residual",
+        TelemetryBasis::Mixed => "mixed",
+    }
+}
+
 impl RenderedRequestOutcome {
     pub(crate) fn from_handled_response(
         traffic_origin: TrafficOrigin,
@@ -186,6 +318,35 @@ impl RenderedRequestOutcome {
             forward_failure_class: handled.rendered.forward_failure_class,
             intended_action: handled.rendered.intended_action,
             policy_source: classification.policy_source,
+        }
+    }
+
+    pub(crate) fn observed_summary(&self) -> ObservedRequestOutcomeSummary {
+        ObservedRequestOutcomeSummary {
+            traffic_origin: normalize_traffic_origin(self.traffic_origin).to_string(),
+            measurement_scope: normalize_measurement_scope(self.measurement_scope).to_string(),
+            route_action_family: normalize_route_action_family(self.route_action_family)
+                .to_string(),
+            execution_mode: normalize_execution_mode(self.execution_mode).to_string(),
+            outcome_class: normalize_request_outcome_class(self.outcome_class).to_string(),
+            response_kind: normalize_response_kind(self.response_kind).to_string(),
+            policy_source: normalize_policy_source(self.policy_source).to_string(),
+            http_status: self.http_status,
+            traffic_lane: self
+                .traffic_lane
+                .map(|lane| normalize_traffic_lane(lane.lane).to_string()),
+            lane_exactness: self
+                .traffic_lane
+                .map(|lane| normalize_telemetry_exactness(lane.exactness).to_string()),
+            lane_basis: self
+                .traffic_lane
+                .map(|lane| normalize_telemetry_basis(lane.basis).to_string()),
+            non_human_category_id: self
+                .non_human_category
+                .map(|assignment| assignment.category_id.as_str().to_string()),
+            non_human_assignment_status: self
+                .non_human_category
+                .map(|assignment| assignment.assignment_status.to_string()),
         }
     }
 }
@@ -254,6 +415,56 @@ mod tests {
             })
         );
         assert!(outcome.non_human_category.is_none());
+    }
+
+    #[test]
+    fn observed_summary_normalizes_request_outcome_for_compact_persistence() {
+        let outcome = RenderedRequestOutcome {
+            traffic_origin: TrafficOrigin::AdversarySim,
+            measurement_scope: MeasurementScope::DefenceFollowup,
+            route_action_family: RouteActionFamily::DefenceFollowup,
+            execution_mode: ExecutionMode::Enforced,
+            traffic_lane: Some(RequestOutcomeLane {
+                lane: TrafficLane::SuspiciousAutomation,
+                exactness: TelemetryExactness::Exact,
+                basis: TelemetryBasis::Policy,
+            }),
+            non_human_category: Some(NonHumanCategoryAssignment {
+                category_id: crate::runtime::non_human_taxonomy::NonHumanCategoryId::AutomatedBrowser,
+                assignment_status: "crosswalk_exact",
+            }),
+            outcome_class: RequestOutcomeClass::ShortCircuited,
+            response_kind: ResponseKind::Challenge,
+            http_status: 403,
+            response_bytes: 512,
+            forwarded_upstream_latency_ms: None,
+            forward_attempted: false,
+            forward_failure_class: None,
+            intended_action: None,
+            policy_source: PolicySource::DefenceFollowup,
+        };
+
+        let summary = outcome.observed_summary();
+
+        assert_eq!(summary.traffic_origin, "adversary_sim");
+        assert_eq!(summary.measurement_scope, "defence_followup");
+        assert_eq!(summary.route_action_family, "defence_followup");
+        assert_eq!(summary.execution_mode, "enforced");
+        assert_eq!(summary.outcome_class, "short_circuited");
+        assert_eq!(summary.response_kind, "challenge");
+        assert_eq!(summary.policy_source, "defence_followup");
+        assert_eq!(summary.http_status, 403);
+        assert_eq!(summary.traffic_lane.as_deref(), Some("suspicious_automation"));
+        assert_eq!(summary.lane_exactness.as_deref(), Some("exact"));
+        assert_eq!(summary.lane_basis.as_deref(), Some("policy"));
+        assert_eq!(
+            summary.non_human_category_id.as_deref(),
+            Some("automated_browser")
+        );
+        assert_eq!(
+            summary.non_human_assignment_status.as_deref(),
+            Some("crosswalk_exact")
+        );
     }
 
     #[test]
