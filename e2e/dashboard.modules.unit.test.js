@@ -2163,7 +2163,7 @@ test('refresh runtime seeds monitoring cursor from window end instead of replayi
   });
 });
 
-test('manual refresh bypasses monitoring cache while passive reasons honor cached baseline', { concurrency: false }, async () => {
+test('session restore reuses cached monitoring baseline but rehydrates fresh run telemetry in the background', { concurrency: false }, async () => {
   await withBrowserGlobals({}, async () => {
     const refreshModule = await importBrowserModule('dashboard/src/lib/runtime/dashboard-runtime-refresh.js');
     const storeModule = await importBrowserModule('dashboard/src/lib/state/dashboard-store.js');
@@ -2210,9 +2210,19 @@ test('manual refresh bypasses monitoring cache while passive reasons honor cache
     );
 
     let fullFetchCount = 0;
+    let resolveFreshFetchStarted;
+    let releaseFreshFetch;
+    const freshFetchStarted = new Promise((resolve) => {
+      resolveFreshFetchStarted = resolve;
+    });
+    const freshFetchGate = new Promise((resolve) => {
+      releaseFreshFetch = resolve;
+    });
     const apiClient = {
       async getMonitoring() {
         fullFetchCount += 1;
+        resolveFreshFetchStarted();
+        await freshFetchGate;
         return {
           summary: {},
           details: {
@@ -2262,14 +2272,21 @@ test('manual refresh bypasses monitoring cache while passive reasons honor cache
     });
 
     await runtime.refreshMonitoringTab('session-restored');
-    assert.equal(fullFetchCount, 0);
+    await freshFetchStarted;
+    assert.equal(fullFetchCount, 1);
     assert.equal(
       Number((store.getSnapshot('analytics') || {}).ban_count || 0),
       100
     );
+    releaseFreshFetch();
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    assert.equal(
+      Number((store.getSnapshot('analytics') || {}).ban_count || 0),
+      164
+    );
 
     await runtime.refreshMonitoringTab('manual-refresh');
-    assert.equal(fullFetchCount, 1);
+    assert.equal(fullFetchCount, 2);
     assert.equal(
       Number((store.getSnapshot('analytics') || {}).ban_count || 0),
       164

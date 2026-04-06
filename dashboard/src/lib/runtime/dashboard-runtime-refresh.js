@@ -607,28 +607,6 @@ export function createDashboardRefreshRuntime(options = {}) {
     }
 
     const dashboardState = getStateStore();
-    if (shouldReadFromCache(reason)) {
-      const cachedMonitoring = readCache(MONITORING_CACHE_KEY);
-      if (cachedMonitoring) {
-        const configSnapshot = dashboardState ? dashboardState.getSnapshot('config') : {};
-        const configRuntimeSnapshot = dashboardState ? dashboardState.getSnapshot('configRuntime') : {};
-        const monitoringData =
-          cachedMonitoring && typeof cachedMonitoring.monitoring === 'object'
-            ? cachedMonitoring.monitoring
-            : (cachedMonitoring && typeof cachedMonitoring === 'object'
-              ? cachedMonitoring
-              : {});
-        applySnapshots(buildMonitoringSnapshots(monitoringData, configSnapshot, configRuntimeSnapshot));
-        baselineState.monitoring = true;
-        if (dashboardState && dashboardState.getDerivedState().monitoringEmpty) {
-          showTabEmpty(surfaceTab, emptyMessage);
-        } else {
-          clearTabStateMessage(surfaceTab);
-        }
-        return;
-      }
-    }
-
     const requestOptions = toRequestOptions(runtimeOptions, {
       tab: surfaceTab,
       reason,
@@ -681,6 +659,48 @@ export function createDashboardRefreshRuntime(options = {}) {
         clearTabStateMessage(surfaceTab);
       }
     };
+    const fetchFullMonitoring = async () => {
+      const monitoringData = await dashboardApiClient.getMonitoring(
+        { hours: 24, limit: MONITORING_FULL_RECENT_EVENTS_LIMIT },
+        monitoringRequestOptions
+      );
+      applyMonitoringSnapshot(monitoringData, { writeCursor: false });
+      const shouldSeedCursor =
+        !shouldForceFullMonitoringSnapshot(reason) &&
+        typeof dashboardApiClient.getMonitoringDelta === 'function' &&
+        !cursorState.monitoring.trim();
+      if (shouldSeedCursor) {
+        seedCursorToWindowEndDeferred('monitoring', monitoringDeltaRequestOptions);
+      }
+    };
+    if (shouldReadFromCache(reason)) {
+      const cachedMonitoring = readCache(MONITORING_CACHE_KEY);
+      if (cachedMonitoring) {
+        const configSnapshot = dashboardState ? dashboardState.getSnapshot('config') : {};
+        const configRuntimeSnapshot = dashboardState ? dashboardState.getSnapshot('configRuntime') : {};
+        const monitoringData =
+          cachedMonitoring && typeof cachedMonitoring.monitoring === 'object'
+            ? cachedMonitoring.monitoring
+            : (cachedMonitoring && typeof cachedMonitoring === 'object'
+              ? cachedMonitoring
+              : {});
+        applySnapshots(buildMonitoringSnapshots(monitoringData, configSnapshot, configRuntimeSnapshot));
+        baselineState.monitoring = true;
+        if (dashboardState && dashboardState.getDerivedState().monitoringEmpty) {
+          showTabEmpty(surfaceTab, emptyMessage);
+        } else {
+          clearTabStateMessage(surfaceTab);
+        }
+        if (reason === 'session-restored') {
+          void fetchFullMonitoring()
+            .then(() => {
+              showMonitoringStateMessage();
+            })
+            .catch(() => {});
+        }
+        return;
+      }
+    }
     const handledBootstrapResult = (promise) =>
       promise
         .then((value) => ({ ok: true, value }))
@@ -703,21 +723,6 @@ export function createDashboardRefreshRuntime(options = {}) {
         })
         .catch(() => {});
     };
-    const fetchFullMonitoring = async () => {
-      const monitoringData = await dashboardApiClient.getMonitoring(
-        { hours: 24, limit: MONITORING_FULL_RECENT_EVENTS_LIMIT },
-        monitoringRequestOptions
-      );
-      applyMonitoringSnapshot(monitoringData, { writeCursor: false });
-      const shouldSeedCursor =
-        !shouldForceFullMonitoringSnapshot(reason) &&
-        typeof dashboardApiClient.getMonitoringDelta === 'function' &&
-        !cursorState.monitoring.trim();
-      if (shouldSeedCursor) {
-        seedCursorToWindowEndDeferred('monitoring', monitoringDeltaRequestOptions);
-      }
-    };
-
     const canUseBootstrap =
       !baselineState.monitoring &&
       typeof dashboardApiClient.getMonitoringBootstrap === 'function';
