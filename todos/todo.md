@@ -143,6 +143,7 @@ Reference context:
 - [`docs/plans/2026-03-24-scrapling-challenge-interaction-and-browser-expansion-plan.md`](../docs/plans/2026-03-24-scrapling-challenge-interaction-and-browser-expansion-plan.md)
 - [`docs/research/2026-03-24-game-loop-sequencing-require-attacker-faithful-scrapling-review.md`](../docs/research/2026-03-24-game-loop-sequencing-require-attacker-faithful-scrapling-review.md)
 - [`docs/plans/2026-03-24-game-loop-sequencing-require-attacker-faithful-scrapling-plan.md`](../docs/plans/2026-03-24-game-loop-sequencing-require-attacker-faithful-scrapling-plan.md)
+- [`docs/plans/2026-04-06-scrapling-0-4-4-upgrade-and-robots-policy-pin-plan.md`](../docs/plans/2026-04-06-scrapling-0-4-4-upgrade-and-robots-policy-pin-plan.md)
 - [`docs/plans/2026-03-24-recursive-self-improvement-game-loop-definition-and-move-selection-plan.md`](../docs/plans/2026-03-24-recursive-self-improvement-game-loop-definition-and-move-selection-plan.md)
 - [`docs/research/2026-03-24-rsi-game-mainline-first-working-loop-review.md`](../docs/research/2026-03-24-rsi-game-mainline-first-working-loop-review.md)
 - [`docs/plans/2026-03-24-rsi-game-mainline-first-working-loop-plan.md`](../docs/plans/2026-03-24-rsi-game-mainline-first-working-loop-plan.md)
@@ -220,6 +221,15 @@ Current note:
   - `bot_red_team` runtime receipts now contribute restriction-grade board loci,
   - and the next remaining blocker is projection truth: operator/admin and dashboard surfaces still need to distinguish judged mixed-attacker episodes from mere lane visibility.
 - Do not claim mixed-attacker strict-baseline proof from the new score spine alone; mixed-attacker proof projection and repeated retained improvement under mixed pressure still remain required.
+
+- [ ] SIM-SCR-OPS-044 Upgrade Scrapling runtime to `0.4.4` and explicitly pin adversary spider `robots_txt_obey = False`.
+  - Closure gate:
+    - upstream-truth: capture `v0.4.4` upstream deltas in a dated research note with authoritative release/docs references and an explicit adoption decision
+    - runtime-contract: `scripts/bootstrap/scrapling_runtime.sh` pins and readiness-checks exact `scrapling==0.4.4` with fail-closed behavior on mismatch
+    - attacker-faithfulness: crawler spider class in `scripts/supervisor/scrapling_worker.py` explicitly sets `robots_txt_obey = False` so adversary behavior does not silently drift if upstream defaults change
+    - proof-contract: focused tests fail on version-drift or robots-policy drift and pass on the implemented contract
+    - proof: `make setup-runtime`, `make test-setup-runtime-bootstrap`, `make test-adversary-sim-scrapling-worker`, `make test-adversary-sim-scrapling-browser-capability`, `make test-code-quality`
+    - insufficient: version bump without policy pin, policy pin without tests, or any change that shifts crawler behavior toward polite robots compliance without explicit attacker-faithfulness approval
 
 ## P0 Adversary Realism Environment Readiness
 
